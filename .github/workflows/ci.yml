@@ -24,7 +24,7 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # setup-node twice, on purpose: the pnpm cache asks `pnpm store path`
       # where the store is, so pnpm has to exist before caching is switched on,
@@ -54,7 +54,7 @@ jobs:
     # compile anywhere, but they are not worth a job of their own.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:

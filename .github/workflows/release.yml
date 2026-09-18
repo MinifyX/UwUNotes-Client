@@ -17,7 +17,7 @@ jobs:
       # Creating the release is the only thing here that writes anything.
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Before anything is compiled: an installer that reports a different
       # version than the tag it came from is a support problem forever, and a
