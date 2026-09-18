@@ -29,7 +29,7 @@ jobs:
       # and `@stable` is a branch, so an unpinned action is whatever that
       # repository's owner — or whoever takes their account — says it is on the
       # day the job runs. Dependabot keeps these current.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The token here is read-only, so this buys nothing today. It is the
           # house style so that the next workflow, which may not be, inherits
@@ -64,7 +64,7 @@ jobs:
     # compile anywhere, but they are not worth a job of their own.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 

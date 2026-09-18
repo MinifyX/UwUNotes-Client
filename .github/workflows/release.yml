@@ -23,7 +23,7 @@ jobs:
       # one holding a token that can write, so an action whose content is
       # "whatever that branch says today" is the one unpinned input left: both
       # lockfiles are committed and the install is `--frozen-lockfile`.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Otherwise checkout leaves the job's write-capable token in
           # `.git/config`, where every `build.rs` in the dependency graph and
