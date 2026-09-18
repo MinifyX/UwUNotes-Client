@@ -22,7 +22,7 @@ tracing = "0.1"
 # Encoding is the whole reason this app has a Rust side worth having:
 # encoding_rs does the actual decode/encode for every legacy code page,
 # chardetng guesses which one a file without a BOM is in.
-chardetng = "0.1"
+chardetng = "1.0"
 encoding_rs = "0.8"
 
 # Walking a project tree for "find in files": ignore respects .gitignore, so a
