@@ -4460,7 +4460,7 @@ dependencies = [
  "trash",
  "uwunotes-fs",
  "uwunotes-session",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4476,7 +4476,7 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
