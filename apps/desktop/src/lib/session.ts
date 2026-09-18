@@ -61,13 +61,25 @@ const SESSION_VERSION = 1;
 
 /* ── Restoring ─────────────────────────────────────────── */
 
+/** The one restore, kept so a second caller waits on it instead of starting another. */
+let restoring: Promise<void> | null = null;
+
 /**
  * Rebuilds the last window, or opens one empty buffer.
  *
- * Called once from `main.tsx` before React mounts, so the first paint already
- * has the right tabs in it.
+ * Idempotent on purpose. `App` starts this from an effect, and React's
+ * StrictMode runs an effect twice in development — a second restore would deal
+ * a second set of tabs on top of the first, which is how an empty start-up ends
+ * up showing `Neu 1` and `Neu 2` side by side. Handing every caller the same
+ * promise also means the start-up screen waits for the real thing rather than
+ * for a race between two of them.
  */
-export async function restoreSession(): Promise<void> {
+export function restoreSession(): Promise<void> {
+  restoring ??= restoreOnce();
+  return restoring;
+}
+
+async function restoreOnce(): Promise<void> {
   if (!getSettings().restoreSession) {
     newFile();
     return;

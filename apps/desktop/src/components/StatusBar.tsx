@@ -32,7 +32,7 @@ import { t, useLanguage } from '../lib/i18n';
 import { TAB_SIZES, updateSettings, useSettings } from '../lib/settings';
 import { activeView } from '../lib/views';
 import { activeDocId, useWorkspace } from '../lib/workspace';
-import { resolveLanguage } from '../editor/languages';
+import { PLAIN_TEXT, resolveLanguage } from '../editor/languages';
 import { pickGreeting } from './nyu/greetings';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
@@ -189,7 +189,11 @@ export function StatusBar() {
   };
 
   const language = meta ? resolveLanguage(meta) : null;
-  const languageName = language?.name ?? t('Unbekannt');
+  // No grammar matched is not the same as "we have no idea": the editor is
+  // treating the file as plain text, so that is what the field should say. A
+  // brand new buffer called `Neu 1` is the common case, and "Unbekannt" there
+  // reads like something went wrong.
+  const languageName = (language ?? PLAIN_TEXT).name;
 
   return (
     <footer className="statusbar">

@@ -24,9 +24,17 @@ pub(crate) async fn load_session(
     state: State<'_, AppState>,
 ) -> CommandResult<Option<StoredSession>> {
     let store = Arc::clone(&state.session);
-    tauri::async_runtime::spawn_blocking(move || store.load())
+    let session = tauri::async_runtime::spawn_blocking(move || store.load())
         .await
-        .map_err(|error| thread_stopped(&error))
+        .map_err(|error| thread_stopped(&error))?;
+    // The page restores once per window. Seeing this twice in a run means the
+    // restore ran twice, which shows up as a duplicated set of tabs.
+    tracing::info!(
+        documents = session.as_ref().map_or(0, |s| s.documents.len()),
+        found = session.is_some(),
+        "session load"
+    );
+    Ok(session)
 }
 
 #[tauri::command]
