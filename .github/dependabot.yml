@@ -1,14 +1,34 @@
 version: 2
 
+# Patch and minor arrive as one pull request per ecosystem. Ungrouped, a quiet
+# week still means a dozen branches, each with its own CI run, all of them
+# saying "bumps 6.4.1 to 6.4.2".
+#
+# Majors are ignored outright. Switching this file on produced eighteen of them
+# in one minute — TypeScript 5 to 7, Vite 5 to 8, React 18 to 19, thiserror 1 to
+# 2 — none of which is a thing you merge without reading a changelog, and all of
+# which would sit there going stale and re-running CI on every push. A major is
+# a small project of its own: do it deliberately, with
+# `pnpm update <name> --latest` or `cargo upgrade`, when there is a reason to.
+#
+# The cost is that a major carrying a security fix needs noticing by hand. For
+# an offline editor with no server and no network calls, that is a trade worth
+# making; if it ever grows one, revisit this.
+#
+# Written out per ecosystem rather than with a YAML anchor on purpose: this file
+# is validated against a schema that does not know about a top-level block to
+# anchor from, and a config Dependabot rejects is a config that silently does
+# nothing at all.
+
 updates:
-  # Patch and minor arrive as one pull request per ecosystem. Ungrouped, a quiet
-  # week still means a dozen branches, each with its own CI run, all of them
-  # saying "bumps 6.4.1 to 6.4.2". Majors stay on their own, because those are
-  # the ones worth reading.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     groups:
       actions:
         update-types:
@@ -26,6 +46,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     groups:
       root:
         update-types:
@@ -36,16 +60,27 @@ updates:
     directory: /apps/desktop
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     groups:
       desktop:
         update-types:
           - minor
           - patch
 
+  # Cargo counts a 0.x bump as a major, which is most of what the Rust side
+  # gets: encoding_rs and the grep crates have been 0.x for years. Those come
+  # through by hand with the rest.
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     groups:
       crates:
         update-types:
