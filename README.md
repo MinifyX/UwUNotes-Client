@@ -6,7 +6,7 @@
 
 <p align="center">
   The editor I build for myself, because every other one annoyed me. (◕‿◕✿)<br/>
-  Tabs · syntax highlighting · find in files · splits — in pink
+  Tabs · syntax highlighting · find in files · splits · macros — in pink
 </p>
 
 <p align="center">
@@ -65,6 +65,9 @@ today.
 - **Find in files.** Regex, whole word, include and exclude globs, `.gitignore`
   respected by default, results streaming in while the walk is still running.
   Replace touches only the files you already saw in the list.
+- **Macros, the way Notepad++ meant them.** Record a bit of editing, play it
+  back, play it back two hundred times, play it back until the end of the file.
+  One Ctrl+Z undoes the whole run.
 - **Nothing is lost when the app closes.** Unsaved buffers are written as drafts
   next to the session, so the window comes back the way you left it, split
   layout and caret positions included.
@@ -74,16 +77,30 @@ today.
   Settings → Tone → Neutral. Warnings and errors are never playful, in either
   tone.
 
-> **Status: 0.1.0, nothing has shipped.** There are no downloads, no installer
-> and no release. What exists is this repository: the Tauri shell, the Rust
-> file and session crates, the shared token package, and the TypeScript spine
-> the editor is being built on — documents, workspace, split layout, settings,
-> i18n and the whole IPC contract in
-> [`lib/api.ts`](apps/desktop/src/lib/api.ts).
+> **Status: 0.1.0, still nothing has shipped.** There are no downloads, no
+> installer and no release. What exists is this repository — the Tauri shell,
+> the Rust file and session crates, the shared token package, and the whole IPC
+> contract in [`lib/api.ts`](apps/desktop/src/lib/api.ts) — and what runs in it
+> is everything in the list above, plus the four things I kept reaching for
+> afterwards:
+>
+> - **Macros.** Record, play, play _n_ times, play to the end of the file. Save
+>   one under a name and give it a Ctrl shortcut and it stays.
+> - **Plugins that can bring commands.** The registry the bundled extras already
+>   used now takes palette commands as well as a CodeMirror extension, so a
+>   plugin can be nothing but commands — sort lines, change case, Base64. They
+>   are still compiled in rather than loaded from a folder;
+>   [docs/plugins.md](docs/plugins.md) says how to write one and what it may not
+>   do.
+> - **Themes you make yourself.** A theme here is a block of colours rather than
+>   code, so the editor can edit one: copy a bundled theme, change what annoys
+>   you, export it as JSON, paste in one somebody sent you.
+> - **Git marks in the gutter.** Added, changed and deleted lines straight out
+>   of `git diff`, next to the line numbers, in green and amber — never pink.
 >
 > If you want to look at it, you build it yourself. If you want to use it as
-> your editor, come back later. The [roadmap](docs/roadmap.md) is the wish list,
-> and it has no dates on purpose.
+> your editor, come back later. The [roadmap](docs/roadmap.md) is what is left,
+> and it still has no dates on purpose.
 
 ## Install
 
@@ -144,6 +161,8 @@ working on components, useless for anything that touches a file.
 - [Konzept](KONZEPT.md) — the full concept, in German
 - [Vision](docs/vision.md) — what I want UwUNotes to be and what it will never do
 - [Architecture](docs/architecture.md) — how the pieces fit together
+- [Plugins](docs/plugins.md) — how to write one, and the longer list of what one
+  is not allowed to do
 - [Design](docs/design.md) — colours, type, Nyu, tone of voice
 - [Roadmap](docs/roadmap.md) — my wish list, without dates
 

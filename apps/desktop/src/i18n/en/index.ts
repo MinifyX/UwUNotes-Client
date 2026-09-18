@@ -6,6 +6,7 @@
 import app from './app.json';
 import editor from './editor.json';
 import files from './files.json';
+import macros from './macros.json';
 import search from './search.json';
 import settings from './settings.json';
 
@@ -15,4 +16,5 @@ export const EN: Readonly<Record<string, string>> = {
   ...editor,
   ...search,
   ...settings,
+  ...macros,
 };

@@ -99,6 +99,11 @@ export function removePane(node: LayoutNode, target: PaneId): LayoutNode | null 
 
 /** Moves one divider. Which divider is addressed by the path taken to reach it. */
 export function setRatio(node: LayoutNode, path: SplitPath, ratio: number): LayoutNode {
+  // A ratio that is not a number is not a resize. `NaN` is what a divide by a
+  // zero-height box gives, and clamping it leaves it `NaN` — which would go
+  // into the tree, into the session file, and into a `flex` nobody can drag
+  // back. Leaving the split where it is says "that drag meant nothing".
+  if (!Number.isFinite(ratio)) return node;
   const clamped = Math.min(MAX_RATIO, Math.max(MIN_RATIO, ratio));
   if (node.kind !== 'split') return node;
   if (path.length === 0) return { ...node, ratio: clamped };
@@ -121,21 +126,51 @@ export function nextPane(node: LayoutNode, current: PaneId, back = false): PaneI
 }
 
 /**
+ * Deeper than this and it is not a window somebody arranged.
+ *
+ * Six nested splits is already a layout nobody can work in. The number is
+ * generous because the point is not to police taste; it is that the walk below
+ * is recursive, and a session file nested ten thousand deep would be a stack
+ * overflow rather than a rejected layout.
+ */
+const MAX_DEPTH = 64;
+
+/**
  * Checks a layout that came out of the session file.
  *
  * The session is JSON the user could have edited, so nothing is trusted: the
  * shape is walked, ratios are clamped, and any pane not in `known` is dropped.
  * A tree that ends up empty gives `null`, and the caller starts fresh.
+ *
+ * "Nothing is trusted" includes the shape of the walk itself — see
+ * {@link MAX_DEPTH} and the visited set in {@link walkLayout}. A sanitiser that
+ * can be made to throw is not one.
  */
 export function sanitizeLayout(raw: unknown, known: ReadonlySet<PaneId>): LayoutNode | null {
+  return walkLayout(raw, known, new Set(), 0);
+}
+
+function walkLayout(
+  raw: unknown,
+  known: ReadonlySet<PaneId>,
+  visited: Set<object>,
+  depth: number,
+): LayoutNode | null {
+  if (depth > MAX_DEPTH) return null;
   if (typeof raw !== 'object' || raw === null) return null;
+  // JSON has no way of writing the same object twice, so a node we have already
+  // been through is a node that reaches itself. Dropping it is what stops the
+  // walk; the sibling takes the space, as it does for any unusable node.
+  if (visited.has(raw)) return null;
+  visited.add(raw);
+
   const node = raw as Record<string, unknown>;
   if (node.kind === 'pane') {
     return typeof node.id === 'string' && known.has(node.id) ? { kind: 'pane', id: node.id } : null;
   }
   if (node.kind !== 'split') return null;
-  const first = sanitizeLayout(node.first, known);
-  const second = sanitizeLayout(node.second, known);
+  const first = walkLayout(node.first, known, visited, depth + 1);
+  const second = walkLayout(node.second, known, visited, depth + 1);
   if (!first) return second;
   if (!second) return first;
   const ratio = typeof node.ratio === 'number' && Number.isFinite(node.ratio) ? node.ratio : 0.5;

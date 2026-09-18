@@ -15,10 +15,16 @@
  * `editor/extensions/registry.ts` owns that, stores only the deviations from
  * each plugin's default, and announces its own changes. See its module comment
  * for why, and see this file's report for why no field was added here.
+ *
+ * Two sections show things this file does not own and cannot change: the saved
+ * macros and the plugins' commands. They are here because a feature that can
+ * only be found by typing its name into the palette is a feature for people who
+ * already know it exists. Both are read-only lists with a way through to the
+ * place that does own them.
  */
 
-import { useId, useMemo, useSyncExternalStore, type ReactNode } from 'react';
-import { closeDialog, useUiState } from '../lib/commands';
+import { useId, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { closeDialog, openDialog, useUiState } from '../lib/commands';
 import {
   ENCODINGS,
   encodingGroupName,
@@ -29,6 +35,7 @@ import {
   type EncodingGroup,
 } from '../lib/encodings';
 import { t } from '../lib/i18n';
+import { macroLabel, useMacros } from '../lib/macros';
 import { ask } from '../lib/prompt';
 import {
   AUTOSAVE_CHOICES,
@@ -41,6 +48,8 @@ import {
   useSettings,
   type Settings,
 } from '../lib/settings';
+import { macroShortcutText, shortcutLabel } from '../lib/shortcuts';
+import { duplicateTheme, useUserThemes } from '../lib/user-themes';
 import {
   allPlugins,
   pluginEnabled,
@@ -49,8 +58,9 @@ import {
   type UwuPlugin,
 } from '../editor/extensions/registry';
 import { reconfigureAllDocs } from '../editor/setup';
-import { THEMES } from '../editor/themes';
+import { allThemes, themeById, THEMES, type EditorTheme } from '../editor/themes';
 import { Modal } from './Modal';
+import { ThemeEditor } from './ThemeEditor';
 
 /** A plain preference: nothing in an `EditorState` depends on it. */
 function write(patch: Partial<Settings>) {
@@ -79,6 +89,21 @@ export function SettingsDialog() {
 function SettingsBody() {
   const settings = useSettings();
   const plugins = usePlugins();
+  const themes = useEditorThemes();
+  const { macros } = useMacros();
+  /** Which theme the theme editor is open on, or `null` for nothing at all. */
+  const [editingTheme, setEditingTheme] = useState<{ id: string | null } | null>(null);
+
+  // Not `settings.editorTheme`: an id whose theme has been deleted still
+  // resolves to the house theme in the editor, and a picker showing something
+  // other than what is on screen is worse than a picker that moved.
+  const currentTheme = themeById(settings.editorTheme);
+
+  const duplicateCurrent = () => {
+    const id = duplicateTheme(currentTheme, t('{name} Kopie', { name: currentTheme.name }));
+    writeEditor({ editorTheme: id });
+    setEditingTheme({ id });
+  };
 
   const resetEverything = async () => {
     const answer = await ask(
@@ -98,291 +123,370 @@ function SettingsBody() {
   };
 
   return (
-    <Modal title={t('Einstellungen')} onClose={closeDialog} wide>
-      <div className="settings">
-        <Section title={t('Erscheinungsbild')}>
-          <ChoiceField
-            label={t('Farbschema')}
-            value={settings.theme}
-            options={[
-              { value: 'system', label: t('System') },
-              { value: 'light', label: t('Hell') },
-              { value: 'dark', label: t('Dunkel') },
-            ]}
-            onChange={(theme) => write({ theme })}
-          />
-          <SelectField
-            label={t('Editor-Theme')}
-            hint={t('Färbt nur den Text, nicht die Oberfläche.')}
-            value={settings.editorTheme}
-            options={EDITOR_THEMES.map((theme) => ({ value: theme.id, label: theme.name }))}
-            onChange={(editorTheme) => writeEditor({ editorTheme })}
-          />
-          <ChoiceField
-            label={t('Sprache')}
-            value={settings.language}
-            options={[
-              { value: 'system', label: t('System') },
-              { value: 'de', label: 'Deutsch' },
-              { value: 'en', label: 'English' },
-            ]}
-            onChange={(language) => write({ language })}
-          />
-          <ChoiceField
-            label={t('Animationen')}
-            hint={t('„System“ folgt der Einstellung für reduzierte Bewegung.')}
-            value={settings.motion}
-            options={[
-              { value: 'system', label: t('System') },
-              { value: 'on', label: t('An') },
-              { value: 'off', label: t('Aus') },
-            ]}
-            onChange={(motion) => write({ motion })}
-          />
-          <ChoiceField
-            label={t('Tonfall')}
-            hint={t('„Sachlich“ behält Nyu und lässt ihre Sprüche weg.')}
-            value={settings.tone}
-            options={[
-              { value: 'playful', label: t('Verspielt') },
-              { value: 'neutral', label: t('Sachlich') },
-            ]}
-            onChange={(tone) => write({ tone })}
-          />
-        </Section>
+    <>
+      <Modal title={t('Einstellungen')} onClose={closeDialog} wide>
+        <div className="settings">
+          <Section title={t('Erscheinungsbild')}>
+            <ChoiceField
+              label={t('Farbschema')}
+              value={settings.theme}
+              options={[
+                { value: 'system', label: t('System') },
+                { value: 'light', label: t('Hell') },
+                { value: 'dark', label: t('Dunkel') },
+              ]}
+              onChange={(theme) => write({ theme })}
+            />
+            <ThemeField
+              value={currentTheme.id}
+              themes={themes}
+              onChange={(editorTheme) => writeEditor({ editorTheme })}
+              onEdit={() => setEditingTheme({ id: currentTheme.id })}
+              onDuplicate={duplicateCurrent}
+              onImport={() => setEditingTheme({ id: null })}
+            />
+            <ChoiceField
+              label={t('Sprache')}
+              value={settings.language}
+              options={[
+                { value: 'system', label: t('System') },
+                { value: 'de', label: 'Deutsch' },
+                { value: 'en', label: 'English' },
+              ]}
+              onChange={(language) => write({ language })}
+            />
+            <ChoiceField
+              label={t('Animationen')}
+              hint={t('„System“ folgt der Einstellung für reduzierte Bewegung.')}
+              value={settings.motion}
+              options={[
+                { value: 'system', label: t('System') },
+                { value: 'on', label: t('An') },
+                { value: 'off', label: t('Aus') },
+              ]}
+              onChange={(motion) => write({ motion })}
+            />
+            <ChoiceField
+              label={t('Tonfall')}
+              hint={t('„Sachlich“ behält Nyu und lässt ihre Sprüche weg.')}
+              value={settings.tone}
+              options={[
+                { value: 'playful', label: t('Verspielt') },
+                { value: 'neutral', label: t('Sachlich') },
+              ]}
+              onChange={(tone) => write({ tone })}
+            />
+          </Section>
 
-        <Section title={t('Schrift')}>
-          <FontField
-            value={settings.fontFamily}
-            onChange={(fontFamily) => writeEditor({ fontFamily })}
-          />
-          <NumberField
-            label={t('Schriftgröße')}
-            value={settings.fontSize}
-            min={FONT_SIZE_MIN}
-            max={FONT_SIZE_MAX}
-            step={1}
-            unit="px"
-            onChange={(fontSize) => writeEditor({ fontSize })}
-          />
-          <RangeField
-            label={t('Zeilenhöhe')}
-            value={settings.lineHeight}
-            min={1}
-            max={3}
-            step={0.05}
-            format={(value) => value.toFixed(2)}
-            onChange={(lineHeight) => writeEditor({ lineHeight })}
-          />
-          <SwitchField
-            label={t('Ligaturen')}
-            hint={t('Aus Zeichenpaaren wie != wird ein einzelnes Zeichen.')}
-            checked={settings.ligatures}
-            onChange={(ligatures) => writeEditor({ ligatures })}
-          />
-        </Section>
+          <Section title={t('Schrift')}>
+            <FontField
+              value={settings.fontFamily}
+              onChange={(fontFamily) => writeEditor({ fontFamily })}
+            />
+            <NumberField
+              label={t('Schriftgröße')}
+              value={settings.fontSize}
+              min={FONT_SIZE_MIN}
+              max={FONT_SIZE_MAX}
+              step={1}
+              unit="px"
+              onChange={(fontSize) => writeEditor({ fontSize })}
+            />
+            <RangeField
+              label={t('Zeilenhöhe')}
+              value={settings.lineHeight}
+              min={1}
+              max={3}
+              step={0.05}
+              format={(value) => value.toFixed(2)}
+              onChange={(lineHeight) => writeEditor({ lineHeight })}
+            />
+            <SwitchField
+              label={t('Ligaturen')}
+              hint={t('Aus Zeichenpaaren wie != wird ein einzelnes Zeichen.')}
+              checked={settings.ligatures}
+              onChange={(ligatures) => writeEditor({ ligatures })}
+            />
+          </Section>
 
-        <Section title={t('Editor')}>
-          <SelectField
-            label={t('Tabbreite')}
-            value={settings.tabSize}
-            options={TAB_SIZES.map((size) => ({ value: size, label: String(size) }))}
-            onChange={(tabSize) => writeEditor({ tabSize })}
-          />
-          <SwitchField
-            label={t('Mit Leerzeichen einrücken')}
-            hint={t('Aus schreibt echte Tabulatoren — was ein Makefile braucht.')}
-            checked={settings.insertSpaces}
-            onChange={(insertSpaces) => writeEditor({ insertSpaces })}
-          />
-          <ChoiceField
-            label={t('Zeilenumbruch')}
-            value={settings.wrap}
-            options={[
-              { value: 'off', label: t('Aus') },
-              { value: 'window', label: t('Am Fensterrand') },
-            ]}
-            onChange={(wrap) => writeEditor({ wrap })}
-          />
-          <ChoiceField
-            label={t('Cursorform')}
-            value={settings.caretStyle}
-            options={[
-              { value: 'line', label: t('Strich') },
-              { value: 'block', label: t('Block') },
-              { value: 'underline', label: t('Unterstrich') },
-            ]}
-            onChange={(caretStyle) => writeEditor({ caretStyle })}
-          />
-          <SwitchField
-            label={t('Cursor blinkt')}
-            hint={t('Ein blinkender Cursor kann Migräne und Anfälle auslösen.')}
-            checked={settings.caretBlink}
-            onChange={(caretBlink) => writeEditor({ caretBlink })}
-          />
-          <SwitchField
-            label={t('Zeilennummern')}
-            checked={settings.lineNumbers}
-            onChange={(lineNumbers) => writeEditor({ lineNumbers })}
-          />
-          <SwitchField
-            label={t('Minimap')}
-            checked={settings.minimap}
-            onChange={(minimap) => writeEditor({ minimap })}
-          />
-          <SwitchField
-            label={t('Einrückungslinien')}
-            checked={settings.indentGuides}
-            onChange={(indentGuides) => writeEditor({ indentGuides })}
-          />
-          <SwitchField
-            label={t('Aktive Zeile hervorheben')}
-            checked={settings.highlightActiveLine}
-            onChange={(highlightActiveLine) => writeEditor({ highlightActiveLine })}
-          />
-          <SwitchField
-            label={t('Leerzeichen anzeigen')}
-            hint={t('Punkte für Leerzeichen, Pfeile für Tabulatoren.')}
-            checked={settings.showWhitespace}
-            onChange={(showWhitespace) => writeEditor({ showWhitespace })}
-          />
-          <SwitchField
-            label={t('Randlinie')}
-            checked={settings.printMargin}
-            onChange={(printMargin) => writeEditor({ printMargin })}
-          />
-          <NumberField
-            label={t('Randlinie bei Spalte')}
-            value={settings.printMarginColumn}
-            min={20}
-            max={400}
-            step={1}
-            disabled={!settings.printMargin}
-            onChange={(printMarginColumn) => writeEditor({ printMarginColumn })}
-          />
-          <SwitchField
-            label={t('Klammerpaare hervorheben')}
-            checked={settings.bracketMatching}
-            onChange={(bracketMatching) => writeEditor({ bracketMatching })}
-          />
-          <SwitchField
-            label={t('Klammern automatisch schließen')}
-            checked={settings.closeBrackets}
-            onChange={(closeBrackets) => writeEditor({ closeBrackets })}
-          />
-          <SwitchField
-            label={t('Autovervollständigung')}
-            checked={settings.autocomplete}
-            onChange={(autocomplete) => writeEditor({ autocomplete })}
-          />
-          <SwitchField
-            label={t('Gleiche Wörter markieren')}
-            hint={t('Jedes weitere Vorkommen des Worts unter dem Cursor bekommt einen Kasten.')}
-            checked={settings.highlightSelectionMatches}
-            onChange={(highlightSelectionMatches) => writeEditor({ highlightSelectionMatches })}
-          />
-        </Section>
+          <Section title={t('Editor')}>
+            <SelectField
+              label={t('Tabbreite')}
+              value={settings.tabSize}
+              options={TAB_SIZES.map((size) => ({ value: size, label: String(size) }))}
+              onChange={(tabSize) => writeEditor({ tabSize })}
+            />
+            <SwitchField
+              label={t('Mit Leerzeichen einrücken')}
+              hint={t('Aus schreibt echte Tabulatoren — was ein Makefile braucht.')}
+              checked={settings.insertSpaces}
+              onChange={(insertSpaces) => writeEditor({ insertSpaces })}
+            />
+            <ChoiceField
+              label={t('Zeilenumbruch')}
+              value={settings.wrap}
+              options={[
+                { value: 'off', label: t('Aus') },
+                { value: 'window', label: t('Am Fensterrand') },
+              ]}
+              onChange={(wrap) => writeEditor({ wrap })}
+            />
+            <ChoiceField
+              label={t('Cursorform')}
+              value={settings.caretStyle}
+              options={[
+                { value: 'line', label: t('Strich') },
+                { value: 'block', label: t('Block') },
+                { value: 'underline', label: t('Unterstrich') },
+              ]}
+              onChange={(caretStyle) => writeEditor({ caretStyle })}
+            />
+            <SwitchField
+              label={t('Cursor blinkt')}
+              hint={t('Ein blinkender Cursor kann Migräne und Anfälle auslösen.')}
+              checked={settings.caretBlink}
+              onChange={(caretBlink) => writeEditor({ caretBlink })}
+            />
+            <SwitchField
+              label={t('Zeilennummern')}
+              checked={settings.lineNumbers}
+              onChange={(lineNumbers) => writeEditor({ lineNumbers })}
+            />
+            <SwitchField
+              label={t('Minimap')}
+              checked={settings.minimap}
+              onChange={(minimap) => writeEditor({ minimap })}
+            />
+            <SwitchField
+              label={t('Einrückungslinien')}
+              checked={settings.indentGuides}
+              onChange={(indentGuides) => writeEditor({ indentGuides })}
+            />
+            <SwitchField
+              label={t('Aktive Zeile hervorheben')}
+              checked={settings.highlightActiveLine}
+              onChange={(highlightActiveLine) => writeEditor({ highlightActiveLine })}
+            />
+            <SwitchField
+              label={t('Leerzeichen anzeigen')}
+              hint={t('Punkte für Leerzeichen, Pfeile für Tabulatoren.')}
+              checked={settings.showWhitespace}
+              onChange={(showWhitespace) => writeEditor({ showWhitespace })}
+            />
+            <SwitchField
+              label={t('Randlinie')}
+              checked={settings.printMargin}
+              onChange={(printMargin) => writeEditor({ printMargin })}
+            />
+            <NumberField
+              label={t('Randlinie bei Spalte')}
+              value={settings.printMarginColumn}
+              min={20}
+              max={400}
+              step={1}
+              disabled={!settings.printMargin}
+              onChange={(printMarginColumn) => writeEditor({ printMarginColumn })}
+            />
+            <SwitchField
+              label={t('Klammerpaare hervorheben')}
+              checked={settings.bracketMatching}
+              onChange={(bracketMatching) => writeEditor({ bracketMatching })}
+            />
+            <SwitchField
+              label={t('Klammern automatisch schließen')}
+              checked={settings.closeBrackets}
+              onChange={(closeBrackets) => writeEditor({ closeBrackets })}
+            />
+            <SwitchField
+              label={t('Autovervollständigung')}
+              checked={settings.autocomplete}
+              onChange={(autocomplete) => writeEditor({ autocomplete })}
+            />
+            <SwitchField
+              label={t('Gleiche Wörter markieren')}
+              hint={t('Jedes weitere Vorkommen des Worts unter dem Cursor bekommt einen Kasten.')}
+              checked={settings.highlightSelectionMatches}
+              onChange={(highlightSelectionMatches) => writeEditor({ highlightSelectionMatches })}
+            />
+          </Section>
 
-        <Section title={t('Speichern')}>
-          <SwitchField
-            label={t('Leerzeichen am Zeilenende entfernen')}
-            hint={t('Beim Speichern, im Text und im Editor gleichzeitig.')}
-            checked={settings.trimTrailingWhitespaceOnSave}
-            onChange={(trimTrailingWhitespaceOnSave) => write({ trimTrailingWhitespaceOnSave })}
-          />
-          <SwitchField
-            label={t('Datei mit einem Zeilenumbruch beenden')}
-            checked={settings.ensureFinalNewlineOnSave}
-            onChange={(ensureFinalNewlineOnSave) => write({ ensureFinalNewlineOnSave })}
-          />
-          <SelectField
-            label={t('Automatisch speichern')}
-            hint={t('Nur Dateien, die schon einen Pfad haben und nichts zu fragen aufwerfen.')}
-            value={settings.autosaveSeconds}
-            options={AUTOSAVE_CHOICES.map((seconds) => ({
-              value: seconds,
-              label: autosaveLabel(seconds),
-            }))}
-            onChange={(autosaveSeconds) => write({ autosaveSeconds })}
-          />
-          <EncodingField
-            label={t('Kodierung für neue Dateien')}
-            value={settings.defaultEncoding}
-            onChange={(defaultEncoding) => write({ defaultEncoding })}
-          />
-          <ChoiceField
-            label={t('Zeilenenden für neue Dateien')}
-            value={settings.defaultEol}
-            options={NEW_FILE_EOLS.map((eol) => ({ value: eol, label: eolName(eol) }))}
-            onChange={(defaultEol) => write({ defaultEol })}
-          />
-        </Section>
+          <Section title={t('Speichern')}>
+            <SwitchField
+              label={t('Leerzeichen am Zeilenende entfernen')}
+              hint={t('Beim Speichern, im Text und im Editor gleichzeitig.')}
+              checked={settings.trimTrailingWhitespaceOnSave}
+              onChange={(trimTrailingWhitespaceOnSave) => write({ trimTrailingWhitespaceOnSave })}
+            />
+            <SwitchField
+              label={t('Datei mit einem Zeilenumbruch beenden')}
+              checked={settings.ensureFinalNewlineOnSave}
+              onChange={(ensureFinalNewlineOnSave) => write({ ensureFinalNewlineOnSave })}
+            />
+            <SelectField
+              label={t('Automatisch speichern')}
+              hint={t('Nur Dateien, die schon einen Pfad haben und nichts zu fragen aufwerfen.')}
+              value={settings.autosaveSeconds}
+              options={AUTOSAVE_CHOICES.map((seconds) => ({
+                value: seconds,
+                label: autosaveLabel(seconds),
+              }))}
+              onChange={(autosaveSeconds) => write({ autosaveSeconds })}
+            />
+            <EncodingField
+              label={t('Kodierung für neue Dateien')}
+              value={settings.defaultEncoding}
+              onChange={(defaultEncoding) => write({ defaultEncoding })}
+            />
+            <ChoiceField
+              label={t('Zeilenenden für neue Dateien')}
+              value={settings.defaultEol}
+              options={NEW_FILE_EOLS.map((eol) => ({ value: eol, label: eolName(eol) }))}
+              onChange={(defaultEol) => write({ defaultEol })}
+            />
+          </Section>
 
-        <Section title={t('Verhalten')}>
-          <SwitchField
-            label={t('Sitzung wiederherstellen')}
-            hint={t('Tabs, Splitlayout, Cursorpositionen und ungespeicherte Texte.')}
-            checked={settings.restoreSession}
-            onChange={(restoreSession) => write({ restoreSession })}
-          />
-          <SwitchField
-            label={t('Git-Marker')}
-            hint={t('Färbt geänderte Dateien im Dateibaum und auf dem Tab.')}
-            checked={settings.gitIndicators}
-            onChange={(gitIndicators) => write({ gitIndicators })}
-          />
-          <SwitchField
-            label={t('Töne')}
-            hint={t('Ein kurzer Ton beim Speichern und beim Fehler.')}
-            checked={settings.sounds}
-            onChange={(sounds) => write({ sounds })}
-          />
-          <RangeField
-            label={t('Lautstärke')}
-            value={settings.soundVolume}
-            min={0}
-            max={1}
-            step={0.05}
-            disabled={!settings.sounds}
-            format={(value) => `${Math.round(value * 100)} %`}
-            onChange={(soundVolume) => write({ soundVolume })}
-          />
-        </Section>
+          <Section title={t('Verhalten')}>
+            <SwitchField
+              label={t('Sitzung wiederherstellen')}
+              hint={t('Tabs, Splitlayout, Cursorpositionen und ungespeicherte Texte.')}
+              checked={settings.restoreSession}
+              onChange={(restoreSession) => write({ restoreSession })}
+            />
+            <SwitchField
+              label={t('Git-Marker')}
+              hint={t('Färbt geänderte Dateien im Dateibaum und auf dem Tab.')}
+              checked={settings.gitIndicators}
+              onChange={(gitIndicators) => write({ gitIndicators })}
+            />
+            <SwitchField
+              label={t('Git-Marker am Zeilenrand')}
+              hint={t(
+                'Zeigt neben jeder Zeile, was sich seit dem letzten Commit geändert hat. Kostet einen Git-Aufruf pro Datei.',
+              )}
+              checked={settings.gitGutter}
+              onChange={(gitGutter) => write({ gitGutter })}
+            />
+            <SwitchField
+              label={t('Töne')}
+              hint={t('Ein kurzer Ton beim Speichern und beim Fehler.')}
+              checked={settings.sounds}
+              onChange={(sounds) => write({ sounds })}
+            />
+            <RangeField
+              label={t('Lautstärke')}
+              value={settings.soundVolume}
+              min={0}
+              max={1}
+              step={0.05}
+              disabled={!settings.sounds}
+              format={(value) => `${Math.round(value * 100)} %`}
+              onChange={(soundVolume) => write({ soundVolume })}
+            />
+          </Section>
 
-        <Section title={t('Erweiterungen')}>
-          {plugins.length === 0 ? (
-            <p className="settings-empty">{t('Keine Erweiterungen installiert.')}</p>
-          ) : (
-            plugins.map((plugin) => (
-              <SwitchField
-                key={plugin.id}
-                // Name and description are `N_()` constants in the plugin's own
-                // module; the registry's contract is that the UI translates them.
-                label={t(plugin.name)}
-                hint={t(plugin.description)}
-                checked={pluginEnabled(plugin.id)}
-                onChange={(on) => setPluginEnabled(plugin.id, on)}
+          <Section title={t('Makros')}>
+            {macros.length === 0 ? (
+              <p className="settings-empty">{t('Noch keine Makros gespeichert.')}</p>
+            ) : (
+              <ul className="settings-macro-list">
+                {macros.map((macro) => (
+                  <li key={macro.id} className="settings-macro">
+                    <span className="settings-macro-name">{macroLabel(macro)}</span>
+                    <span className="settings-macro-steps">
+                      {t('{count} Schritte', { count: macro.steps.length })}
+                    </span>
+                    {macro.shortcut ? (
+                      <kbd className="settings-macro-keys">{macroShortcutText(macro.shortcut)}</kbd>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ul className="settings-command-list">
+              <CommandRow
+                label={t('Makro aufzeichnen')}
+                keys={shortcutLabel('macro.toggleRecording')}
               />
-            ))
-          )}
-        </Section>
+              <CommandRow
+                label={t('Letztes Makro abspielen')}
+                keys={shortcutLabel('macro.playLast')}
+              />
+            </ul>
+            {/* There is one dialog slot, so this closes the settings page rather
+              than covering it. That is the right way round: managing macros is
+              somewhere you go, not something you glance at. */}
+            <button
+              type="button"
+              className="settings-macro-manage"
+              onClick={() => openDialog('macros')}
+            >
+              {t('Makros verwalten…')}
+            </button>
+          </Section>
 
-        <footer className="settings-footer">
-          <p className="settings-footer-note">
-            {t('Änderungen gelten sofort. Es gibt nichts zu bestätigen.')}
-          </p>
-          <button type="button" className="settings-reset" onClick={() => void resetEverything()}>
-            {t('Alles zurücksetzen')}
-          </button>
-        </footer>
-      </div>
-    </Modal>
+          <Section title={t('Erweiterungen')}>
+            {plugins.length === 0 ? (
+              <p className="settings-empty">{t('Keine Erweiterungen installiert.')}</p>
+            ) : (
+              plugins.map((plugin) => (
+                <div key={plugin.id} className="settings-plugin">
+                  <SwitchField
+                    // Name and description are `N_()` constants in the plugin's own
+                    // module; the registry's contract is that the UI translates them.
+                    label={t(plugin.name)}
+                    hint={t(plugin.description)}
+                    checked={pluginEnabled(plugin.id)}
+                    onChange={(on) => setPluginEnabled(plugin.id, on)}
+                  />
+                  {/* `plugin.commands`, not `pluginCommands()`: that one filters by
+                    what is enabled, and the question this list answers is what
+                    turning the switch on would give you. */}
+                  {plugin.commands && plugin.commands.length > 0 ? (
+                    <ul className="settings-command-list">
+                      {plugin.commands.map((command) => (
+                        <CommandRow key={command.id} label={command.title()} keys={undefined} />
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </Section>
+
+          <footer className="settings-footer">
+            <p className="settings-footer-note">
+              {t('Änderungen gelten sofort. Es gibt nichts zu bestätigen.')}
+            </p>
+            <button type="button" className="settings-reset" onClick={() => void resetEverything()}>
+              {t('Alles zurücksetzen')}
+            </button>
+          </footer>
+        </div>
+      </Modal>
+      {/* A sibling rather than a child, so the focus trap stacks it on top of
+        this dialog: the theme editor is the overlay Escape should answer while
+        it is open, and the settings page is still there underneath. */}
+      {editingTheme ? (
+        <ThemeEditor themeId={editingTheme.id} onClose={() => setEditingTheme(null)} />
+      ) : null}
+    </>
   );
 }
 
 /* ── Odds and ends the sections need ───────────────────── */
 
-const EDITOR_THEMES = THEMES;
+/**
+ * The built-in themes and the user's own, redrawn when one of the latter
+ * changes.
+ *
+ * `useUserThemes()` is here for its subscription as much as its value: the list
+ * it returns is replaced on every change, so it is also the only dependency
+ * `allThemes()` has.
+ */
+function useEditorThemes(): EditorTheme[] {
+  const mine = useUserThemes();
+  return useMemo(() => allThemes(), [mine]);
+}
 
 /** `Settings.defaultEol` is narrower than `Eol`: a new file is never CR-only. */
 const NEW_FILE_EOLS = EOLS.filter((eol): eol is 'lf' | 'crlf' => eol !== 'cr');
@@ -429,6 +533,85 @@ function Hint({ id, text }: { id: string; text: string | undefined }) {
     <p className="settings-hint" id={id}>
       {text}
     </p>
+  );
+}
+
+/** A command the user might not know about, and the keys it sits on. */
+function CommandRow({ label, keys }: { label: string; keys: string | undefined }) {
+  return (
+    <li className="settings-command">
+      <span className="settings-command-name">{label}</span>
+      {keys ? <kbd className="settings-command-keys">{keys}</kbd> : null}
+    </li>
+  );
+}
+
+type ThemeFieldProps = {
+  value: string;
+  themes: readonly EditorTheme[];
+  onChange: (id: string) => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onImport: () => void;
+};
+
+/**
+ * The theme picker, plus the three ways to end up with one of your own.
+ *
+ * Its own field rather than a {@link SelectField}, because the two halves of
+ * the list need saying apart: a theme called "UwU Paper 2" that somebody made
+ * last Tuesday sitting unmarked between two we ship is a support question.
+ *
+ * "Bearbeiten…" is never disabled, even on a built-in. The theme editor answers
+ * that case with an offer to copy it, which is what the user wanted anyway and
+ * one button rather than a greyed-out one and a sentence explaining itself.
+ */
+function ThemeField({ value, themes, onChange, onEdit, onDuplicate, onImport }: ThemeFieldProps) {
+  const id = useId();
+  const custom = themes.filter((theme) => !THEMES.some((shipped) => shipped.id === theme.id));
+
+  return (
+    <div className="settings-field settings-field-theme">
+      <label className="settings-label" htmlFor={id}>
+        {t('Editor-Theme')}
+      </label>
+      <select
+        id={id}
+        className="settings-select"
+        value={value}
+        aria-describedby={`${id}-hint`}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <optgroup label={t('Mitgeliefert')}>
+          {THEMES.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.name}
+            </option>
+          ))}
+        </optgroup>
+        {custom.length > 0 ? (
+          <optgroup label={t('Eigene')}>
+            {custom.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {theme.name || t('Theme ohne Namen')}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+      </select>
+      <div className="settings-theme-actions">
+        <button type="button" className="settings-theme-edit" onClick={onEdit}>
+          {t('Bearbeiten…')}
+        </button>
+        <button type="button" className="settings-theme-duplicate" onClick={onDuplicate}>
+          {t('Duplizieren')}
+        </button>
+        <button type="button" className="settings-theme-import" onClick={onImport}>
+          {t('Importieren…')}
+        </button>
+      </div>
+      <Hint id={`${id}-hint`} text={t('Färbt nur den Text, nicht die Oberfläche.')} />
+    </div>
   );
 }
 

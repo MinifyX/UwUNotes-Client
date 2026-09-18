@@ -279,6 +279,21 @@ export type GitStatuses = {
 /** `null` when the folder is not in a repository, or git is not installed. */
 export const gitStatuses = (root: string) => invoke<GitStatuses | null>('git_statuses', { root });
 
+/** One run of changed lines, numbered in the file as it is on disk now. */
+export type GitHunk = {
+  kind: 'added' | 'modified' | 'deleted';
+  /**
+   * 1-based. For `deleted` it is the line the removal sits *after* — 0 when the
+   * removed lines were at the very top of the file.
+   */
+  fromLine: number;
+  /** Always 1 for `deleted`: the lines are gone, so there is nothing to cover. */
+  lineCount: number;
+};
+
+/** `null` when the file is untracked, unchanged, or not in a repository at all. */
+export const gitFileDiff = (path: string) => invoke<GitHunk[] | null>('git_file_diff', { path });
+
 /* ── System ────────────────────────────────────────────── */
 
 export type AppInfo = { version: string; platform: string; configDir: string };

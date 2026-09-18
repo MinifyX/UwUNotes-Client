@@ -1,5 +1,5 @@
-//! The letters next to file names in the tree, when the folder happens to be a
-//! git repository.
+//! The letters next to file names in the tree, and the bars next to the lines,
+//! when the folder happens to be a git repository.
 //!
 //! This is a nicety and behaves like one: it shells out to whatever `git` is on
 //! the PATH, and every way that can go wrong — no git installed, not a
@@ -160,6 +160,91 @@ const fn classify(index: u8, worktree: u8) -> GitFileStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum GitHunkKind {
+    Added,
+    Modified,
+    Deleted,
+}
+
+/// One run of changed lines, numbered in the file as it is on disk now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitHunk {
+    kind: GitHunkKind,
+    /// 1-based. For `Deleted` it is the line the removal sits *after*, which is
+    /// 0 when the removed lines were at the very top of the file.
+    from_line: u32,
+    /// Always 1 for `Deleted`: nothing on that line is gone, the gap below it is.
+    line_count: u32,
+}
+
+/// What `git diff` has to say about one file, line by line.
+///
+/// `None` covers no git, no repository, an untracked file and a file with no
+/// changes alike, because the gutter draws exactly the same nothing for all
+/// four and the page has no decision to make between them.
+#[tauri::command]
+pub(crate) async fn git_file_diff(path: String) -> Option<Vec<GitHunk>> {
+    tauri::async_runtime::spawn_blocking(move || file_diff(Path::new(&path)))
+        .await
+        .ok()
+        .flatten()
+}
+
+fn file_diff(file: &Path) -> Option<Vec<GitHunk>> {
+    let folder = file.parent()?;
+    // A path that is not UTF-8 cannot be handed to `git` as an argument here,
+    // and a file we cannot name is a file we have no diff for.
+    let diff = git(folder, &["diff", "--no-color", "-U0", "--", file.to_str()?])?;
+    let hunks = parse_hunks(&String::from_utf8_lossy(&diff));
+    (!hunks.is_empty()).then_some(hunks)
+}
+
+/// Reads the `@@ -a,b +c,d @@` headers and nothing else.
+///
+/// `-U0` means every header is followed by exactly the changed lines, so the
+/// headers alone say which lines changed and how — which is the whole of what a
+/// gutter mark needs, and it leaves the diffing to git rather than to us.
+///
+/// A file in a merge conflict makes git print a combined diff, whose headers
+/// are `@@@` with three ranges. Those fail the prefix check and the file ends up
+/// with no marks at all, which is about the right amount of opinion to have
+/// about a file that is mid-merge.
+fn parse_hunks(diff: &str) -> Vec<GitHunk> {
+    diff.lines().filter_map(parse_hunk_header).collect()
+}
+
+fn parse_hunk_header(line: &str) -> Option<GitHunk> {
+    let mut ranges = line.strip_prefix("@@ ")?.split(' ');
+    let (_, removed) = line_range(ranges.next()?.strip_prefix('-')?)?;
+    let (start, added) = line_range(ranges.next()?.strip_prefix('+')?)?;
+
+    let (kind, line_count) = match (removed, added) {
+        // Neither side has a line in it. Not something git emits, but a header
+        // we cannot draw anything for either way.
+        (0, 0) => return None,
+        (0, _) => (GitHunkKind::Added, added),
+        (_, 0) => (GitHunkKind::Deleted, 1),
+        _ => (GitHunkKind::Modified, added),
+    };
+
+    Some(GitHunk {
+        kind,
+        from_line: start,
+        line_count,
+    })
+}
+
+/// `12,3`, or a bare `12` where the count of 1 is left out.
+fn line_range(text: &str) -> Option<(u32, u32)> {
+    match text.split_once(',') {
+        Some((start, count)) => Some((start.parse().ok()?, count.parse().ok()?)),
+        None => Some((text.parse().ok()?, 1)),
+    }
+}
+
 /// Absolute, and with the separators this platform uses. Deliberately not
 /// `canonicalize`: that resolves symlinks and, on Windows, hands back the
 /// `\\?\` form nobody wants to read.
@@ -181,7 +266,7 @@ fn hide_console(_command: &mut Command) {}
 
 #[cfg(test)]
 mod tests {
-    use super::{classify, parse_porcelain, GitFileStatus};
+    use super::{classify, parse_hunks, parse_porcelain, GitFileStatus, GitHunkKind};
     use std::path::Path;
 
     #[test]
@@ -202,5 +287,41 @@ mod tests {
         assert_eq!(classify(b'A', b' '), GitFileStatus::Added);
         assert_eq!(classify(b' ', b'D'), GitFileStatus::Deleted);
         assert_eq!(classify(b'M', b' '), GitFileStatus::Modified);
+    }
+
+    #[test]
+    fn an_empty_side_of_the_header_decides_the_kind() {
+        let diff = "\
+diff --git a/src/main.rs b/src/main.rs
+@@ -1,0 +2,3 @@
+@@ -9,2 +11,0 @@
+@@ -20,2 +20,2 @@ fn main() {
+";
+        let hunks = parse_hunks(diff);
+
+        assert_eq!(hunks.len(), 3, "{hunks:?}");
+        assert_eq!(hunks[0].kind, GitHunkKind::Added);
+        assert_eq!((hunks[0].from_line, hunks[0].line_count), (2, 3));
+        assert_eq!(hunks[1].kind, GitHunkKind::Deleted);
+        // The deletion sits after line 11 and takes no line of its own with it.
+        assert_eq!((hunks[1].from_line, hunks[1].line_count), (11, 1));
+        assert_eq!(hunks[2].kind, GitHunkKind::Modified);
+        assert_eq!((hunks[2].from_line, hunks[2].line_count), (20, 2));
+    }
+
+    #[test]
+    fn a_missing_count_means_one_line() {
+        let hunks = parse_hunks("@@ -3 +3 @@\n");
+
+        assert_eq!(hunks.len(), 1);
+        assert_eq!(hunks[0].kind, GitHunkKind::Modified);
+        assert_eq!((hunks[0].from_line, hunks[0].line_count), (3, 1));
+    }
+
+    #[test]
+    fn a_combined_diff_produces_no_marks() {
+        // What a file in a merge conflict looks like. Three ranges, and no
+        // honest way to say which side a line came from.
+        assert!(parse_hunks("@@@ -1,2 -1,2 +1,3 @@@\n").is_empty());
     }
 }

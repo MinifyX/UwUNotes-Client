@@ -20,6 +20,7 @@
 
 import { t } from './i18n';
 import { runCommand } from './commands';
+import { macroWithShortcut, playMacro } from './macros';
 import { activateTabAt, cyclePane } from './workspace';
 
 /** German source names for the modifiers; {@link renderKeys} translates them. */
@@ -50,7 +51,10 @@ const BINDINGS: readonly Binding[] = [
   { code: 'PageDown', shift: false, command: 'tab.next' },
   { code: 'PageUp', shift: false, command: 'tab.previous' },
 
-  { code: 'KeyR', shift: true, command: 'view.splitRight' },
+  // Splitting right used to be Ctrl+Shift+R. Recording a macro is Notepad++'s
+  // Ctrl+Shift+R and the hands of everyone who has ever used one go there
+  // first, so the split moved one letter over rather than the other way round.
+  { code: 'KeyE', shift: true, command: 'view.splitRight' },
   { code: 'KeyD', shift: true, command: 'view.splitDown' },
   { code: 'KeyQ', shift: true, command: 'view.closePane' },
   { code: 'KeyM', shift: true, command: 'view.moveTabToOtherPane' },
@@ -62,6 +66,14 @@ const BINDINGS: readonly Binding[] = [
   // rather have it for "find next"; that lives on F3, where muscle memory
   // expects it anyway.
   { code: 'KeyG', shift: false, command: 'find.gotoLine' },
+
+  { code: 'KeyR', shift: true, command: 'macro.toggleRecording' },
+  // Notepad++ plays the last macro with Ctrl+Shift+P, which is the palette
+  // here, so playback is on Y instead. One caveat, written down because it is
+  // invisible from the code: on a German layout `KeyY` is the key printed Z,
+  // and on Linux — only there — CodeMirror binds Ctrl+Shift+Z to redo. On
+  // Windows, where redo is Ctrl+Y, this chord is free.
+  { code: 'KeyY', shift: true, command: 'macro.playLast' },
 
   { code: 'KeyP', shift: true, command: 'app.palette' },
   { code: 'Comma', shift: false, command: 'app.settings' },
@@ -84,7 +96,7 @@ const LABELS: Record<string, readonly string[]> = {
   'file.reopenClosed': [CTRL, SHIFT, 'T'],
   'tab.next': [CTRL, 'Tab'],
   'tab.previous': [CTRL, SHIFT, 'Tab'],
-  'view.splitRight': [CTRL, SHIFT, 'R'],
+  'view.splitRight': [CTRL, SHIFT, 'E'],
   'view.splitDown': [CTRL, SHIFT, 'D'],
   'view.closePane': [CTRL, SHIFT, 'Q'],
   'view.nextPane': ['F6'],
@@ -96,6 +108,8 @@ const LABELS: Record<string, readonly string[]> = {
   'find.replace': [CTRL, 'H'],
   'find.inFiles': [CTRL, SHIFT, 'F'],
   'find.gotoLine': [CTRL, 'G'],
+  'macro.toggleRecording': [CTRL, SHIFT, 'R'],
+  'macro.playLast': [CTRL, SHIFT, 'Y'],
   'app.palette': [CTRL, SHIFT, 'P'],
   'app.settings': [CTRL, ','],
 };
@@ -114,6 +128,93 @@ function renderKeys(keys: readonly string[]): string {
 export function shortcutLabel(command: string): string | undefined {
   const keys = LABELS[command];
   return keys ? renderKeys(keys) : undefined;
+}
+
+/* ── Keys a user gave to a macro ───────────────────────── */
+
+/**
+ * A macro's own key, written down.
+ *
+ * The format is `Ctrl+KeyM` or `Ctrl+Shift+KeyM`: always Ctrl (rule 1 above,
+ * and it also keeps a macro from swallowing a plain letter), optionally Shift,
+ * then a `KeyboardEvent.code` — the physical key, for the same reason
+ * {@link BINDINGS} uses codes. It is stored in `uwunotes.macros` and therefore
+ * read back from a file a person may have edited, so every function here
+ * returns `null` rather than throwing on nonsense.
+ *
+ * The regular expressions are written inline rather than hoisted to module
+ * constants on purpose: `lib/macros.ts` calls {@link normalizeMacroShortcut}
+ * while *it* is being imported, and a module constant is not there yet at that
+ * point. A literal inside the function body always is.
+ */
+type MacroKey = { shift: boolean; code: string };
+
+function parseMacroShortcut(text: string): MacroKey | null {
+  const parts = text
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const code = parts.pop();
+  if (!code || !/^[A-Za-z][A-Za-z0-9]*$/.test(code)) return null;
+  // A modifier on its own is a key that can never be pressed alone.
+  if (/^(?:Control|Shift|Alt|Meta|OS)/.test(code)) return null;
+
+  let ctrl = false;
+  let shift = false;
+  for (const part of parts) {
+    if (part === 'Ctrl') ctrl = true;
+    else if (part === 'Shift') shift = true;
+    else return null;
+  }
+  return ctrl ? { shift, code } : null;
+}
+
+function writeMacroShortcut(key: MacroKey): string {
+  return key.shift ? `Ctrl+Shift+${key.code}` : `Ctrl+${key.code}`;
+}
+
+/** The canonical spelling of a shortcut, or `null` when it is not one. */
+export function normalizeMacroShortcut(text: string): string | null {
+  const key = parseMacroShortcut(text);
+  return key ? writeMacroShortcut(key) : null;
+}
+
+/** What the user just pressed, as a shortcut — or `null` if it cannot be one. */
+export function macroShortcutFromEvent(event: KeyboardEvent): string | null {
+  if (!event.ctrlKey || event.altKey || event.metaKey) return null;
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(event.code)) return null;
+  if (/^(?:Control|Shift|Alt|Meta|OS)/.test(event.code)) return null;
+  return writeMacroShortcut({ shift: event.shiftKey, code: event.code });
+}
+
+/**
+ * Whether the app already answers to this chord.
+ *
+ * {@link actionFor} looks at macros last, so a macro on Ctrl+S would simply
+ * never run. Telling the user that while they are choosing the key is kinder
+ * than letting them find out next week.
+ */
+export function macroShortcutTaken(shortcut: string): boolean {
+  const key = parseMacroShortcut(shortcut);
+  if (!key) return true;
+  // The digits are zoom and the tab jumps, neither of which is in BINDINGS.
+  if (/^(?:Digit|Numpad)\d$/.test(key.code)) return true;
+  return BINDINGS.some((entry) => entry.code === key.code && entry.shift === key.shift);
+}
+
+/** `Strg+Umschalt+M`, in the current language. */
+export function macroShortcutText(shortcut: string): string {
+  const key = parseMacroShortcut(shortcut);
+  if (!key) return shortcut;
+  return renderKeys(key.shift ? [CTRL, SHIFT, keyLabel(key.code)] : [CTRL, keyLabel(key.code)]);
+}
+
+/** `KeyM` is a fine thing to store and a terrible thing to show. */
+function keyLabel(code: string): string {
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return `Num ${code.slice(6)}`;
+  return code;
 }
 
 /** Installs the listener. Returns the teardown. */
@@ -156,7 +257,15 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   const binding = BINDINGS.find(
     (entry) => entry.code === event.code && entry.shift === event.shiftKey,
   );
-  if (!binding) return null;
-  const { command } = binding;
-  return () => runCommand(command);
+  if (binding) {
+    const { command } = binding;
+    return () => runCommand(command);
+  }
+
+  // Macros come last, so no macro a user saves can ever take a key away from
+  // the app itself.
+  const pressed = macroShortcutFromEvent(event);
+  const macro = pressed ? macroWithShortcut(pressed) : undefined;
+  if (macro) return () => void playMacro(macro.id);
+  return null;
 }

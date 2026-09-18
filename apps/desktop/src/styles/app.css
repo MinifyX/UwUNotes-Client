@@ -2226,7 +2226,8 @@ input[type='radio'] {
 }
 
 .settings-switch,
-.encmenu-switch {
+.encmenu-switch,
+.theme-editor-dark-switch {
   position: relative;
   width: 38px;
   height: 21px;
@@ -2239,24 +2240,28 @@ input[type='radio'] {
 }
 
 .settings-switch[aria-checked='true'],
-.encmenu-switch[aria-checked='true'] {
+.encmenu-switch[aria-checked='true'],
+.theme-editor-dark-switch[aria-checked='true'] {
   background: var(--uwu-pink-solid);
   border-color: var(--uwu-pink-solid);
 }
 
 .settings-switch:hover:not(:disabled),
-.encmenu-switch:hover:not(:disabled) {
+.encmenu-switch:hover:not(:disabled),
+.theme-editor-dark-switch:hover:not(:disabled) {
   background: var(--uwu-elevated);
 }
 
 .settings-switch[aria-checked='true']:hover:not(:disabled),
-.encmenu-switch[aria-checked='true']:hover:not(:disabled) {
+.encmenu-switch[aria-checked='true']:hover:not(:disabled),
+.theme-editor-dark-switch[aria-checked='true']:hover:not(:disabled) {
   background: var(--uwu-pink-solid);
   filter: brightness(1.07);
 }
 
 .settings-switch-knob,
-.encmenu-switch-knob {
+.encmenu-switch-knob,
+.theme-editor-dark-knob {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -2268,7 +2273,8 @@ input[type='radio'] {
 }
 
 .settings-switch[aria-checked='true'] .settings-switch-knob,
-.encmenu-switch[aria-checked='true'] .encmenu-switch-knob {
+.encmenu-switch[aria-checked='true'] .encmenu-switch-knob,
+.theme-editor-dark-switch[aria-checked='true'] .theme-editor-dark-knob {
   translate: 17px 0;
   background: var(--uwu-on-pink);
 }
@@ -2276,6 +2282,113 @@ input[type='radio'] {
 .settings-empty {
   font-style: italic;
   color: var(--uwu-muted);
+}
+
+/*
+ * The theme picker's three buttons go on the row under the select, ranged to
+ * the same right edge: they act on whatever the select is showing, and a
+ * button standing above the thing it acts on has to say so in its own label.
+ * They take the whole width rather than the control column, because three
+ * verbs in a language with long ones do not fit in 220 pixels. The row gap is
+ * this field's alone — every other field's second row is a sentence, and this
+ * one has controls in it.
+ */
+.settings-field-theme {
+  row-gap: 8px;
+}
+
+.settings-theme-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.settings-theme-actions button {
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/*
+ * Two read-only lists: the macros that have been kept, and the commands a
+ * section can be reached by. Neither row is a control, so neither gets a
+ * hover state — a row that lights up under the pointer has been promising a
+ * click since the day it was written.
+ */
+.settings-macro-list,
+.settings-command-list {
+  display: grid;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.settings-macro,
+.settings-command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 10px;
+}
+
+.settings-macro + .settings-macro,
+.settings-command + .settings-command {
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.settings-macro-name,
+.settings-command-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-macro-steps {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A key chip, here and in the macro dialog both: same shape and same muted
+ * ink as `.palette-row-shortcut`, because a shortcut that is drawn as a key
+ * in one dialog and as plain text in the next is read as a key in neither.
+ */
+.settings-macro-keys,
+.settings-command-keys,
+.macro-keys {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 5px;
+  background: var(--uwu-canvas);
+  font-size: 11px;
+  color: var(--uwu-muted);
+  white-space: nowrap;
+}
+
+/* The way through to the dialog that owns the macros. Left-aligned and on its
+   own line: it leaves this page rather than changing anything on it. */
+.settings-macro-manage {
+  justify-self: start;
+}
+
+.settings-plugin {
+  display: grid;
+  gap: 8px;
+}
+
+/* What a plugin would add to the palette, under the switch that decides
+   whether it does. Indented, because the list is a consequence of that switch
+   and not a second setting beside it. */
+.settings-plugin .settings-command-list {
+  margin-left: 14px;
 }
 
 .settings-footer {
@@ -2927,4 +3040,655 @@ input[type='radio'] {
   max-width: 32ch;
   text-align: center;
   color: var(--uwu-muted);
+}
+
+/* ── Macros ────────────────────────────────────────────── */
+
+/*
+ * The macro manager: a recording that is running, a recording that has just
+ * finished and has no name yet, and the ones that were kept. The first two
+ * are the only parts that get swapped out, and they sit above the list, so
+ * the list never moves under the pointer when a recording starts or stops.
+ */
+.macro-manager {
+  display: grid;
+  gap: 20px;
+}
+
+/*
+ * A recording is running.
+ *
+ * The one thing in this window that has to be noticed from the other side of
+ * the room, because everything typed while it is on screen is being written
+ * down. Amber and not pink: pink means "this one", and a recording is not a
+ * selection — it is a state the editor behind this dialog is in. The panel is
+ * already unmissable standing still; the dot below only makes it move.
+ */
+.macro-recording {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--uwu-alarm);
+  border-left-width: 3px;
+  border-radius: var(--uwu-radius-card);
+  background: color-mix(in srgb, var(--uwu-alarm) 13%, transparent);
+}
+
+.macro-recording-text {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--uwu-alarm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The tally light.
+ *
+ * The halo is a `box-shadow` rather than a second element or a `scale`, so
+ * the step count beside it stays exactly where it is: a ring that grew the
+ * dot would nudge the sentence sideways twice a second, and a number that
+ * moves while it counts up is a number nobody can read.
+ */
+.macro-recording-text::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--uwu-alarm);
+  animation: macro-recording 1.6s ease-in-out infinite;
+}
+
+/* No `from` and no `to`: the resting frame is the element's own, so anything
+   that stops this animation — the rule below, or a browser that gives up on
+   it — is left holding a solid dot rather than a half-faded one. */
+@keyframes macro-recording {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--uwu-alarm) 30%, transparent);
+  }
+}
+
+/* Reduced motion keeps the light and loses the breathing. `tokens.css` would
+   already cut this to a millisecond; saying it here means the dot that is
+   left over is the one that was meant. */
+:root[data-motion='reduced'] .macro-recording-text::before {
+  animation: none;
+}
+
+.macro-recording-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+/*
+ * Stopping is filled, because it is the way out of a state rather than one
+ * option among several. `--uwu-on-pink` is the palette's ink for text on a
+ * filled accent — named after the accent it was drawn for, but the only ink
+ * in the suite that flips with the theme the way this fill does.
+ */
+.macro-stop {
+  background: var(--uwu-alarm);
+  border-color: var(--uwu-alarm);
+  color: var(--uwu-on-pink);
+}
+
+.macro-stop:hover:not(:disabled) {
+  background: var(--uwu-alarm);
+  filter: brightness(1.07);
+}
+
+/* Throwing the recording away is quiet on purpose: it stands next to the
+   button almost everyone wants, and it is the one that cannot be undone. */
+.macro-discard {
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.macro-discard:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/* The recording that just ended, before it has a name. A box of its own,
+   because both of the things that can be done with it stop being possible
+   the moment the next recording starts. */
+.macro-latest {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-elevated);
+}
+
+.macro-latest-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.macro-latest-count {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-latest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Naming it is a different kind of act from playing it, so there is a rule
+   between the two. The label is on a line of its own: the field takes the
+   whole width, and a label beside it would read that width a second time. */
+.macro-save {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.macro-save-label {
+  grid-column: 1 / -1;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.macro-save-input {
+  min-width: 0;
+}
+
+/* The two buttons that end a form by agreeing with it. Pink, because pressing
+   Return in the field is what the form is for and this is where that lands. */
+.macro-save-submit,
+.macro-rename-submit {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.macro-save-submit:hover:not(:disabled),
+.macro-rename-submit:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.macro-empty {
+  font-style: italic;
+  color: var(--uwu-muted);
+}
+
+.macro-list {
+  display: grid;
+  gap: 8px;
+}
+
+.macro-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.macro-row-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.macro-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.macro-meta {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Renaming takes the head's place rather than opening a row beneath it, so
+   the name is edited where the name was. */
+.macro-rename {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.macro-rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.macro-rename-cancel {
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.macro-rename-cancel:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/*
+ * Seven controls on one row, and every one of them is a <button>. Sized as a
+ * family rather than by name: a list of seven names would have to be kept in
+ * step with the dialog, and the thing anyone would actually notice is one
+ * button standing a pixel taller than the six beside it.
+ */
+.macro-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.macro-actions button {
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.macro-repeat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Wide enough for the four digits the count can reach: a field that reflows
+   at 100 is a field that moves the button next to it while it is read. */
+.macro-repeat-input {
+  width: 62px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Waiting for a chord, and this is exactly what pink is for: while it is
+   pressed, this button is the one control in the window the keyboard is
+   talking to, and every other shortcut has been taken off the table. */
+.macro-shortcut[aria-pressed='true'] {
+  background: var(--uwu-pink-tint);
+  border-color: var(--uwu-pink);
+  color: var(--uwu-pink-ink);
+}
+
+.macro-shortcut[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--uwu-pink-tint-strong);
+}
+
+.macro-delete {
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.macro-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+/* Both of the dialogs added in this phase end in a footer with exactly one
+   button in it. The floor is for the translations: a word like "Schließen"
+   sets the width everywhere else, and "OK" on its own would leave a footer
+   button the size of a checkbox. */
+.macro-done,
+.theme-editor-done {
+  min-width: 92px;
+}
+
+/* ── Theme editor ──────────────────────────────────────── */
+
+/*
+ * A name, a picture of the theme, a long list of colours, and a text box to
+ * carry the whole thing between two computers. The picture sits above the
+ * list on purpose: it is what the list is for, and it has to still be on
+ * screen while a colour is being typed into.
+ */
+.theme-editor {
+  display: grid;
+  gap: 20px;
+}
+
+/* The two boxes that stand in for the form: a shipped theme, which is not
+   edited in place, and no theme at all. Both end in a button, and in both
+   cases the button is the point. */
+.theme-editor-shipped,
+.theme-editor-none {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-elevated);
+}
+
+.theme-editor-shipped-text,
+.theme-editor-none-text {
+  max-width: 62ch;
+  color: var(--uwu-muted);
+}
+
+/* The way out of both boxes, and the only thing in either of them that can be
+   pressed — so it is the pink one. The same class turns up again among the
+   actions below, where it is one button of three and stays plain. */
+.theme-editor-shipped .theme-editor-duplicate,
+.theme-editor-new {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.theme-editor-shipped .theme-editor-duplicate:hover:not(:disabled),
+.theme-editor-new:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.theme-editor-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.theme-editor-name {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.theme-editor-name-label {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.theme-editor-name-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.theme-editor-dark {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-items: start;
+  gap: 4px 10px;
+}
+
+.theme-editor-dark-label {
+  font-weight: 500;
+}
+
+/* The hint is wider than the switch and says the flag changes nothing, so it
+   goes under both rather than beside either. */
+.theme-editor-dark-hint {
+  grid-column: 1 / -1;
+  max-width: 36ch;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}
+
+.theme-editor-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Pushed to the far end of the row, away from the button beside it: one of
+   those two makes a copy of the theme and this one throws it away. */
+.theme-editor-delete {
+  margin-left: auto;
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.theme-editor-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+.theme-editor-group {
+  display: grid;
+  gap: 8px;
+}
+
+.theme-editor-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.theme-editor-group-body {
+  display: grid;
+  gap: 2px;
+}
+
+/*
+ * One token per row, in the order the groups were written. Not a two-column
+ * grid: the labels are sentences in whichever language the window is in, and
+ * two of them side by side would be two columns of hyphenation.
+ *
+ * Every row is its own grid, so the columns only line up for as long as the
+ * rows are the same width — hence the ceiling, which also keeps the swatch
+ * from drifting half a dialog away from the label it belongs to. The label's
+ * column is the one that absorbs the slack, because the three controls after
+ * it are the things the eye runs down.
+ */
+.theme-token {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 16ch) auto;
+  align-items: center;
+  gap: 10px;
+  max-width: 44em;
+  padding: 3px 0;
+}
+
+.theme-token-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The swatch is a real `<input type="color">`, which a browser draws as a
+ * button with the colour inset in it. The padding comes off so that what is
+ * left is the colour and a hairline around it — which is the whole job here,
+ * since the text field beside it is the control that can say everything.
+ */
+.theme-token-swatch {
+  width: 34px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--uwu-border);
+  border-radius: 5px;
+  background: var(--uwu-canvas);
+  cursor: pointer;
+}
+
+.theme-token-swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.theme-token-swatch::-webkit-color-swatch {
+  border: 0;
+  border-radius: 3px;
+}
+
+.theme-token-input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 7px;
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+}
+
+/* Half-typed is not wrong, so this is a mark rather than an error: the value
+   is being held, nothing has been written, and the next character may well
+   finish it. */
+.theme-token[data-invalid='yes'] .theme-token-input {
+  border-color: var(--uwu-alarm);
+  color: var(--uwu-alarm);
+}
+
+/* Thirty of these on the page, one per row. Quiet, but never hidden until
+   hover: a control that appears under the pointer is a control the keyboard
+   arrives at from nowhere. */
+.theme-token-reset {
+  padding: 3px 8px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.theme-token-reset:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/*
+ * The sample. Every colour in it is an inline `style` taken from the theme
+ * being edited — that is the entire point of it — so what is left here is the
+ * shape: a gutter, a mark, six lines of monospace and a caret. The border is
+ * the app's rather than the theme's, so that a theme whose background matches
+ * the dialog still reads as a picture of something.
+ */
+.theme-preview {
+  display: grid;
+  overflow: hidden;
+  padding: 8px 0;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  font-family: var(--uwu-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.theme-preview-line {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.theme-preview-gutter {
+  position: relative;
+  flex: none;
+  width: 5ch;
+  padding-right: 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The git mark, at the width and offset `editor/git-gutter.ts` draws the real
+   one at: a sample of a gutter bar that is a different size from the gutter
+   bar is a sample of nothing. */
+.theme-preview-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 3px;
+  border-radius: 1px;
+}
+
+.theme-preview-code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 10px;
+  white-space: pre;
+}
+
+/* Inline-block, so that the two pixels of caret have a line's worth of height
+   to be two pixels of. */
+.theme-preview-caret {
+  display: inline-block;
+  height: 1.05em;
+  vertical-align: text-bottom;
+}
+
+/* One theme, one paste. Behind a disclosure because it is the only part of
+   this dialog that is not about a colour, and at the bottom because importing
+   one replaces everything above it. */
+.theme-exchange {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.theme-exchange-toggle {
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.theme-exchange-toggle:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/* Open is a state of the box, not a selection, so it is a shade and not the
+   pink the rest of this dialog spends. */
+.theme-exchange-toggle[aria-expanded='true'] {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.theme-exchange-body {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.theme-exchange-label {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/* Vertical only: the box is already as wide as the dialog, and a textarea
+   that can be dragged wider than the dialog it is in is a horizontal
+   scrollbar waiting to happen. */
+.theme-exchange-text {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.theme-exchange-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

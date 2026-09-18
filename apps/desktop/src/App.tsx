@@ -28,6 +28,7 @@ import { AboutDialog } from './components/AboutDialog';
 import { CommandPalette } from './components/CommandPalette';
 import { FindBar } from './components/FindBar';
 import { GoToLine } from './components/GoToLine';
+import { MacroDialog } from './components/MacroDialog';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsDialog } from './components/SettingsDialog';
 import { Sidebar } from './components/Sidebar';
@@ -197,6 +198,7 @@ export function App() {
 
       {dialog === 'palette' ? <CommandPalette /> : null}
       {dialog === 'gotoLine' ? <GoToLine /> : null}
+      {dialog === 'macros' ? <MacroDialog /> : null}
       {dialog === 'settings' ? <SettingsDialog /> : null}
       {dialog === 'about' ? <AboutDialog /> : null}
     </div>

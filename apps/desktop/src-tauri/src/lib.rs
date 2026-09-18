@@ -103,6 +103,7 @@ pub fn run() {
             session::read_draft,
             session::drop_draft,
             git::git_statuses,
+            git::git_file_diff,
             system::app_info,
             system::open_external,
             system::reveal_in_file_manager,

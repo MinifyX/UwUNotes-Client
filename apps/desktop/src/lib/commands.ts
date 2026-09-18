@@ -37,13 +37,26 @@ import {
 import { t } from './i18n';
 import { nextPane, paneCount } from './layout';
 import {
+  hasLastRecording,
+  isRecording,
+  macroLabel,
+  playLast,
+  playMacro,
+  playUntilEndOfFile,
+  recordCommand,
+  savedMacros,
+  startRecording,
+  stopRecording,
+} from './macros';
+import { ask } from './prompt';
+import {
   DEFAULT_SETTINGS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   getSettings,
   updateSettings,
 } from './settings';
-import { shortcutLabel } from './shortcuts';
+import { macroShortcutText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, focusActiveView } from './views';
 import {
@@ -56,6 +69,7 @@ import {
   splitActivePane,
   tabsIn,
 } from './workspace';
+import { pluginCommands } from '../editor/extensions/registry';
 import { applyDocLanguage } from '../editor/setup';
 import { LANGUAGES } from '../editor/languages';
 
@@ -77,7 +91,7 @@ export type Command = {
  * three Escape presses and no idea which one is listening.
  */
 export type DialogName =
-  'palette' | 'find' | 'replace' | 'projectSearch' | 'gotoLine' | 'settings' | 'about';
+  'palette' | 'find' | 'replace' | 'projectSearch' | 'gotoLine' | 'macros' | 'settings' | 'about';
 
 export type UiState = { readonly dialog: DialogName | null };
 
@@ -130,6 +144,8 @@ export function allCommands(): Command[] {
     ...encodingCommands(),
     ...eolCommands(),
     ...languageCommands(),
+    ...macroCommands(),
+    ...extensionCommands(),
     ...appCommands(),
   ];
 }
@@ -140,9 +156,21 @@ export function runCommand(id: string): void {
   // A disabled command reached by shortcut is a no-op, not an error: Ctrl+W
   // with nothing open should do nothing quietly.
   if (command.enabled && !command.enabled()) return;
+
+  const dialogBefore = ui.dialog;
   void Promise.resolve(command.run()).catch((error: unknown) => {
     toast('error', t('Befehl fehlgeschlagen: {message}', { message: String(error) }));
   });
+
+  // While a macro is being recorded, a command the user runs belongs in it —
+  // with two exceptions. A command that opened or closed an overlay was the
+  // user looking for the next command, not the macro doing anything, and a
+  // replay that stops to open the palette is not a replay. And the macro
+  // commands themselves: "stop recording" is how a recording ends, not
+  // something a recording should contain.
+  if (isRecording() && ui.dialog === dialogBefore && !id.startsWith('macro.')) {
+    recordCommand(id);
+  }
 }
 
 /**
@@ -541,6 +569,108 @@ function languageCommands(): Command[] {
     });
   }
   return commands;
+}
+
+/**
+ * Recording, playback, and one entry per saved macro.
+ *
+ * The saved ones are here rather than only in the manager because the palette
+ * is how anybody with more than three macros finds the right one — by typing
+ * its name, which is the whole reason a macro has a name.
+ */
+function macroCommands(): Command[] {
+  const group = () => t('Makro');
+
+  const commands: Command[] = [
+    {
+      id: 'macro.toggleRecording',
+      // One command, two titles: a separate "stop" entry would sit in the
+      // palette doing nothing for the ninety-nine per cent of the time when
+      // nothing is being recorded.
+      title: () => (isRecording() ? t('Aufzeichnung beenden') : t('Makro aufzeichnen')),
+      group,
+      shortcut: shortcutLabel('macro.toggleRecording'),
+      enabled: () => isRecording() || activeView() !== undefined,
+      run: () => (isRecording() ? stopRecording() : startRecording()),
+    },
+    {
+      id: 'macro.playLast',
+      title: () => t('Letzte Aufzeichnung abspielen'),
+      group,
+      shortcut: shortcutLabel('macro.playLast'),
+      enabled: hasLastRecording,
+      run: () => playLast(),
+    },
+    {
+      id: 'macro.playLastTimes',
+      title: () => t('Letzte Aufzeichnung mehrfach abspielen…'),
+      group,
+      enabled: hasLastRecording,
+      run: async () => {
+        // `ask()` offers buttons and no field, so this offers the counts people
+        // actually reach for. The manager has the number box for the rest.
+        const choice = await ask(t('Wie oft abspielen?'), undefined, [
+          { id: '2', label: '2×' },
+          { id: '5', label: '5×' },
+          { id: '10', label: '10×' },
+          { id: '50', label: '50×' },
+          { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+        ]);
+        const times = Number(choice);
+        if (Number.isFinite(times) && times > 0) await playLast(times);
+      },
+    },
+    {
+      id: 'macro.playToEnd',
+      title: () => t('Aufzeichnung bis zum Dateiende abspielen'),
+      group,
+      enabled: hasLastRecording,
+      run: () => playUntilEndOfFile(),
+    },
+    {
+      id: 'macro.saveRecording',
+      title: () => t('Aufzeichnung unter einem Namen speichern…'),
+      group,
+      enabled: hasLastRecording,
+      // The name field lives in the manager. A command that opens the place
+      // where the thing happens beats a second dialog that does the same job.
+      run: () => openDialog('macros'),
+    },
+    {
+      id: 'macro.manage',
+      title: () => t('Makros verwalten…'),
+      group,
+      run: () => openDialog('macros'),
+    },
+  ];
+
+  for (const macro of savedMacros()) {
+    commands.push({
+      id: `macro.play.${macro.id}`,
+      title: () => t('Makro abspielen: {name}', { name: macroLabel(macro) }),
+      group,
+      shortcut: macro.shortcut ? macroShortcutText(macro.shortcut) : undefined,
+      run: () => playMacro(macro.id),
+    });
+  }
+  return commands;
+}
+
+/**
+ * What the enabled editor plugins contribute.
+ *
+ * A plugin may be nothing but commands, and a plugin that is switched off
+ * contributes none — `pluginCommands()` has already done that filtering, which
+ * is why there is no `enabled` here to second-guess it.
+ */
+function extensionCommands(): Command[] {
+  const group = () => t('Erweiterungen');
+  return pluginCommands().map((command) => ({
+    id: command.id,
+    title: command.title,
+    group,
+    run: command.run,
+  }));
 }
 
 function appCommands(): Command[] {

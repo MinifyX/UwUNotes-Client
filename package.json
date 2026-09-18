@@ -12,6 +12,7 @@
     "tauri": "pnpm --filter @uwunotes/desktop tauri",
     "build": "pnpm --filter @uwunotes/desktop build",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "lint": "prettier --check . && node scripts/check-i18n.mjs",
     "format": "prettier --write ."
   },

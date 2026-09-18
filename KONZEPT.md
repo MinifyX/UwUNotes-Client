@@ -45,8 +45,8 @@ kaputt._
   Netzwerk-Stack exakt nichts.
 - **Kein Team-Produkt.** Keine geteilten Workspaces, keine fremden Cursor, keine
   Kommentare.
-- **Kein Marketplace.** Eine Plugin-Schnittstelle ist geplant (Phase 2), ein
-  Laden dafür nicht.
+- **Kein Marketplace.** Eine Plugin-Registry gibt es seit Phase 2, einen Laden
+  dafür nicht.
 
 ---
 
@@ -209,7 +209,7 @@ alte Datei heil, nicht eine halbe.
 
 ## 6. Features
 
-### Phase 1 — das, was gebaut wird
+### Phase 1 — gebaut
 
 - **Tabs und Splits.** Der Split ist ein Baum: rechts teilen, unten teilen, eine
   Hälfte nochmal teilen. Notepad++' zwei Views sind derselbe Baum, eine Ebene
@@ -244,27 +244,52 @@ alte Datei heil, nicht eine halbe.
   Git-Marker, Töne.
 - **Deutsch und Englisch.** Deutsch ist die Quellsprache.
 
-### Phase 2 — geplant
+### Phase 2 — gebaut
 
-- **Plugin-Schnittstelle nach außen.** Die Registry gibt es schon und sie trägt
-  bereits die gebündelten Nicht-Kern-Features. Nach außen zu öffnen heißt: ein
-  Ordner, ein Manifest, eine Version, die die App ablehnen darf, und eine
-  ehrliche Antwort darauf, was ein Plugin anfassen darf. Eine CodeMirror-
-  `Extension` ist eine große Fläche, die man Fremden verspricht.
 - **Makros aufzeichnen und abspielen.** Das Notepad++-Feature, das mir am
-  meisten fehlt. CodeMirror-Transaktionen sind die richtige Einheit zum
-  Aufzeichnen; die Arbeit steckt darin, welche man behält.
-- **Git-Diff im Gutter.** `git_statuses` liefert schon, welche Dateien Git
-  erwähnenswert findet. Der Gutter braucht mehr: den Blob gegen den Puffer
-  gediffed, als anklickbare Marken. Grün und Bernstein, nie Pink.
+  meisten fehlt, und das einzige hier, bei dem sich der Plan unterwegs als
+  falsch herausgestellt hat: Aufgezeichnet werden keine CodeMirror-
+  Transaktionen, sondern semantische Schritte — getippte Zeichen, benannte
+  Editor-Kommandos, App-Kommandos, eine Suche. Eine Transaktion weiß, _wo_ sie
+  passiert ist, und würde beim Abspielen immer dieselbe Stelle bearbeiten.
+  Schritte laufen dort, wo der Cursor gerade steht, und genau deshalb kann ein
+  Makro eine Datei hinunterwandern. Dazu: _n_-mal abspielen, bis zum Dateiende
+  abspielen, unter einem Namen speichern, ein `Strg`-Kürzel vergeben. Ein
+  `Strg+Z` nimmt einen ganzen Lauf zurück.
+- **Die Plugin-Registry, verbreitert.** Ein Plugin bringt jetzt eine
+  CodeMirror-`Extension`, eine Handvoll Kommandos für die Palette, oder beides.
+  Ein Plugin, das nur Kommandos mitbringt — Zeilen sortieren, Groß- und
+  Kleinschreibung, Base64 —, taucht in der Konfiguration des Editors gar nicht
+  erst auf und kostet ein offenes Dokument nichts. Was ein Plugin weiterhin
+  nicht darf, steht in [`docs/plugins.md`](docs/plugins.md), und diese Liste ist
+  die längere.
+- **Eigene Themes.** Ein Theme war hier immer schon ein Block
+  Custom-Properties auf `.cm-editor` und kein zweites `HighlightStyle` — das
+  macht es zu Daten, und Daten kann ein Editor bearbeiten. Ein mitgeliefertes
+  Theme duplizieren, Farben ändern, als JSON exportieren, ein zugeschicktes
+  einfügen. Alles, was aus dem Speicher zurückkommt, wird geprüft, denn es ist
+  JSON auf der Platte eines Nutzers, das irgendwann jemand in genau dem Editor
+  öffnet, den es einfärbt.
+- **Git-Marken im Gutter.** `git diff --no-color -U0` und die `@@`-Köpfe
+  gelesen, mehr nicht: kein eigener Diff-Algorithmus, keine Kopie des Blobs.
+  Hinzugefügt, geändert, gelöscht — grün und bernstein, nie pink. Kostet einen
+  Git-Aufruf pro Datei, weshalb es eine Einstellung dazu gibt, die das auch
+  sagt.
+
+### Was aus Phase 2 offen bleibt
+
+- **Makros im Menü.** Ein Makro hat ein Kürzel und steht in der Palette. Was
+  fehlt, ist der Platz in einem Menü, an dem Notepad++ seine hat.
+- **Plugins von Dritten laden.** Die Registry ist breiter, die Plugins sind
+  weiterhin einkompiliert. Der schwierige Teil ist unverändert: ein Ordner, ein
+  Manifest, eine Version, die die App ablehnen darf, und eine ehrliche Antwort
+  darauf, was ein Plugin anfassen darf.
 - **In andere Ansicht klonen.** Dieselbe Datei in zwei Panes, jede mit eigener
   Auswahl und eigenem Scroll, beide auf einem State.
 - **Großdatei-Modus.** Ein 400-MB-Log soll aufgehen — ohne Highlighting, ohne
   Minimap, aber scrollbar und mit Sprung zur Zeile. Das heißt: häppchenweise
   lesen auf der Rust-Seite und ein Dokument, das weiß, dass es unvollständig
   ist.
-- **Mehr Suite-Themes**, und wichtiger: ein Theme-Format, das Daten sind und
-  nicht Code.
 - **macOS, Linux, irgendwann Android**, ein **UwU-Suite-Launcher**. Details in
   [`docs/roadmap.md`](docs/roadmap.md).
 
@@ -397,8 +422,8 @@ Repo, nichts, was betrieben werden müsste.
 
 **Stand: 0.1.0, nichts veröffentlicht.** Es gibt keinen Download, kein Setup,
 kein Release. Was es gibt, ist dieses Repository: die Tauri-Shell, die
-Rust-Crates, das Token-Paket und das TypeScript-Rückgrat, auf dem der Editor
-gebaut wird.
+Rust-Crates, das Token-Paket und den Editor selbst — Phase 1 vollständig, Phase
+2 bis auf die oben genannten Punkte ebenfalls.
 
 Offene Entscheidungen, die noch niemand getroffen hat:
 
@@ -407,8 +432,9 @@ Offene Entscheidungen, die noch niemand getroffen hat:
   Platz verdient, entscheidet sich, wenn sie einmal da ist.
 - **Autovervollständigung wie weit?** Wörter aus der Datei sind sicher, Snippets
   wahrscheinlich, alles darüber wäre der erste Schritt Richtung IDE.
-- **Wie viel Git?** Marker im Gutter und am Tab sind geplant. Mehr als das —
-  stagen, committen — wäre ein zweites Programm im ersten.
+- **Wie viel Git?** Marken am Tab, im Dateibaum und seit Phase 2 auch im
+  Gutter. Mehr als das — stagen, committen — wäre ein zweites Programm im
+  ersten, und dabei bleibt es vorerst.
 - **Setup und Updates.** Die Geschwister haben ein eigenes Installer-Projekt.
   Ob UwUNotes das erbt oder erst einmal als portables Verzeichnis ausgeliefert
   wird, ist offen.
@@ -417,5 +443,6 @@ Offene Entscheidungen, die noch niemand getroffen hat:
 
 ## Nächster Schritt
 
-Phase 1 fertig bauen, selbst benutzen, und alles wegwerfen, was sich dabei als
-Unfug herausstellt.
+Damit arbeiten. Phase 1 und der gebaute Teil von Phase 2 stehen; was sich beim
+täglichen Benutzen als Unfug herausstellt, fliegt wieder raus, bevor irgendetwas
+Neues dazukommt.

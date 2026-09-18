@@ -7,34 +7,34 @@ that sit on top of it.
 Nothing here is a promise. See [vision.md](vision.md) for the things that are
 deliberately absent, which is a different list and a firmer one.
 
-## Phase 1 · The editor
+## Phase 1 · The editor — done
 
-Where the work is now. Tabs, splits as a tree, the file tree, the status bar
-that actually lets you change the encoding, find and replace in the document and
-across a folder, the command palette, session restore with drafts, settings, the
-bundled languages and themes. This is the point at which I can stop using
-anything else, and it is the only phase with a stopping condition.
+Tabs, splits as a tree, the file tree, the status bar that actually lets you
+change the encoding, find and replace in the document and across a folder, the
+command palette, session restore with drafts, settings, the bundled languages
+and themes. It was the only phase with a stopping condition, and it stopped.
 
 ## Phase 2 · The parts I keep reaching for
 
-**The plugin API, opened up.** The registry in
-`editor/extensions/registry.ts` already exists and already carries the bundled
-non-core features. Opening it means the part that is actually hard: a folder
-plugins live in, a manifest, a version the app can refuse, and an honest answer
-to what a plugin is allowed to touch. A CodeMirror `Extension` is an enormous
-surface to hand a stranger, so this gets done properly or not at all.
+Macros, the widened plugin registry, themes you can edit and git marks in the
+gutter came off this list; they are in the repository, and the
+[README](../README.md) says what they do. The theme question answered itself on
+the way — a theme was always data rather than code here, so making one no longer
+means writing TypeScript. What is left of the phase:
 
-**Macro record and replay.** The Notepad++ feature I miss most and the one
-nobody else bothers with: record a sequence of edits, play it back, play it back
-to the end of the file. CodeMirror transactions are the right unit to record, so
-the design work is deciding which ones are worth keeping and how a saved macro
-survives a document it was not recorded against.
+**Macros in a menu.** A macro can carry a `Ctrl` shortcut and it is in the
+command palette, which covers the day-to-day. What it does not have is the place
+Notepad++ gives it: a menu of its own, with the saved ones listed and a
+keyboard-reachable path to each. That is a menu question as much as a macro one,
+and it waits until the menu is worth extending.
 
-**Git diff in the gutter.** `git_statuses` already tells the app which files git
-has something to say about, and the tab and tree indicators use it. The gutter
-needs more: the blob as git has it, diffed against the buffer, as added,
-modified and deleted marks you can click. Green and amber, never pink — the
-[design](design.md) rule.
+**Third-party plugin loading.** The registry now takes commands as well as an
+extension, which is the part that was in the way. The part that is actually hard
+is unchanged: a folder plugins live in, a manifest, a version the app can
+refuse, and an honest answer to what a plugin is allowed to touch. A CodeMirror
+`Extension` is an enormous surface to hand a stranger, so this gets done
+properly or not at all. [plugins.md](plugins.md) is the current answer, and the
+current answer is "compiled in".
 
 **Clone to other view.** Two panes showing the same document, each with its own
 selection and scroll, sharing one `EditorState`. Today a document lives in
@@ -48,11 +48,6 @@ with a minimap, not with find-across-the-whole-thing in one go — but it should
 open, scroll, and let you jump to a line. That means reading in chunks on the
 Rust side and a document the editor knows is partial, which is enough of a
 change to deserve its own phase rather than being bolted onto the loader.
-
-**More suite themes.** The editor themes today are the UwU one and the classics
-shipped unaltered. I want the rest of the suite's moods as proper themes —
-and, more usefully, a theme format that is data rather than code, so making one
-does not mean writing TypeScript.
 
 ## Phase 3 · Elsewhere
 

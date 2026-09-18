@@ -74,6 +74,8 @@ export type Settings = {
   restoreSession: boolean;
   /** A coloured bar on the tab and in the gutter, from `git status`. */
   gitIndicators: boolean;
+  /** The per-line marks beside the text, from `git diff`. Costs one git call per file. */
+  gitGutter: boolean;
   /** Little sounds on save and on error. Off by default — see docs/design.md. */
   sounds: boolean;
   soundVolume: number;
@@ -130,6 +132,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
   restoreSession: true,
   gitIndicators: true,
+  gitGutter: true,
   sounds: false,
   soundVolume: 0.35,
 
@@ -199,6 +202,7 @@ export function sanitize(raw: unknown): Settings {
 
     restoreSession: bool(input.restoreSession, d.restoreSession),
     gitIndicators: bool(input.gitIndicators, d.gitIndicators),
+    gitGutter: bool(input.gitGutter, d.gitGutter),
     sounds: bool(input.sounds, d.sounds),
     soundVolume: num(input.soundVolume, 0, 1, d.soundVolume),
 

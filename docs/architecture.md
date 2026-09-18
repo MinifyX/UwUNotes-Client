@@ -253,20 +253,140 @@ files to touch, taken from a search the user has already seen on screen.
 Replacing in a file that appeared between the search and the click is exactly
 the kind of surprise an editor must never spring.
 
+## Macros record steps, not transactions
+
+A macro in `lib/macros.ts` is a list of semantic steps: characters that were
+typed, a named editor command, an app command by id, or a search. It is never a
+list of CodeMirror transactions, and that is the single decision the whole
+feature hangs on.
+
+Recording transactions is the obvious idea. They are exactly what happened, they
+already serialise, and CodeMirror hands them to you for free. They are also the
+wrong unit, because a transaction knows _where_ it happened. Replay one and it
+edits the position the caret used to be at, not the position the caret is at
+now — so a macro recorded on line 4 keeps editing line 4 forever, and "repeat
+200 times" performs the same edit in the same place 200 times. The one thing
+nobody has ever recorded a macro for.
+
+Steps replay against wherever the caret is. That is what makes "end of line,
+type a comma, cursor down" walk down a file, and it is what makes _play to the
+end of the file_ a loop that can terminate: each pass has to leave the caret
+strictly further forward than the last, or the run stops.
+
+Three promises hold the rest of it together:
+
+- **One undo step per run.** The run's own transactions are kept out of the
+  history. At the end the collected changes are reverted invisibly and applied
+  again as a single transaction annotated `isolateHistory: 'full'`, so one
+  Ctrl+Z puts the document back however long the macro and however many
+  repetitions. The revert is destructive if those changes are not exactly what
+  happened, so it is skipped unless replaying them on the starting document
+  reproduces the current one — which a synchronous run makes certain.
+- **It stops at the first step that fails, and says why.** A search with no
+  match, a command that declines, a read-only document. A macro that half ran
+  and said nothing is worse than one that stopped.
+- **It cannot hang the window.** Every loop has a hard ceiling, including the
+  one a user can reach by editing `uwunotes.macros` in a text editor.
+
+A run is synchronous from first step to last. Yielding between steps would let a
+file watcher reload the document in the middle of a macro, and there is nothing
+sensible to do with the second half of a macro that is now aimed at a different
+file.
+
 ## Plugins
 
 `editor/extensions/registry.ts` is a small registry of `UwuPlugin`s — an id, a
-name, a description, whether it is on by default, and a `build()` that returns a
-CodeMirror `Extension`. The bundled features that are not core (trailing
-whitespace, the colour swatch, the rainbow brackets, and friends) are registered
-through it, and `pluginExtensions(enabled)` turns the enabled set into
-extensions for a document.
+name, a description, whether it is on by default, and then two optional halves:
+a `build()` returning a CodeMirror `Extension`, and a list of `commands` for the
+palette. Either half may be missing. A plugin that is only a `build()` is what
+Phase 1 shipped; a plugin that is only commands (sort lines, change case,
+Base64) never appears in the editor's configuration at all and costs an open
+document nothing.
 
-It is deliberately internal for now. The interface is a CodeMirror extension,
-which is a large surface to promise to third parties before the app itself has
-shipped once. Opening it up — a plugin folder, a manifest, a permission story —
-is on the roadmap, and doing it after the shape has settled is the whole reason
-it is not done now.
+How it composes: `pluginExtensions(enabledPluginIds())` is the last thing
+appended inside `settingsExtensions()`, which lives in the settings compartment.
+So plugins ride the mechanism settings already use — switching one on is one
+reconfigure transaction per open document, not a new editor. The price is that
+`build()` runs on every reconfigure, so it has to be cheap and must not hold
+state between calls; anything a plugin needs to remember belongs in a
+`StateField` inside the extension it returns. On the other side,
+`pluginCommands()` hands `lib/commands.ts` the enabled plugins' commands, which
+is why a command's `title` is a function: the palette can be open while the
+language changes.
+
+What a plugin may not do is the longer and more useful list.
+
+- **No UI of its own** — no panel, no menu, no status bar item, no settings
+  field. Everything a plugin contributes surfaces in exactly two places, the
+  editor and the command palette, so a user who has never read a line of this
+  knows where all of them are.
+- **No process of its own.** Nothing is spawned and nothing is sandboxed. A
+  plugin runs on the UI thread, and a plugin that blocks it blocks the editor.
+- **No loading at runtime.** There is no folder to drop a file into; a plugin is
+  a module in this repository, imported by `editor/setup.ts` for the side
+  effect. Third-party plugins are a real feature and this is not yet it.
+- **No network and no filesystem**, by convention rather than by a wall —
+  anything that reaches for either is a feature and belongs in `lib/api.ts`,
+  with an error path and a visible failure.
+
+Which plugins are enabled is stored by the registry, not by `lib/settings.ts`:
+the set of ids is open-ended, and `Settings` is a closed record with a validator
+that would have to be edited for every new plugin. [plugins.md](plugins.md) is
+the writing guide; this section is only the shape.
+
+## A theme is a block of custom properties
+
+Exactly one theme writes CSS: `uwu`, in `editor/theme.ts`, and even that is
+nothing but `var()` lookups, which is why it follows the app's light and dark
+without being told. Every other theme is that same theme with a block of custom
+properties set on `.cm-editor` — no second `HighlightStyle`, no second set of
+selectors, no second place to forget the matching-bracket colour.
+
+That is what makes a user theme possible at all. Because a theme is data, one
+the user made is the same shape as one we ship: a name, a `dark` flag, and a map
+from token to colour. `lib/user-themes.ts` stores it, `editor/themes.ts` wraps
+either kind into the same `Extension`, and the bundled themes carry their values
+around with them so that duplicating one hands back a whole theme rather than
+the handful of lines it happened to override.
+
+What it buys the suite is that a theme travels. It exports as JSON, it can be
+pasted in from a message, and the token names are `@uwu/tokens`' own — so a
+theme written here already means something in any sibling app that loads
+`code.css`. Nothing else needs to know which theme is active either: the
+minimap, the decorations and the gutter all read the tokens off the editor
+element and get the right answer for free.
+
+The cost is that this is JSON on a user's disk, which a curious person will
+eventually open in the very editor it configures. Everything coming back out of
+storage is sanitised: an unknown property name is dropped rather than written
+into the page, and a value has to pass `CSS.supports('color', value)` — the only
+honest test, because the browser is the thing that has to render it.
+
+## The git gutter has no diff algorithm
+
+The marks between the line numbers and the text come from `git diff --no-color
+-U0 -- <file>`, and the Rust side reads the `@@ -a,b +c,d @@` headers and
+nothing else. `-U0` means zero lines of context, so each header's ranges _are_
+the changed lines: `b == 0` is an addition, `d == 0` is a deletion, anything
+else is a modification. We do not diff, and we do not keep a copy of the blob to
+diff against. Git already knows, and reimplementing Myers in TypeScript to
+disagree with it slightly would be a strange way to spend an evening.
+
+A combined diff — what git prints for a file in a merge conflict — has `@@@`
+headers with three ranges. Those fail the prefix check and the file ends up with
+no marks at all, which is the right answer for a file whose changed lines are
+not a question with one answer yet.
+
+Two smaller decisions follow from what a hunk means. A deleted hunk marks the
+line _after_ the deletion and draws a wedge on the boundary rather than a bar,
+because nothing on that line was removed — the lines around it were, and a
+full-height bar would be pointing at the wrong text. And hunks arrive as a
+`StateEffect` into a `StateField`, not through a facet or a compartment:
+reconfiguring for them would throw away the measured line heights of every open
+document every time somebody saved a file.
+
+One `git diff` per file is not free, which is why `Settings.gitGutter` exists
+and why the setting says out loud what it costs.
 
 ## German first, English as a lookup
 

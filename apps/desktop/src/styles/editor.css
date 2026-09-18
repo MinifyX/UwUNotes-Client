@@ -258,3 +258,35 @@
   line-height: 1.5;
   white-space: normal;
 }
+
+/* ── Git marks in the gutter ───────────────────────────── */
+
+/*
+ * The bars are not here, and for once that is not the rule at the top of this
+ * file talking. `editor/git-gutter.ts` carries its own `baseTheme` with the
+ * column's width, the shape of the wedge a deletion leaves behind and the
+ * three `--uwu-code-*` colours it paints them in, because a plugin that can
+ * be switched off in the settings should take its whole appearance with it
+ * when it goes — a stylesheet cannot be unloaded, and a plugin whose look
+ * lives in one is a plugin that is still half here after it is disabled.
+ *
+ * What is left for this file is the one part that is about the editor rather
+ * than the plugin: what the column does when what it is showing is out of
+ * date.
+ */
+
+/*
+ * A document edited since git last answered draws its marks at four tenths —
+ * the lines have moved and the bars are an approximation until the next
+ * report arrives, which is usually a keystroke later. Faded rather than
+ * switched, because that state flips on the first character of every burst of
+ * typing, and a column that blinks the moment a key is pressed reads as an
+ * error rather than as an aside.
+ *
+ * Opacity only. The third state collapses the column to nothing, and a width
+ * that animates is a width CodeMirror measures halfway through — which it
+ * then believes for the rest of the frame.
+ */
+.cm-uwuGitGutter {
+  transition: opacity 180ms ease;
+}
