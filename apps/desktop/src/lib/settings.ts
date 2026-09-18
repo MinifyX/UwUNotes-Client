@@ -157,8 +157,16 @@ export function sanitize(raw: unknown): Settings {
     typeof value === 'number' && Number.isFinite(value)
       ? Math.min(max, Math.max(min, value))
       : fallback;
-  const text = (value: unknown, fallback: string, max = 80) =>
-    typeof value === 'string' && value.trim() ? value.slice(0, max) : fallback;
+  const text = (value: unknown, fallback: string, max = 80) => {
+    if (typeof value !== 'string') return fallback;
+    // No name anybody typed holds a control character: the fields are
+    // single-line `<input>`s, and HTML strips carriage returns and newlines
+    // before React ever sees the value. One that arrived by hand-editing this
+    // blob would end a CSS string mid-rule once `fontStack` quoted it, so it
+    // dies at the boundary instead.
+    const clean = value.replace(/\p{Cc}/gu, '').slice(0, max);
+    return clean.trim() ? clean : fallback;
+  };
 
   return {
     language: oneOf(input.language, ['system', 'de', 'en'] as const, d.language),

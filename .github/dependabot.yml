@@ -14,6 +14,13 @@ updates:
         update-types:
           - minor
           - patch
+        # Every action is pinned to a commit, which Dependabot keeps current by
+        # reading the tag the pin used to name. `dtolnay/rust-toolchain` has no
+        # real tags — `stable` is a branch — so a bump of that one is a bump of
+        # somebody's branch head and wants reading, not merging with eleven
+        # other lines.
+        exclude-patterns:
+          - dtolnay/rust-toolchain
 
   - package-ecosystem: npm
     directory: /

@@ -18,6 +18,16 @@ serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
+# Three questions the standard library will not answer: whether a handle is a
+# real file on a disk or a named pipe, how many names a file has, and how to
+# replace a file without giving it the folder's access list. Same version the
+# desktop crate already pulls in, so this adds nothing to the build.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+] }
+
 # The integration tests build reference byte sequences by hand, which means they
 # need the same encoder the crate uses.
 [dev-dependencies]

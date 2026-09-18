@@ -453,11 +453,18 @@ export async function replaceAllInFiles(): Promise<void> {
       files: paths,
     });
     if (summary.failed.length > 0) {
+      // Not "not writable": a file is also skipped when it did not decode
+      // cleanly, or when its encoding cannot write the replacement — and
+      // sending somebody hunting for a read-only flag that is not there is
+      // worse than saying nothing. Rust puts the reason in each failure, so the
+      // first one is named rather than counted.
+      const first = summary.failed[0];
       toast(
         'error',
-        t('{done} Dateien geändert, {failed} nicht beschreibbar.', {
+        t('{done} Dateien geändert, {failed} übersprungen: {reason}', {
           done: summary.files,
           failed: summary.failed.length,
+          reason: first ? `${baseName(first.path)} — ${first.error}` : '',
         }),
       );
     } else {

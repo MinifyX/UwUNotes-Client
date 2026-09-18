@@ -69,5 +69,6 @@
   "Maximieren": "Maximize",
   "Befehl fehlgeschlagen: {message}": "Command failed: {message}",
   "Löschen": "Delete",
-  "Das lässt sich nicht rückgängig machen.": "This cannot be undone."
+  "Das lässt sich nicht rückgängig machen.": "This cannot be undone.",
+  "Eine ungespeicherte Notiz ließ sich nicht laden: {name}": "An unsaved note couldn't be loaded: {name}"
 }

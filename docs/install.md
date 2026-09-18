@@ -21,12 +21,16 @@ Windows will show you is explained before you see it rather than after.
 UwUNotes speaks German and English, following Windows.
 **Settings → Appearance → Language** switches.
 
-## 1. From a release, once there is one
+## 1. From a release
 
-Releases will appear on the
-[releases page](https://github.com/MinifyX/UwUNotes-Client/releases), which is
-empty right now. When something is there, take the newest one at the top and
-download the `.exe` setup under **Assets**.
+Releases are on the
+[releases page](https://github.com/MinifyX/UwUNotes-Client/releases). Take the
+newest one at the top and download the `.exe` setup under **Assets**.
+
+`SHA256SUMS.txt` sits next to it, if you want to check that what you have is
+what was built: `Get-FileHash .\UwUNotes_0.1.0_x64-setup.exe` in PowerShell,
+and compare. It is published by the same job that built the file, so it cannot
+tell you the build was honest — only that nothing happened to the file since.
 
 Your browser may say the file is "not commonly downloaded" — which is true, and
 which it says about every file nobody has downloaded yet. Keep it anyway (in
@@ -75,7 +79,7 @@ For something you can keep:
 pnpm tauri build
 ```
 
-The setup lands in `apps/desktop/src-tauri/target/release/bundle/`. It is the
+The setup lands in `target/release/bundle/` in the repository root. It is the
 same unsigned file a release would be, so Windows greets it exactly as described
 above — which is a decent way to see that warning once in a context where you
 know precisely where the file came from.
@@ -157,12 +161,17 @@ die Warnung, die Windows dir zeigen wird, vorher erklärt ist und nicht hinterhe
 UwUNotes spricht Deutsch und Englisch, je nach Windows.
 **Einstellungen → Erscheinungsbild → Sprache** schaltet um.
 
-## 1. Aus einem Release, sobald es eins gibt
+## 1. Aus einem Release
 
-Releases erscheinen auf der
-[Releases-Seite](https://github.com/MinifyX/UwUNotes-Client/releases), die
-gerade leer ist. Wenn dort etwas steht, nimm das neueste ganz oben und lade
-unter **Assets** das `.exe`-Setup herunter.
+Releases stehen auf der
+[Releases-Seite](https://github.com/MinifyX/UwUNotes-Client/releases). Nimm das
+neueste ganz oben und lade unter **Assets** das `.exe`-Setup herunter.
+
+Daneben liegt `SHA256SUMS.txt`, falls du prüfen möchtest, ob du auch wirklich
+die gebaute Datei hast: `Get-FileHash .\UwUNotes_0.1.0_x64-setup.exe` in der
+PowerShell, dann vergleichen. Die Datei kommt aus demselben Lauf, der auch das
+Setup gebaut hat — sie kann dir also nicht sagen, dass der Build ehrlich war,
+nur dass der Datei seitdem nichts passiert ist.
 
 Dein Browser meldet vielleicht, die Datei werde „nicht häufig heruntergeladen“ —
 was stimmt und was er über jede Datei sagt, die noch niemand heruntergeladen
@@ -214,7 +223,7 @@ Für etwas zum Behalten:
 pnpm tauri build
 ```
 
-Das Setup landet in `apps/desktop/src-tauri/target/release/bundle/`. Es ist
+Das Setup landet in `target/release/bundle/` im Wurzelverzeichnis. Es ist
 dieselbe unsignierte Datei, die auch ein Release wäre, Windows begrüßt sie also
 genau wie oben beschrieben — was eine ganz gute Gelegenheit ist, diese Warnung
 einmal zu sehen, wenn man ganz genau weiß, woher die Datei kommt.

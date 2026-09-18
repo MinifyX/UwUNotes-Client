@@ -113,10 +113,12 @@ today.
 
 ## Install
 
-There is nothing to install yet — no release, no setup, no download. The long
-way round, for the day there is one and for the warning Windows will show about
-it, is [docs/install.md](docs/install.md); it also says where your session and
-your drafts live, in English and in German.
+The setup is on the
+[releases page](https://github.com/MinifyX/UwUNotes-Client/releases). It is not
+signed, so Windows will put a box in front of it — what that box means, and how
+to check the download against the published checksum, is in
+[docs/install.md](docs/install.md); it also says where your session and your
+drafts live, in English and in German.
 
 Building it needs:
 
@@ -180,6 +182,8 @@ working on components, useless for anything that touches a file.
 - [Plugins](docs/plugins.md) — how to write one, and the longer list of what one
   is not allowed to do
 - [Design](docs/design.md) — colours, type, Nyu, tone of voice
+- [Security review](docs/security-review-2026-09.md) — what was gone over before
+  0.1.0, what was fixed, and what is left on purpose
 - [Roadmap](docs/roadmap.md) — my wish list, without dates
 
 ## License

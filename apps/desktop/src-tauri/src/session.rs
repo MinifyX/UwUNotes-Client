@@ -37,10 +37,19 @@ pub(crate) async fn load_session(
     Ok(session)
 }
 
+/// Saves the session, and — only when `prune` says so — sweeps up the drafts
+/// that no longer belong to anything.
+///
+/// `prune` is the page saying its restore really did rebuild from a stored
+/// session, so the document list below is the whole truth. It is false for
+/// every path that ends in a fresh empty buffer: the setting switched off, a
+/// session from another version, a draft that would not read. The store keeps
+/// its own half of the same question and both have to agree.
 #[tauri::command]
 pub(crate) async fn save_session(
     state: State<'_, AppState>,
     session: StoredSession,
+    prune: bool,
 ) -> CommandResult<()> {
     let store = Arc::clone(&state.session);
     let open_documents: HashSet<String> = session
@@ -56,7 +65,7 @@ pub(crate) async fn save_session(
         // session is the moment the full list of living documents exists.
         // Every document in it is kept, dirty or not, because a draft written
         // between this snapshot and this line must survive.
-        if let Err(error) = store.prune_drafts(&open_documents) {
+        if let Err(error) = store.prune_drafts(&open_documents, prune) {
             tracing::warn!(%error, "stale drafts could not be swept up");
         }
         Ok(())
@@ -87,7 +96,7 @@ pub(crate) async fn read_draft(
     let store = Arc::clone(&state.session);
     tauri::async_runtime::spawn_blocking(move || store.read_draft(&doc_id))
         .await
-        .map_err(|error| thread_stopped(&error))
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
 }
 
 /// Drops a draft, because the document was saved or its tab was closed on

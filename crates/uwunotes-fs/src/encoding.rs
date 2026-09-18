@@ -214,10 +214,28 @@ pub fn decode(bytes: &[u8], encoding: &'static Encoding, bom: bool) -> (String, 
 
 /// Encodes text back to bytes, writing the byte order mark when asked.
 ///
+/// For anything that is about to reach a disk, prefer [`encode_checked`]: this
+/// one throws away the answer to "did every character survive?".
+pub fn encode(text: &str, encoding: &'static Encoding, bom: bool) -> Vec<u8> {
+    encode_checked(text, encoding, bom).0
+}
+
+/// [`encode`], plus whether the encoding had to substitute anything.
+///
 /// UTF-16 is done by hand because `encoding_rs` refuses to encode to it: the
 /// WHATWG standard makes UTF-16 decode-only and quietly substitutes UTF-8 as
 /// the output encoding, which would turn "save" into "silently convert".
-pub fn encode(text: &str, encoding: &'static Encoding, bom: bool) -> Vec<u8> {
+///
+/// The flag is the one `encoding_rs` computes and the plain `encode` used to
+/// drop on the floor. A legacy code page turns a character it cannot hold into
+/// an HTML numeric reference: `→` becomes the seven literal characters
+/// `&#8594;`. That is what the standard says to do and it loses less than a
+/// question mark would, but it is still a silent change to the user's text, so
+/// callers about to write a file ask first and offer UTF-8.
+///
+/// Only the code-page branch can ever set it: UTF-16 holds every scalar value a
+/// Rust `str` can, and UTF-8 is where the text already lives.
+pub fn encode_checked(text: &str, encoding: &'static Encoding, bom: bool) -> (Vec<u8>, bool) {
     let mut out = Vec::with_capacity(text.len() + 4);
     if bom {
         out.extend_from_slice(bom_bytes(encoding));
@@ -232,14 +250,12 @@ pub fn encode(text: &str, encoding: &'static Encoding, bom: bool) -> Vec<u8> {
             out.extend_from_slice(&unit.to_be_bytes());
         }
     } else {
-        // Characters the code page cannot hold come out as `&#1234;` numeric
-        // references. That is what the standard says to do, and it loses less
-        // than a question mark would.
-        let (bytes, _, _) = encoding.encode(text);
+        let (bytes, _, unmappable) = encoding.encode(text);
         out.extend_from_slice(&bytes);
+        return (out, unmappable);
     }
 
-    out
+    (out, false)
 }
 
 /// Empty for anything that is not Unicode: a "BOM" in a Windows-1252 file is

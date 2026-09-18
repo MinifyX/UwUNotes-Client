@@ -11,6 +11,7 @@
 //! is a question, and the user is allowed to answer yes.
 
 use std::fs;
+use std::io::Read as _;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -81,9 +82,35 @@ pub fn file_stamp(path: &Path) -> FsResult<Option<FileStamp>> {
 /// Reads and decodes a file. `forced` overrides detection with an encoding
 /// label the user picked from the status bar.
 pub fn read_file(path: &Path, forced: Option<&str>) -> FsResult<LoadedFile> {
-    let metadata = fs::metadata(path).map_err(|error| FsError::from_io(&error, path))?;
+    // Asked before the open purely so the message is right: on Windows
+    // `File::open` on a directory fails with "access denied", which would tell
+    // the user something untrue about a mistake they can see. Nothing depends
+    // on this answer — the handle below is asked again.
+    if fs::metadata(path).is_ok_and(|metadata| metadata.is_dir()) {
+        return Err(FsError::IsDirectory {
+            path: path.to_path_buf(),
+        });
+    }
+
+    // One handle answers every question below, which is the point. Asking
+    // `fs::metadata` and then reading the path separately asks two questions
+    // about two different moments: a file that is a kilobyte when its size is
+    // checked and four gigabytes when it is read sails straight past the limit.
+    let file = fs::File::open(path).map_err(|error| FsError::from_io(&error, path))?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| FsError::from_io(&error, path))?;
     if metadata.is_dir() {
         return Err(FsError::IsDirectory {
+            path: path.to_path_buf(),
+        });
+    }
+    // `metadata.is_file()` cannot be the guard here: on Windows it is true for
+    // `\\.\pipe\lsass`, which opens instantly and then blocks in the read until
+    // the server on the other end answers — never, for a path someone put in a
+    // hand-edited session file. Only the handle's own type tells them apart.
+    if !is_regular_file(&file) {
+        return Err(FsError::NotAFile {
             path: path.to_path_buf(),
         });
     }
@@ -95,7 +122,19 @@ pub fn read_file(path: &Path, forced: Option<&str>) -> FsResult<LoadedFile> {
         });
     }
 
-    let bytes = fs::read(path).map_err(|error| FsError::from_io(&error, path))?;
+    // One byte past the limit, so a file that grew between the two answers is
+    // caught here instead of being read to the end.
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    file.take(MAX_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| FsError::from_io(&error, path))?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err(FsError::TooLarge {
+            path: path.to_path_buf(),
+            size: bytes.len() as u64,
+            limit: MAX_FILE_BYTES,
+        });
+    }
 
     let detected = match forced {
         Some(label) => {
@@ -135,4 +174,19 @@ pub fn read_file(path: &Path, forced: Option<&str>) -> FsResult<LoadedFile> {
         binary,
         encoding_source: detected.source,
     })
+}
+
+/// Whether an open handle is a file on a disk rather than a pipe or a device.
+#[cfg(windows)]
+fn is_regular_file(file: &fs::File) -> bool {
+    crate::windows_api::is_disk_file(file)
+}
+
+#[cfg(not(windows))]
+fn is_regular_file(file: &fs::File) -> bool {
+    // Unlike Windows, `is_file` here is already false for a FIFO or a character
+    // device, which is the same question `GetFileType` answers over there.
+    file.metadata()
+        .map(|metadata| metadata.is_file())
+        .unwrap_or(false)
 }

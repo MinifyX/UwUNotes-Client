@@ -256,19 +256,27 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
   // A path the user picked in the save dialog has already been confirmed for
   // overwriting there, so there is no stamp to hold Rust to.
   let expectedStamp: FileStamp | null = newPath ? null : meta.stamp;
+  // Both start as "not authorised" and can only be turned on by the user
+  // answering a question below. `encoding` is a local because switching to
+  // UTF-8 has to reach the very next attempt, not the next save.
+  let encoding = meta.encoding;
+  let allowUnmappable = false;
 
-  // Twice at most: the second attempt is the one the user authorised by
-  // choosing "overwrite", and it goes out with no stamp to trip over.
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  // Three attempts at most, and each extra one is a question the user
+  // answered: overwrite the changed file, and write the characters this
+  // encoding cannot hold.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const written = await writeTextFile({
         path,
         text,
-        encoding: meta.encoding,
+        encoding,
         bom: meta.bom,
         eol: meta.eol,
         expectedStamp,
+        allowUnmappable,
       });
+      if (encoding !== meta.encoding) patchMeta(id, { encoding });
       markSaved(id, path, await fileNameOf(path), written.stamp);
       rememberFile(path);
       void dropDraft(id).catch(() => undefined);
@@ -277,6 +285,29 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
       return true;
     } catch (error) {
       const failure = asApiError(error);
+      if (failure.kind === 'unmappable') {
+        // The file's encoding cannot write something in the buffer — an arrow
+        // or an emoji in a Windows-1252 file, say. Rust refused rather than
+        // writing `&#8594;` and calling it a success, so nothing on disk has
+        // changed yet and the choice is still the user's.
+        if (mode.silent) return false;
+        const answer = await ask(
+          t('Zeichen passen nicht zur Kodierung'),
+          t(
+            '{name} wird als {encoding} gespeichert, und diese Kodierung kann nicht alle Zeichen im Text darstellen. Als UTF-8 bleibt alles erhalten; sonst werden die fehlenden Zeichen als „&#8594;“ geschrieben.',
+            { name: meta.name, encoding: encodingName(encoding) },
+          ),
+          [
+            { id: 'utf8', label: t('Als UTF-8 speichern'), tone: 'primary' },
+            { id: 'anyway', label: t('Trotzdem speichern'), tone: 'danger' },
+            { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+          ],
+        );
+        if (answer === 'utf8') encoding = 'UTF-8';
+        else if (answer === 'anyway') allowUnmappable = true;
+        else return false;
+        continue;
+      }
       if (failure.kind !== 'changed') {
         reportFileError(error, path);
         return false;
@@ -694,6 +725,10 @@ export function describeApiError(error: ApiError, fallbackPath: string | null): 
       return t('{name} ist zu groß, um sie hier zu öffnen.', { name });
     case 'isDirectory':
       return t('{name} ist ein Ordner, keine Datei.', { name });
+    case 'notAFile':
+      return t('{name} ist keine gewöhnliche Datei.', { name });
+    case 'unmappable':
+      return t('{name}: Die Kodierung kann nicht alle Zeichen im Text darstellen.', { name });
     case 'encoding':
       return t('{name} ließ sich nicht dekodieren.', { name });
     case 'invalidRegex':

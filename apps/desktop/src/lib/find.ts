@@ -43,8 +43,58 @@ import { activeDocId } from './workspace';
  */
 export const MATCH_CAP = 5_000;
 
+/**
+ * How many changes one "replace all" may carry.
+ *
+ * Deliberately not {@link MATCH_CAP}, which is a per-keystroke counting budget
+ * paid several times a second. This is a one-shot the user asked for, and
+ * refusing to rename something that occurs six thousand times would be a worse
+ * editor. What it is really guarding against is a regular expression that can
+ * match nothing — `a*`, `\d*`, `q?` — which has a match at every offset in the
+ * document, so a four megabyte file yields four million change objects and
+ * about a gigabyte of heap before the renderer gives up. Two hundred thousand
+ * is far past any real replacement and costs a few tens of megabytes.
+ *
+ * All or nothing: the count is checked before anything is dispatched, so a
+ * refused replace leaves the document untouched and needs no undo.
+ */
+export const REPLACE_CAP = 200_000;
+
 /** How often the open bar checks whether the document moved underneath it. */
 const POLL_MS = 120;
+
+/**
+ * How long a regular expression may spend on short samples before the bar
+ * refuses it.
+ *
+ * Measuring is the only bound available. A pattern like `(a+)+b` backtracks
+ * exponentially, and all of that happens inside one `exec` call: nothing on
+ * this thread can interrupt it, so a deadline checked between matches would be
+ * read once, after the freeze was already over.
+ *
+ * It works because exponential is exponential. The samples get longer two
+ * characters at a time and the clock is read after each, so an ordinary pattern
+ * costs a fraction of a millisecond in total, and a catastrophic one is stopped
+ * at the first length where it is noticeable. Each step of two costs roughly
+ * four times the last, so the one step that overshoots the budget overshoots it
+ * by about that much — a tenth of a second, once, rather than the hours the
+ * same pattern would cost against a real line.
+ *
+ * It is a heuristic and the limit is worth knowing: a pattern that is quick at
+ * thirty-two characters and catastrophic at sixty still gets through, and then
+ * the window freezes. Closing that properly means matching in a worker so it
+ * can be killed, which is more machinery than this editor has earned.
+ */
+const PROBE_BUDGET_MS = 20;
+const PROBE_LENGTHS = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32];
+
+/**
+ * Verdicts already reached, because `recount` compiles on every keystroke and
+ * a pattern's answer cannot change. Cleared rather than evicted one by one: it
+ * is a cache, not a store.
+ */
+const PROBE_MEMO = new Map<string, boolean>();
+const PROBE_MEMO_CAP = 200;
 
 export type FindState = {
   open: boolean;
@@ -181,6 +231,12 @@ export function compileSearch(options: SearchOptions): {
         }),
       };
     }
+    if (tooSlow(options.query, options.caseSensitive)) {
+      return {
+        query: null,
+        error: t('Dieser Ausdruck braucht zu lange — bitte umformulieren.'),
+      };
+    }
   }
   const query = new SearchQuery({
     search: options.query,
@@ -192,6 +248,53 @@ export function compileSearch(options: SearchOptions): {
   if (!query.valid)
     return { query: null, error: t('Der Suchausdruck lässt sich nicht verwenden.') };
   return { query, error: null };
+}
+
+/**
+ * Whether this pattern is one of the ones that never comes back.
+ *
+ * Run before the query is handed to CodeMirror, because after that it is the
+ * regular expression engine's thread and nobody else's. See
+ * {@link PROBE_BUDGET_MS} for why measuring a short sample is enough and where
+ * it stops being enough.
+ */
+function tooSlow(pattern: string, caseSensitive: boolean): boolean {
+  const key = `${caseSensitive ? 'S' : 'i'} ${pattern}`;
+  const known = PROBE_MEMO.get(key);
+  if (known !== undefined) return known;
+
+  const verdict = measure(pattern, caseSensitive);
+  if (PROBE_MEMO.size >= PROBE_MEMO_CAP) PROBE_MEMO.clear();
+  PROBE_MEMO.set(key, verdict);
+  return verdict;
+}
+
+function measure(pattern: string, caseSensitive: boolean): boolean {
+  let probe: RegExp;
+  try {
+    probe = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+  } catch {
+    // Not our problem: an unusable pattern was already reported above.
+    return false;
+  }
+
+  const started = performance.now();
+  for (const length of PROBE_LENGTHS) {
+    // Three shapes, because a nested quantifier only blows up on a long run of
+    // something it matches followed by something it does not: a run of letters
+    // for everything built on `\w`, `[a-z]`, `.` or the letter itself, a run of
+    // spaces for `\s` and ` `, and an alternating one for the mixed cases.
+    for (const sample of ['a'.repeat(length), `${' '.repeat(length)}x`, ' a'.repeat(length / 2)]) {
+      try {
+        probe.lastIndex = 0;
+        probe.exec(sample);
+      } catch {
+        return false;
+      }
+    }
+    if (performance.now() - started > PROBE_BUDGET_MS) return true;
+  }
+  return false;
 }
 
 function compileCurrent() {
@@ -514,6 +617,16 @@ export function replaceAll(): void {
   for (;;) {
     const step = cursor.next();
     if (step.done) break;
+    if (changes.length >= REPLACE_CAP) {
+      // Before the dispatch, so nothing has happened yet and there is nothing
+      // to undo. A pattern that can match the empty string gets here; a real
+      // replacement never does.
+      toast(
+        'error',
+        t('Mehr als {count} Treffer — bitte die Suche eingrenzen.', { count: REPLACE_CAP }),
+      );
+      return;
+    }
     const insert = replacementFor(step.value);
     changes.push({ from: step.value.from, to: step.value.to, insert });
     delta += insert.length - (step.value.to - step.value.from);

@@ -24,18 +24,28 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Every `uses:` in both workflows is pinned to a commit rather than to a
+      # tag or a branch, with the version in the comment. A tag can be moved
+      # and `@stable` is a branch, so an unpinned action is whatever that
+      # repository's owner — or whoever takes their account — says it is on the
+      # day the job runs. Dependabot keeps these current.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The token here is read-only, so this buys nothing today. It is the
+          # house style so that the next workflow, which may not be, inherits
+          # it: see the release job for what it costs to forget.
+          persist-credentials: false
 
       # setup-node twice, on purpose: the pnpm cache asks `pnpm store path`
       # where the store is, so pnpm has to exist before caching is switched on,
       # and `corepack enable` can only put it next to a Node that is already
       # installed. The second call finds the toolchain in place and costs a
       # second.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -54,13 +64,15 @@ jobs:
     # compile anywhere, but they are not worth a job of their own.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -70,11 +82,15 @@ jobs:
       # (../dist) is missing, so even `cargo test` needs the frontend built.
       - run: pnpm build
 
-      # This action has no version tags; the branch name is the toolchain.
-      - uses: dtolnay/rust-toolchain@stable
+      # This action has no version tags; the branch name is the toolchain — and
+      # that is exactly why the pin above is a commit and `toolchain` is named
+      # here rather than left to the default. The commit and the branch would
+      # otherwise be able to disagree about which compiler this installs.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
+          toolchain: stable
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
 
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings

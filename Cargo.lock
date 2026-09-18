@@ -4476,6 +4476,7 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tracing",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

@@ -42,6 +42,18 @@ pub enum FsError {
     #[error("That path is a directory, not a file.")]
     IsDirectory { path: PathBuf },
 
+    /// Not a directory and not an ordinary file either — a named pipe, a
+    /// console, a serial port. Reading one would block until whatever is on the
+    /// other end answered, which may be never.
+    #[error("That path is not an ordinary file.")]
+    NotAFile { path: PathBuf },
+
+    /// The text holds characters the file's encoding cannot represent. Raised
+    /// *instead of* writing, because the alternative is writing `&#8594;` where
+    /// the user typed `→` and saying the save went fine.
+    #[error("{encoding} cannot represent every character in this text.")]
+    Unmappable { path: PathBuf, encoding: String },
+
     #[error("{message}")]
     Encoding {
         path: Option<PathBuf>,
@@ -67,6 +79,8 @@ impl FsError {
             Self::Changed { .. } => "changed",
             Self::TooLarge { .. } => "tooLarge",
             Self::IsDirectory { .. } => "isDirectory",
+            Self::NotAFile { .. } => "notAFile",
+            Self::Unmappable { .. } => "unmappable",
             Self::Encoding { .. } => "encoding",
             Self::InvalidRegex { .. } => "invalidRegex",
             Self::Other { .. } => "other",
@@ -79,7 +93,9 @@ impl FsError {
             | Self::Permission { path }
             | Self::Changed { path }
             | Self::TooLarge { path, .. }
-            | Self::IsDirectory { path } => Some(path),
+            | Self::IsDirectory { path }
+            | Self::NotAFile { path }
+            | Self::Unmappable { path, .. } => Some(path),
             Self::Encoding { path, .. } | Self::Other { path, .. } => path.as_deref(),
             Self::InvalidRegex { .. } => None,
         }

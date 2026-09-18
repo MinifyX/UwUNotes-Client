@@ -153,6 +153,19 @@ describe('sanitising nonsense', () => {
     expect(sanitize({ editorTheme: '' }).editorTheme).toBe(DEFAULT_SETTINGS.editorTheme);
   });
 
+  it('strips the control characters a font name could hide', () => {
+    // The field is a single-line `<input>`, which cannot produce a newline —
+    // but this blob is a file on disk, and a newline here ends the CSS string
+    // `editor/setup.ts` wraps the name in, taking the rest of the typography
+    // rule and the rule after it with it.
+    expect(sanitize({ fontFamily: 'Cascadia\nMono' }).fontFamily).toBe('CascadiaMono');
+    expect(sanitize({ fontFamily: 'a\r\nx' }).fontFamily).toBe('ax');
+    expect(sanitize({ fontFamily: '\n\n' }).fontFamily).toBe(DEFAULT_SETTINGS.fontFamily);
+    // Names people really have keep working, umlauts and CJK included.
+    expect(sanitize({ fontFamily: 'MS ゴシック' }).fontFamily).toBe('MS ゴシック');
+    expect(sanitize({ fontFamily: 'JetBrains Mono NL' }).fontFamily).toBe('JetBrains Mono NL');
+  });
+
   it('cuts a list of collapsed folders down to something a tree can hold', () => {
     const folders = Array.from({ length: 2_000 }, (_, index) => `C:/project/${index}`);
 

@@ -37,6 +37,10 @@ pub(crate) fn read_text_file(path: String, encoding: Option<String>) -> CommandR
 /// `expected_stamp` is what the editor believes is on disk; a mismatch comes
 /// back as [`FsError::Changed`] and the page turns that into a question instead
 /// of quietly winning the race.
+///
+/// `allow_unmappable` is the same shape of answer for a different question: the
+/// text holds characters the chosen encoding cannot write, the user has been
+/// shown that and has said to write it anyway.
 #[tauri::command(async)]
 pub(crate) fn write_text_file(
     path: String,
@@ -45,9 +49,17 @@ pub(crate) fn write_text_file(
     bom: bool,
     eol: Eol,
     expected_stamp: Option<FileStamp>,
+    allow_unmappable: bool,
 ) -> CommandResult<SavedFile> {
-    let stamp =
-        uwunotes_fs::write_file(Path::new(&path), &text, &encoding, bom, eol, expected_stamp)?;
+    let stamp = uwunotes_fs::write_file(
+        Path::new(&path),
+        &text,
+        &encoding,
+        bom,
+        eol,
+        expected_stamp,
+        allow_unmappable,
+    )?;
     Ok(SavedFile { stamp })
 }
 

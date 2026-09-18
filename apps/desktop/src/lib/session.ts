@@ -42,6 +42,7 @@ import {
   type DocId,
 } from './documents';
 import { describeApiError, newFile } from './files';
+import { t } from './i18n';
 import { newPaneId, paneIds, sanitizeLayout, type LayoutNode, type PaneId } from './layout';
 import { getSettings } from './settings';
 import { toast } from './toast';
@@ -65,6 +66,29 @@ const SESSION_VERSION = 1;
 let restoring: Promise<void> | null = null;
 
 /**
+ * Whether the drafts on disk are accounted for by the documents in the window.
+ *
+ * Only a restore that actually rebuilt from a stored session can say yes. Every
+ * other way this module ends up with a window — the "restore my tabs" setting
+ * switched off, a session from a version this build does not know, a session
+ * file that would not read, a draft that came back as an error — leaves it
+ * false, because then the one empty buffer on screen is not a list of what to
+ * keep. `saveSession` passes it on, and `prune_drafts` in Rust refuses while it
+ * is false. Starting false means the answer is no until something proves
+ * otherwise, including if the restore throws halfway.
+ */
+let pruneAllowed = false;
+
+/**
+ * A draft existed and would not read during this restore.
+ *
+ * Which is not the same as there being no draft: the document gets dropped
+ * either way, but only in this case does dropping it mean the next save would
+ * collect text that was merely briefly unreadable.
+ */
+let draftUnreadable = false;
+
+/**
  * Rebuilds the last window, or opens one empty buffer.
  *
  * Idempotent on purpose. `App` starts this from an effect, and React's
@@ -80,6 +104,9 @@ export function restoreSession(): Promise<void> {
 }
 
 async function restoreOnce(): Promise<void> {
+  pruneAllowed = false;
+  draftUnreadable = false;
+
   if (!getSettings().restoreSession) {
     newFile();
     return;
@@ -122,12 +149,34 @@ async function restoreOnce(): Promise<void> {
 
   if (restored.size === 0) newFile();
   else applyRestoredScroll();
+
+  // Set last, and only here: this is the one path that rebuilt the window from
+  // a stored session, so it is the only one that knows what the drafts on disk
+  // belong to. Every other way out of this function has already returned with
+  // the flag still false.
+  pruneAllowed = !draftUnreadable && restored.size > 0;
 }
 
 /** One document, from its draft when it was dirty and from disk otherwise. */
 async function restoreDocument(entry: SessionDocument): Promise<DocId | null> {
   if (entry.dirty) {
-    const draft = await readDraft(entry.docId).catch(() => null);
+    let draft: string | null = null;
+    try {
+      draft = await readDraft(entry.docId);
+    } catch {
+      // The draft is there and would not read — a virus scanner holding the
+      // file, a disk hiccup. Dropping the document is what would let the next
+      // save collect text that was only briefly unreadable, so this whole run
+      // sweeps up nothing at all.
+      draftUnreadable = true;
+      toast(
+        'error',
+        t('Eine ungespeicherte Notiz ließ sich nicht laden: {name}', {
+          name: entry.name,
+        }),
+      );
+      return null;
+    }
     if (draft !== null) {
       return openDoc({
         id: entry.docId,
@@ -344,7 +393,7 @@ export async function persistSession(): Promise<void> {
     recentFiles: [...workspace.recentFiles],
     recentFolders: [...workspace.recentFolders],
   };
-  await saveSession(session).catch(() => undefined);
+  await saveSession(session, pruneAllowed).catch(() => undefined);
 }
 
 /**

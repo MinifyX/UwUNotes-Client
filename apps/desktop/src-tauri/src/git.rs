@@ -11,9 +11,10 @@
 //! no committing, no fetching. UwUNotes reads git's opinion and colours a few
 //! rows with it.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{LazyLock, Mutex, OnceLock};
 
 use serde::Serialize;
 
@@ -21,6 +22,16 @@ use serde::Serialize;
 /// status poll every few seconds would flash a black box over the editor.
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// One answer per folder to "can this repository be asked anything safely?".
+/// The status poll runs every eight seconds and the gutter asks per open file,
+/// so working it out each time would be a `git config` per file per poll.
+static REPOSITORY_IS_INERT: LazyLock<Mutex<HashMap<PathBuf, bool>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// A folder per open document, and every one of them opened by hand. Still: a
+/// cache with no ceiling is a leak.
+const TRUST_CACHE_LIMIT: usize = 512;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +66,10 @@ pub(crate) async fn git_statuses(root: String) -> Option<GitStatuses> {
 }
 
 fn statuses(folder: &Path) -> Option<GitStatuses> {
+    if !repository_is_inert(folder) {
+        return None;
+    }
+
     let repository = PathBuf::from(text(&git(folder, &["rev-parse", "--show-toplevel"])?)?);
     if repository.as_os_str().is_empty() {
         return None;
@@ -79,13 +94,26 @@ fn statuses(folder: &Path) -> Option<GitStatuses> {
 
 /// Runs one git command in `folder`. `None` for a git that is not installed, a
 /// folder that is not a repository, or any other non-zero exit.
+///
+/// The two options in front of the subcommand are not tidiness. A repository is
+/// data — `.git/config` is not signed, and it travels inside a zip, a network
+/// share or a synced folder — and several configuration values are things git
+/// runs as a program. `core.fsmonitor` is a command line executed on `status`;
+/// `core.hooksPath` can point at a `post-index-change` hook that fires when a
+/// status refreshes the index, which `--no-optional-locks` stops by never
+/// writing one. So a folder the user merely opened would otherwise run a
+/// program as them, every eight seconds, with the console hidden. What no flag
+/// can switch off is checked in [`repository_is_inert`] instead.
 fn git(folder: &Path, arguments: &[&str]) -> Option<Vec<u8>> {
-    let mut command = Command::new("git");
+    let mut command = Command::new(git_program()?);
     command
         // `-C` rather than `current_dir`, so a folder that has been deleted
         // fails as a git error instead of as a spawn error.
         .arg("-C")
         .arg(folder)
+        .arg("--no-optional-locks")
+        .arg("-c")
+        .arg("core.fsmonitor=false")
         .args(arguments)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -94,6 +122,122 @@ fn git(folder: &Path, arguments: &[&str]) -> Option<Vec<u8>> {
 
     let output = command.output().ok()?;
     output.status.success().then_some(output.stdout)
+}
+
+/// The `git` we will run, as an absolute path, worked out once.
+///
+/// `Command::new("git")` would leave the name for Rust to resolve, and on
+/// Windows that search starts in the directory of the running executable —
+/// which for a per-user install is a folder anything running as the user can
+/// write to. It is the same folder `build.rs` and `system.rs` already refuse to
+/// load DLLs from, with the same reasoning. So PATH is walked here, with that
+/// one directory left out.
+fn git_program() -> Option<&'static Path> {
+    static GIT: OnceLock<Option<PathBuf>> = OnceLock::new();
+    GIT.get_or_init(resolve_git).as_deref()
+}
+
+fn resolve_git() -> Option<PathBuf> {
+    let name = if cfg!(windows) { "git.exe" } else { "git" };
+    let own_folder = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .and_then(|folder| folder.canonicalize().ok());
+
+    // `split_paths` rather than splitting on `;` by hand: it is what handles a
+    // quoted entry. `canonicalize` on both sides is what makes the skip survive
+    // a different spelling or a trailing slash.
+    std::env::split_paths(&std::env::var_os("PATH")?)
+        .filter(|folder| !folder.as_os_str().is_empty())
+        .filter(|folder| match (folder.canonicalize().ok(), &own_folder) {
+            (Some(folder), Some(own)) => folder != *own,
+            _ => true,
+        })
+        .map(|folder| folder.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Whether this repository can be asked for a status or a diff without running
+/// programs it names itself.
+///
+/// `git()` turns off the two that a flag can reach. A *clean filter* —
+/// `filter.<name>.clean` plus a `.gitattributes` that points at it — is the one
+/// it cannot: git has no `--no-filters` for diff, and it runs the filter to
+/// normalise the working copy before comparing. So a repository that names any
+/// exec-capable key in its own `.git/config` gets no letters in the tree and no
+/// marks in the gutter at all.
+///
+/// Normal repositories name none of these locally. The realistic false positive
+/// is `git lfs install --local`, which costs that user decoration and nothing
+/// else. `git config --list` runs none of the programs it prints, so asking is
+/// itself safe.
+fn repository_is_inert(folder: &Path) -> bool {
+    let key = folder.to_path_buf();
+    if let Some(known) = REPOSITORY_IS_INERT
+        .lock()
+        .ok()
+        .and_then(|cache| cache.get(&key).copied())
+    {
+        return known;
+    }
+
+    // No answer is not an answer: the folder is not a repository yet, or git is
+    // not installed. Saying no costs nothing, because the caller's own command
+    // was going to fail too — and not remembering it means a `git init` in a
+    // folder that is already open is noticed at the next poll rather than at
+    // the next start.
+    let Some(answer) = inspect_repository(folder) else {
+        return false;
+    };
+    if !answer {
+        tracing::warn!(
+            folder = %folder.display(),
+            "git decoration is off for this folder: its .git/config names a program for git to run"
+        );
+    }
+    if let Ok(mut cache) = REPOSITORY_IS_INERT.lock() {
+        if cache.len() < TRUST_CACHE_LIMIT {
+            cache.insert(key, answer);
+        }
+    }
+    answer
+}
+
+fn inspect_repository(folder: &Path) -> Option<bool> {
+    let listing = git(folder, &["config", "--local", "--name-only", "--list"])?;
+    Some(
+        !String::from_utf8_lossy(&listing)
+            .lines()
+            .any(names_a_program),
+    )
+}
+
+/// Whether a configuration key holds something git will execute.
+///
+/// Keys arrive from `--name-only` lowercased apart from a subsection's own
+/// name, so the fixed names compare directly and the rest are matched by shape:
+/// `diff.<driver>.command`, `<anything>.textconv`, and the three halves of a
+/// filter driver.
+fn names_a_program(key: &str) -> bool {
+    const NAMED: &[&str] = &[
+        "core.fsmonitor",
+        "core.hookspath",
+        "core.pager",
+        "core.editor",
+        "core.sshcommand",
+        "core.alternaterefscommand",
+        "diff.external",
+    ];
+
+    let lower = key.trim().to_ascii_lowercase();
+    if NAMED.contains(&lower.as_str()) {
+        return true;
+    }
+    if lower.ends_with(".textconv") || lower.ends_with(".command") {
+        return true;
+    }
+    lower.starts_with("filter.")
+        && (lower.ends_with(".clean") || lower.ends_with(".smudge") || lower.ends_with(".process"))
 }
 
 /// One line of git output as a trimmed `String`, or `None` when it was not text.
@@ -195,9 +339,31 @@ pub(crate) async fn git_file_diff(path: String) -> Option<Vec<GitHunk>> {
 
 fn file_diff(file: &Path) -> Option<Vec<GitHunk>> {
     let folder = file.parent()?;
+    // Not only for a folder the user opened: this runs for every open document,
+    // using the file's own parent, so a single file opened out of an extracted
+    // archive reaches a `.git/config` that came with it.
+    if !repository_is_inert(folder) {
+        return None;
+    }
+
     // A path that is not UTF-8 cannot be handed to `git` as an argument here,
     // and a file we cannot name is a file we have no diff for.
-    let diff = git(folder, &["diff", "--no-color", "-U0", "--", file.to_str()?])?;
+    //
+    // `--no-ext-diff` and `--no-textconv` are the two ways a repository asks
+    // git to run a program of its choosing while producing this diff. The first
+    // also neutralises an inherited `GIT_EXTERNAL_DIFF`.
+    let diff = git(
+        folder,
+        &[
+            "diff",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            "-U0",
+            "--",
+            file.to_str()?,
+        ],
+    )?;
     let hunks = parse_hunks(&String::from_utf8_lossy(&diff));
     (!hunks.is_empty()).then_some(hunks)
 }
@@ -266,8 +432,64 @@ fn hide_console(_command: &mut Command) {}
 
 #[cfg(test)]
 mod tests {
-    use super::{classify, parse_hunks, parse_porcelain, GitFileStatus, GitHunkKind};
+    use super::{
+        classify, git_program, names_a_program, parse_hunks, parse_porcelain, GitFileStatus,
+        GitHunkKind,
+    };
     use std::path::Path;
+
+    #[test]
+    fn the_config_keys_git_would_run_are_recognised() {
+        // Every one of these is a value git executes: the first three on a
+        // plain `git status`, the rest while producing a diff.
+        for key in [
+            "core.fsmonitor",
+            "core.hooksPath",
+            "core.pager",
+            "diff.external",
+            "diff.uwu.command",
+            "diff.uwu.textconv",
+            "filter.lfs.clean",
+            "filter.evil.process",
+        ] {
+            assert!(names_a_program(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn an_ordinary_repositorys_config_is_left_alone() {
+        // What `git init` and a normal day actually write. Refusing these would
+        // mean no repository ever got a status letter.
+        for key in [
+            "core.repositoryformatversion",
+            "core.filemode",
+            "core.bare",
+            "core.logallrefupdates",
+            "core.ignorecase",
+            "remote.origin.url",
+            "remote.origin.fetch",
+            "branch.main.remote",
+            "user.email",
+            "diff.uwu.binary",
+        ] {
+            assert!(!names_a_program(key), "{key}");
+        }
+    }
+
+    #[test]
+    fn git_is_never_taken_from_the_folder_the_app_runs_from() {
+        // Rust's own name resolution searches there first, and a per-user
+        // install puts the app somewhere anything running as the user can
+        // write. Either we found a git elsewhere on PATH, or we found none.
+        let Some(found) = git_program() else { return };
+        let own = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(Path::to_path_buf))
+            .and_then(|folder| folder.canonicalize().ok());
+        let Some(own) = own else { return };
+        let beside = found.parent().and_then(|folder| folder.canonicalize().ok());
+        assert_ne!(beside.as_ref(), Some(&own), "{found:?}");
+    }
 
     #[test]
     fn a_rename_does_not_leave_its_old_path_in_the_tree() {

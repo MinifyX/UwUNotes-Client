@@ -242,12 +242,18 @@ impl Sink for FileSink<'_> {
         let line_number = sink_match.line_number().unwrap_or(0);
         let line_bytes = line_without_terminator(sink_match.bytes());
 
-        let mut spans = Vec::new();
+        // One span past the budget and no further. A line of nothing but the
+        // letter being searched for has a match at every offset, and collecting
+        // all of them to keep a handful is how a four megabyte file costs
+        // seventy megabytes of allocation. The one extra is what still lets the
+        // loop below tell "exactly full" from "there was more".
+        let remaining = self.budget.get();
+        let mut spans = Vec::with_capacity(remaining.min(64));
         if self
             .matcher
             .find_iter(line_bytes, |span| {
                 spans.push((span.start(), span.end()));
-                true
+                spans.len() <= remaining
             })
             .is_err()
         {
@@ -257,9 +263,21 @@ impl Sink for FileSink<'_> {
             return Ok(true);
         }
 
-        // Lossy: a line that is not valid UTF-8 still deserves a preview, and
-        // the offsets below are clamped to character boundaries either way.
+        // Lossy: a line that is not valid UTF-8 still deserves a preview.
         let line = String::from_utf8_lossy(line_bytes);
+        // The spans are offsets into the raw bytes, but every invalid byte just
+        // became a three-byte U+FFFD, so on a lossy line they no longer point
+        // at the match — the preview would highlight the wrong characters and
+        // clicking the row would select the wrong range in the editor. The
+        // borrowed case is the overwhelmingly common one and costs nothing.
+        let shifted = matches!(&line, std::borrow::Cow::Owned(_));
+        let remap = |offset: usize| -> usize {
+            if shifted {
+                String::from_utf8_lossy(&line_bytes[..offset.min(line_bytes.len())]).len()
+            } else {
+                offset
+            }
+        };
 
         let mut found = self.found.borrow_mut();
         for (start, end) in spans {
@@ -267,7 +285,7 @@ impl Sink for FileSink<'_> {
                 self.truncated.set(true);
                 return Ok(false);
             }
-            found.push(preview_match(&line, start, end, line_number));
+            found.push(preview_match(&line, remap(start), remap(end), line_number));
             self.budget.set(self.budget.get() - 1);
         }
 
@@ -383,11 +401,16 @@ fn replace_in_file(
 
     let bytes = fs::read(path).map_err(|error| FsError::from_io(&error, path))?;
     let detected = encoding::detect(&bytes);
-    let (decoded, _lossy) = encoding::decode(&bytes, detected.encoding, detected.bom);
-    let (eol, _mixed) = encoding::detect_eol(&decoded);
-    let text = encoding::normalise(&decoded);
+    let (decoded, lossy) = encoding::decode(&bytes, detected.encoding, detected.bom);
 
-    let (replaced, count) = replace_text(matcher, &text, replacement, expand_captures).map_err(
+    // Deliberately not normalised, and deliberately no `apply_eol` on the way
+    // out. A replace rewrites the whole file, so every byte outside a match has
+    // to come back exactly as it was — including the line endings of a file
+    // that mixes them, and a bare `\r` in the middle of a line, which
+    // `normalise` would turn into a real line break. Those two belong in
+    // `read.rs` and `write.rs`, where the editor's `\n`-only text is on one
+    // side of them.
+    let (replaced, count) = replace_text(matcher, &decoded, replacement, expand_captures).map_err(
         |error| match error {
             FsError::Other { message, .. } => FsError::other(Some(path), message),
             other => other,
@@ -397,55 +420,100 @@ fn replace_in_file(
         return Ok(0);
     }
 
-    let out = encoding::encode(
-        &encoding::apply_eol(&replaced, eol),
-        detected.encoding,
-        detected.bom,
-    );
+    // Two ways a rewrite could change bytes nobody asked about, and the same
+    // answer to both: refuse the file. The path lands in `summary.failed` with
+    // the reason, the panel shows it, and the file is left exactly as it was.
+    // Checked below the `count == 0` return so a file that would not have been
+    // touched anyway does not turn into a failure row.
+    if lossy {
+        return Err(FsError::encoding(
+            Some(path),
+            "This file did not decode cleanly, so rewriting it would turn the \
+             bytes we could not read into replacement characters.",
+        ));
+    }
+    let (out, unmappable) = encoding::encode_checked(&replaced, detected.encoding, detected.bom);
+    if unmappable {
+        return Err(FsError::Unmappable {
+            path: path.to_path_buf(),
+            encoding: detected.encoding.name().to_owned(),
+        });
+    }
+
     write_atomic(path, &out)?;
     Ok(count)
 }
 
+/// Replaces line by line, because the search matched line by line.
+///
+/// The search runs through grep-searcher, which hands the matcher one line at a
+/// time with its terminator stripped, so `^` and `$` there mean the ends of a
+/// line. Running the same matcher over a whole file in one pass would make them
+/// mean the ends of the *file*: `^foo` reports three matches in the panel, the
+/// confirmation dialog quotes three, and one gets replaced. Splitting here is
+/// what makes the number the user approved the number that happens.
+///
+/// Terminators come back untouched, which is also what keeps a file that mixes
+/// CRLF and LF — or carries a bare `\r` inside a line — byte-identical
+/// everywhere the search did not point.
 fn replace_text(
     matcher: &RegexMatcher,
     text: &str,
     replacement: &str,
     expand_captures: bool,
 ) -> FsResult<(String, usize)> {
-    let haystack = text.as_bytes();
-    let mut captures = matcher
-        .new_captures()
-        .map_err(|_| FsError::other(None, "The regular expression engine failed."))?;
+    let engine_failed = || FsError::other(None, "The regular expression engine failed.");
+    let mut captures = matcher.new_captures().map_err(|_| engine_failed())?;
 
-    let mut out: Vec<u8> = Vec::with_capacity(haystack.len());
-    let mut consumed = 0usize;
+    let mut out: Vec<u8> = Vec::with_capacity(text.len());
     let mut count = 0usize;
 
-    matcher
-        .captures_iter(haystack, &mut captures, |found| {
-            let Some(whole) = found.get(0) else {
-                return true;
-            };
-            out.extend_from_slice(&haystack[consumed..whole.start()]);
-            if expand_captures {
-                expand_replacement(replacement, matcher, found, haystack, &mut out);
-            } else {
-                out.extend_from_slice(replacement.as_bytes());
-            }
-            consumed = whole.end();
-            count += 1;
-            true
-        })
-        .map_err(|_| FsError::other(None, "The regular expression engine failed."))?;
+    for segment in text.split_inclusive('\n') {
+        let (line, terminator) = split_terminator(segment);
+        let haystack = line.as_bytes();
+        let mut consumed = 0usize;
+
+        matcher
+            .captures_iter(haystack, &mut captures, |found| {
+                let Some(whole) = found.get(0) else {
+                    return true;
+                };
+                out.extend_from_slice(&haystack[consumed..whole.start()]);
+                if expand_captures {
+                    expand_replacement(replacement, matcher, found, haystack, &mut out);
+                } else {
+                    out.extend_from_slice(replacement.as_bytes());
+                }
+                consumed = whole.end();
+                count += 1;
+                true
+            })
+            .map_err(|_| engine_failed())?;
+
+        out.extend_from_slice(&haystack[consumed..]);
+        out.extend_from_slice(terminator.as_bytes());
+    }
 
     if count == 0 {
         return Ok((String::new(), 0));
     }
 
-    out.extend_from_slice(&haystack[consumed..]);
     let replaced = String::from_utf8(out)
         .map_err(|_| FsError::encoding(None, "The replacement produced invalid text."))?;
     Ok((replaced, count))
+}
+
+/// A line and the bytes that ended it, split exactly the way grep-searcher
+/// splits one: a `\n`, with an optional `\r` in front of it. A lone `\r` in the
+/// middle of a line is content, not a line ending, on both sides.
+fn split_terminator(segment: &str) -> (&str, &str) {
+    let Some(line) = segment.strip_suffix('\n') else {
+        return (segment, "");
+    };
+    match line.strip_suffix('\r') {
+        Some(line) => (line, "\r\n"),
+        None => (line, "\n"),
+    }
 }
 
 /// Expands `$1`, `${1}`, `${name}` and `$$` in a replacement, the way every

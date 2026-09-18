@@ -56,5 +56,10 @@
   "{name} ließ sich nicht dekodieren.": "Couldn't decode {name}.",
   "Der Suchausdruck ist kein gültiger regulärer Ausdruck.": "The search term isn't a valid regular expression.",
   "{name}: {message}": "{name}: {message}",
-  "Fehler: {message}": "Error: {message}"
+  "Fehler: {message}": "Error: {message}",
+  "{name} ist keine gewöhnliche Datei.": "{name} isn't an ordinary file.",
+  "{name}: Die Kodierung kann nicht alle Zeichen im Text darstellen.": "{name}: the encoding can't represent every character in the text.",
+  "Zeichen passen nicht zur Kodierung": "Characters don't fit the encoding",
+  "{name} wird als {encoding} gespeichert, und diese Kodierung kann nicht alle Zeichen im Text darstellen. Als UTF-8 bleibt alles erhalten; sonst werden die fehlenden Zeichen als „&#8594;“ geschrieben.": "{name} is saved as {encoding}, and that encoding can't represent every character in the text. UTF-8 keeps all of it; otherwise the missing characters are written as \"&#8594;\".",
+  "Als UTF-8 speichern": "Save as UTF-8"
 }

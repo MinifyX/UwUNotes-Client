@@ -12,18 +12,24 @@
 //! What this crate deliberately does not do: delete anything, talk to Tauri, or
 //! know what a tab is.
 
-#![forbid(unsafe_code)]
+// `deny` rather than `forbid`: `windows_api` needs three Windows calls the
+// standard library does not wrap — telling a file from a named pipe, counting a
+// file's names, and replacing a file without handing it the folder's access
+// list. That module turns the lint off for itself and nothing else does.
+#![deny(unsafe_code)]
 
 pub mod encoding;
 pub mod error;
 pub mod listing;
 pub mod read;
 pub mod search;
+#[cfg(windows)]
+mod windows_api;
 pub mod write;
 
 pub use encoding::{
-    apply_eol, by_label, decode, detect, detect_eol, encode, normalise, Detected, EncodingSource,
-    Eol, ENCODINGS,
+    apply_eol, by_label, decode, detect, detect_eol, encode, encode_checked, normalise, Detected,
+    EncodingSource, Eol, ENCODINGS,
 };
 pub use error::{FsError, FsResult};
 pub use listing::{

@@ -11,9 +11,12 @@
  * first, for the same reason `lib/settings.ts` does it: this is JSON on a
  * user's disk that a curious person will eventually open in the very editor it
  * configures. An unknown property name is dropped rather than written into the
- * page, and every value has to be a colour the browser itself admits to
- * understanding — `CSS.supports('color', value)` is the only honest test,
- * because the browser is the thing that has to render it.
+ * page, and every value has to survive two tests: it may not carry CSS
+ * punctuation that could end a declaration, and then it has to be a colour the
+ * browser itself admits to understanding. `CSS.supports('color', value)` is the
+ * honest test for the second — the browser is the thing that has to render it —
+ * but it is not a test for the first, and treating it as one is how `var(--a){`
+ * gets into a stylesheet.
  *
  * What this module does not do: build extensions (`editor/themes.ts`), decide
  * which theme is active (`Settings.editorTheme`), apply one (`editor/setup.ts`)
@@ -175,18 +178,36 @@ const EDITABLE = new Set<string>(THEME_TOKENS);
 /* ── The colour test ───────────────────────────────────── */
 
 /**
- * Whether the browser would accept `value` as a colour.
+ * Characters that could end the declaration, the rule, or the stylesheet.
  *
- * Deliberately not a hex regex: `oklch(62% 0.22 350)` and `color-mix(…)` are
- * colours too, and a theme editor that refuses the notation the user actually
- * thinks in is a worse editor than one that lets the browser decide. `var(…)`
- * passes as well, which is a small feature — a theme can point a token at the
- * brand pink and follow it. A self-referential `var()` makes the property
- * invalid at computed-value time and the token falls back to the app's own,
- * which is a wrong colour rather than a blank editor.
+ * The value does not reach the page through the CSSOM, where escaping would be
+ * impossible. `editor/themes.ts` hands the token map to `EditorView.theme`, and
+ * style-mod builds a `<style>` element's text by concatenation — so a value has
+ * to be safe as *text* before it is anything else. `CSS.supports` cannot do
+ * that job: it is a rendering question, and it answers yes to anything holding
+ * `var()`, because such a value cannot be resolved at parse time. `var(--a){`
+ * passes it, and that brace swallows the rest of the rule and every rule after
+ * it, leaving the editor unstyled until the theme is deleted.
+ *
+ * Same reasoning and the same list as `fontStack()` in `editor/setup.ts`, minus
+ * the brackets `rgb()`, `oklch()`, `color-mix()` and `var()` need.
+ */
+const CSS_BREAKOUT = /[{};"'\\<>]|\/\*|\*\/|[\u0000-\u001f\u007f]/;
+
+/**
+ * Whether `value` is safe to write into a stylesheet, and a colour.
+ *
+ * Deliberately not a hex regex for the second half: `oklch(62% 0.22 350)` and
+ * `color-mix(…)` are colours too, and a theme editor that refuses the notation
+ * the user actually thinks in is a worse editor than one that lets the browser
+ * decide. `var(…)` passes as well, which is a small feature — a theme can point
+ * a token at the brand pink and follow it. A self-referential `var()` makes the
+ * property invalid at computed-value time and the token falls back to the app's
+ * own, which is a wrong colour rather than a blank editor.
  */
 export function isColourValue(value: string): boolean {
   if (!value || value.length > MAX_VALUE) return false;
+  if (CSS_BREAKOUT.test(value)) return false;
   try {
     return CSS.supports('color', value);
   } catch {

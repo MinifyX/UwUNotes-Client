@@ -97,9 +97,14 @@ export function baseExtensions(): Extension {
   ];
 }
 
-/** A user font name goes into a CSS string, so it may not carry quotes out. */
+/**
+ * A user font name goes into a CSS string, so it may not carry quotes out —
+ * nor a newline, which ends a CSS string just as surely and takes the rest of
+ * the rule with it. `lib/settings.ts` strips control characters on the way in;
+ * this is the second line of the same defence.
+ */
 function fontStack(family: string): string {
-  const safe = family.replace(/["\\;{}]/g, '').trim();
+  const safe = family.replace(/["\\;{}]|\p{Cc}/gu, '').trim();
   return safe ? `"${safe}", var(--uwu-mono)` : 'var(--uwu-mono)';
 }
 

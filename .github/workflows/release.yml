@@ -17,7 +17,20 @@ jobs:
       # Creating the release is the only thing here that writes anything.
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      # Every `uses:` here is pinned to a commit rather than to a tag or a
+      # branch, with the version in the comment. This job is the only thing in
+      # the repository that produces the installer people download and the only
+      # one holding a token that can write, so an action whose content is
+      # "whatever that branch says today" is the one unpinned input left: both
+      # lockfiles are committed and the install is `--frozen-lockfile`.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Otherwise checkout leaves the job's write-capable token in
+          # `.git/config`, where every `build.rs` in the dependency graph and
+          # every install script can read it — for the rest of the build, to no
+          # purpose, since nothing after this line uses git and the release
+          # action takes its token from the environment.
+          persist-credentials: false
 
       # Before anything is compiled: an installer that reports a different
       # version than the tag it came from is a support problem forever, and a
@@ -59,11 +72,11 @@ jobs:
           "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
           Write-Output "UwUNotes $version, pre-release: $prerelease"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -74,19 +87,41 @@ jobs:
       # rather than somewhere inside the bundler's output.
       - run: pnpm build
 
-      - uses: dtolnay/rust-toolchain@stable
+      # `stable` is a branch of that repository, not a tag, so the pin is a
+      # commit and the toolchain is named here instead of being read off the
+      # branch the pin no longer follows.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
 
       # Leaves the NSIS setup and the MSI in target/release/bundle. The Cargo
       # workspace is the repository root, so that is the root's target, not one
       # next to src-tauri.
       - run: pnpm tauri build
 
+      # The installers are unsigned by design, so a checksum is the only thing
+      # a person who downloads one can check it against. It proves nothing on
+      # its own — it is published by the same job — but it makes a file that was
+      # swapped afterwards, on a mirror or in a forwarded message, noticeable.
+      - name: Write the checksums
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem `
+            target/release/bundle/nsis/*-setup.exe, `
+            target/release/bundle/msi/*.msi
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)"
+          }
+          Set-Content -Path SHA256SUMS.txt -Value $lines -Encoding ascii
+          Get-Content SHA256SUMS.txt
+
       # softprops rather than `gh release create`: the body comes from a file,
       # the installers are globbed, the pre-release flag is an input, and an
       # installer that failed to appear fails the job. With the CLI all four
       # would be PowerShell plumbing, and PowerShell quoting is exactly the part
       # that cannot be tested before the tag is pushed.
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           body_path: ${{ steps.release.outputs.body }}
           prerelease: ${{ steps.release.outputs.prerelease }}
@@ -94,3 +129,4 @@ jobs:
           files: |
             target/release/bundle/nsis/*-setup.exe
             target/release/bundle/msi/*.msi
+            SHA256SUMS.txt

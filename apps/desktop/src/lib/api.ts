@@ -93,6 +93,12 @@ export const writeTextFile = (args: {
   bom: boolean;
   eol: Eol;
   expectedStamp: FileStamp | null;
+  /**
+   * The text holds characters `encoding` cannot write, the user has been shown
+   * that and has said to write it anyway. Without this Rust refuses the save
+   * rather than putting `&#8594;` where the user typed `→`.
+   */
+  allowUnmappable: boolean;
 }) => invoke<SavedFile>('write_text_file', args);
 
 /** The file's current stamp, or `null` when it is gone. */
@@ -250,7 +256,19 @@ export type StoredSession = {
 
 export const loadSession = () => invoke<StoredSession | null>('load_session');
 
-export const saveSession = (session: StoredSession) => invoke<void>('save_session', { session });
+/**
+ * Writes the session, and sweeps up drafts that belong to nothing — but only
+ * when `prune` says the document list below is the whole truth.
+ *
+ * A draft is the only copy of text that was never saved anywhere. Every path
+ * that ends in a fresh empty buffer — the restore setting switched off, a
+ * session from another version, a session file that would not parse, a draft
+ * that would not read — passes `false`, because on those paths the one new
+ * buffer is not a list of what to keep. Rust holds the other half of the same
+ * question and both have to agree.
+ */
+export const saveSession = (session: StoredSession, prune: boolean) =>
+  invoke<void>('save_session', { session, prune });
 
 /**
  * Unsaved text, parked next to the session file so closing the app never
@@ -316,6 +334,10 @@ export type ApiErrorKind =
   | 'changed'
   | 'tooLarge'
   | 'isDirectory'
+  /** Not a directory and not an ordinary file: a named pipe, a device. */
+  | 'notAFile'
+  /** The text has characters the chosen encoding cannot write. */
+  | 'unmappable'
   | 'encoding'
   | 'invalidRegex'
   | 'other';

@@ -41,12 +41,14 @@
   "Ersetzen in Dateien braucht einen geöffneten Ordner.": "Replacing in files needs an open folder.",
   "In {files} Dateien ersetzen?": "Replace in {files} files?",
   "{matches} Treffer werden durch „{replacement}“ ersetzt. Das lässt sich nicht rückgängig machen.": "{matches} matches will be replaced with “{replacement}”. This cannot be undone.",
-  "{done} Dateien geändert, {failed} nicht beschreibbar.": "{done} files changed, {failed} not writable.",
   "{count} Ersetzungen in {files} Dateien.": "{count} replacements in {files} files.",
   "Gehe zu Zeile…": "Go to line…",
   "Gehe zu Zeile": "Go to line",
   "Zeile": "Line",
   "Nur eine Zahl, oder Zeile:Spalte.": "Just a number, or line:column.",
   "1 bis {max}. Eine Spalte kann nach einem Doppelpunkt folgen.": "1 to {max}. A column can follow after a colon.",
-  "Springen": "Go"
+  "Springen": "Go",
+  "Dieser Ausdruck braucht zu lange — bitte umformulieren.": "This expression takes too long — please rephrase it.",
+  "Mehr als {count} Treffer — bitte die Suche eingrenzen.": "More than {count} matches — please narrow the search.",
+  "{done} Dateien geändert, {failed} übersprungen: {reason}": "{done} files changed, {failed} skipped: {reason}"
 }
