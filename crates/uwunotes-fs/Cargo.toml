@@ -1,0 +1,24 @@
+[package]
+name = "uwunotes-fs"
+description = "Reading, writing, listing and searching files for UwUNotes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chardetng.workspace = true
+encoding_rs.workspace = true
+grep-matcher.workspace = true
+grep-regex.workspace = true
+grep-searcher.workspace = true
+ignore.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# The integration tests build reference byte sequences by hand, which means they
+# need the same encoder the crate uses.
+[dev-dependencies]
+encoding_rs.workspace = true

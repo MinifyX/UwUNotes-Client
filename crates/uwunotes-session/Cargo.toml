@@ -1,0 +1,16 @@
+[package]
+name = "uwunotes-session"
+description = "Remembering which files were open, and what was in them"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# For FileStamp and Eol, and for the atomic write the session file gets too.
+uwunotes-fs.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true

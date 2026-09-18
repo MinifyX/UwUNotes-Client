@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+repository = "https://github.com/MinifyX/UwUNotes-Client"
+rust-version = "1.82"
+
+[workspace.dependencies]
+uwunotes-fs = { path = "crates/uwunotes-fs" }
+uwunotes-session = { path = "crates/uwunotes-session" }
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+
+# Encoding is the whole reason this app has a Rust side worth having:
+# encoding_rs does the actual decode/encode for every legacy code page,
+# chardetng guesses which one a file without a BOM is in.
+chardetng = "0.1"
+encoding_rs = "0.8"
+
+# Walking a project tree for "find in files": ignore respects .gitignore, so a
+# search never disappears into node_modules; grep-searcher does the line
+# matching without loading a whole file into memory.
+grep-matcher = "0.1"
+grep-regex = "0.1"
+grep-searcher = "0.1"
+ignore = "0.4"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

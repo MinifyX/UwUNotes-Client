@@ -1,0 +1,38 @@
+//! Everything UwUNotes does with a disk.
+//!
+//! The split with the page is strict: this crate owns bytes — detecting an
+//! encoding, decoding, encoding, atomic writes, walking a tree, matching
+//! patterns — and the page owns text. By the time anything crosses the IPC
+//! boundary it is a `String` with `\n` line endings, and how it got that way
+//! travels alongside it so saving can put it all back exactly as it was.
+//!
+//! Every fallible function returns [`FsError`], which serialises to the shape
+//! `lib/api.ts` calls `ApiError`.
+//!
+//! What this crate deliberately does not do: delete anything, talk to Tauri, or
+//! know what a tab is.
+
+#![forbid(unsafe_code)]
+
+pub mod encoding;
+pub mod error;
+pub mod listing;
+pub mod read;
+pub mod search;
+pub mod write;
+
+pub use encoding::{
+    apply_eol, by_label, decode, detect, detect_eol, encode, normalise, Detected, EncodingSource,
+    Eol, ENCODINGS,
+};
+pub use error::{FsError, FsResult};
+pub use listing::{
+    create_dir, create_file, join_path, list_dir, path_info, places, rename_path, DirEntry,
+    DirEntryKind, PathInfo, Place, PlaceIcon,
+};
+pub use read::{file_stamp, read_file, FileStamp, LoadedFile, MAX_FILE_BYTES};
+pub use search::{
+    replace_in_files, search, ReplaceFailure, ReplaceRequest, ReplaceSummary, SearchMatch,
+    SearchRequest, SearchSummary,
+};
+pub use write::{write_atomic, write_file};

@@ -1,0 +1,26 @@
+{
+  "name": "uwunotes",
+  "version": "0.1.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "packageManager": "pnpm@11.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @uwunotes/desktop dev",
+    "tauri": "pnpm --filter @uwunotes/desktop tauri",
+    "build": "pnpm --filter @uwunotes/desktop build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "prettier --check . && node scripts/check-i18n.mjs",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

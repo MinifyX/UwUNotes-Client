@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="UwUNotes app icon: a sheet of paper with cat ears and a caret">
+  <title>UwUNotes</title>
+  <!--
+    Made to be told apart at 16–24 px in a taskbar, next to its siblings:
+    UwUMail is a light pink tile, UwUSSH a plum tile with a bright prompt on a
+    dark screen. This one inverts that — an ink-plum tile with a large *light*
+    sheet on it, so the silhouette that survives shrinking is a pale page with
+    ears, not a dark rectangle. Everything else is the shared sticker language:
+    white die-cut edge, plum outlines, one gold sparkle.
+
+    Platform icons are generated, not committed by hand. From apps/desktop:
+      pnpm tauri icon ../../brand/uwunotes-app-icon.svg
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E1A4A"/>
+      <stop offset="1" stop-color="#140B22"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.6" r="0.5">
+      <stop offset="0" stop-color="#FF4D8D" stop-opacity="0.5"/>
+      <stop offset="0.7" stop-color="#FF4D8D" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FF4D8D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <circle cx="256" cy="308" r="236" fill="url(#glow)"/>
+
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- die-cut edge -->
+    <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="30">
+      <path d="M96 204 L128 70 L236 170 Z"/>
+      <path d="M416 204 L384 70 L276 170 Z"/>
+      <path d="M84 158 H372 L460 246 V426 a32 32 0 0 1 -32 32 H84 a32 32 0 0 1 -32 -32 V190 a32 32 0 0 1 32 -32 Z"/>
+    </g>
+
+    <!-- ears, drawn before the sheet so their feet disappear behind it -->
+    <g fill="#FF6FA6" stroke="#4B1D3F" stroke-width="14">
+      <path d="M96 204 L128 70 L236 170 Z"/>
+      <path d="M416 204 L384 70 L276 170 Z"/>
+    </g>
+    <path d="M124 176 L140 116 L192 166 Z" fill="#FFB8D3"/>
+    <path d="M388 176 L372 116 L320 166 Z" fill="#FFB8D3"/>
+
+    <!-- the sheet -->
+    <path d="M84 158 H372 L460 246 V426 a32 32 0 0 1 -32 32 H84 a32 32 0 0 1 -32 -32 V190 a32 32 0 0 1 32 -32 Z" fill="#FFB8D3" stroke="#4B1D3F" stroke-width="14"/>
+
+    <!-- folded corner: the back of the sheet, so it takes the deeper pink -->
+    <path d="M372 158 L460 246 H372 Z" fill="#FF6FA6"/>
+    <path d="M372 158 V246 H460" fill="none" stroke="#4B1D3F" stroke-width="12"/>
+
+    <!--
+      The symbol rules its sheet in pink; this one rules it in plum, because
+      pink on pink is gone by 24 px and the two marks are what say "text" once
+      the ears have said "cat". The caret keeps the pink: it is the one thing
+      on the tile that is not paper.
+    -->
+    <g fill="none" stroke="#4B1D3F" stroke-width="24">
+      <path d="M116 306 H380"/>
+      <path d="M116 380 H316"/>
+    </g>
+    <!-- The second line is the short one: the caret sits at the end of it. -->
+    <rect x="338" y="342" width="34" height="76" rx="14" fill="#FF4D8D"/>
+  </g>
+
+  <!-- sparkle, top left: UwUSSH keeps its own at top right -->
+  <path d="M84 50 Q90 80 120 86 Q90 92 84 122 Q78 92 48 86 Q78 80 84 50Z" fill="#FFD66E" stroke="#4B1D3F" stroke-width="8" stroke-linejoin="round"/>
+</svg>

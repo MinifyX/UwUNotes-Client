@@ -1,0 +1,19 @@
+{
+  "name": "@uwu/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "description": "The UwU Suite design tokens: one palette for UwUMail, UwUSSH, UwUNotes and whatever comes next.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./code.css": "./src/code.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

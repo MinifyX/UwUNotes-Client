@@ -1,0 +1,218 @@
+/*
+ * Nyu's animations and the die-cut edge.
+ *
+ * Deliberately token-free: the mascot is fixed artwork and must survive being
+ * dropped into a page that never loaded `@uwu/tokens`. Class names are shared
+ * with UwUMail and UwUSSH, so a scene can move between the three apps.
+ */
+
+.nyu-edge,
+.nyu-edge * {
+  fill: #fff;
+  stroke: #fff;
+}
+
+.nyu-edge * {
+  stroke-width: inherit;
+}
+
+.nyu-edge [fill='none'],
+.nyu-edge [fill='none'] * {
+  fill: none;
+}
+
+.nyu-edge .no-edge {
+  display: none;
+}
+
+.nyu-ear,
+.nyu-eyes,
+.nyu-wave {
+  transform-box: fill-box;
+}
+
+.nyu-ear {
+  transform-origin: 50% 100%;
+}
+
+.nyu-host:hover .nyu-ear-l {
+  animation: nyu-ear-l 480ms ease-in-out;
+}
+
+.nyu-host:hover .nyu-ear-r {
+  animation: nyu-ear-r 480ms ease-in-out;
+}
+
+.nyu-blink .nyu-eyes {
+  transform-origin: center;
+  animation: nyu-blink 5s ease-in-out infinite;
+}
+
+.nyu-wave {
+  transform-origin: 30% 90%;
+  animation: nyu-wave 2.4s ease-in-out infinite;
+}
+
+/* Deliberately the editor's own caret rhythm, not a decorative fade. */
+.nyu-cursor {
+  animation: nyu-cursor 1.06s steps(1) infinite;
+}
+
+/* Needs pathLength on the path: the dash pattern is written in those units. */
+.nyu-scribble {
+  stroke-dasharray: 120;
+  animation: nyu-scribble 3.2s ease-in-out infinite;
+}
+
+.nyu-bob,
+.nyu-sparks,
+.nyu-twinkle,
+.nyu-zzz path {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.nyu-bob {
+  animation: nyu-bob 2.2s ease-in-out infinite;
+}
+
+.nyu-sparks {
+  animation: nyu-twinkle 1.2s ease-in-out infinite;
+}
+
+.nyu-twinkle {
+  animation: nyu-twinkle 1.8s ease-in-out infinite;
+}
+
+.nyu-zzz path {
+  opacity: 0;
+  animation: nyu-zzz 3s ease-in-out infinite;
+}
+
+.nyu-zzz path:nth-child(2) {
+  animation-delay: 1.2s;
+}
+
+/*
+ * The attribute, not the media query: `motion: 'on'` is allowed to override a
+ * system that asks for less of it, and `applyAppearance()` has already worked
+ * out which of the two wins. `!important` because every rule above is at least
+ * as specific as this one.
+ */
+[data-motion='reduced'] .nyu-host,
+[data-motion='reduced'] .nyu-host * {
+  animation: none !important;
+}
+
+@keyframes nyu-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+
+@keyframes nyu-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes nyu-zzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 8px);
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(6px, -14px);
+  }
+}
+
+@keyframes nyu-ear-l {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-14deg);
+  }
+  65% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes nyu-ear-r {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  65% {
+    transform: rotate(-6deg);
+  }
+}
+
+@keyframes nyu-blink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes nyu-wave {
+  0%,
+  45%,
+  100% {
+    transform: rotate(0);
+  }
+  12%,
+  32% {
+    transform: rotate(-18deg);
+  }
+  22% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes nyu-cursor {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes nyu-scribble {
+  0% {
+    stroke-dashoffset: 120;
+  }
+  45%,
+  85% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 120;
+  }
+}

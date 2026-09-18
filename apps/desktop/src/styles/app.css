@@ -1,0 +1,2930 @@
+/*
+ * The application chrome: everything in the window that is not the text.
+ *
+ * Loaded after `@uwu/tokens`, so every colour below is a `var(--uwu-*)` and
+ * the whole window re-colours the moment `applyAppearance()` flips
+ * `data-theme` on <html>. There is not one hex value in this file, and there
+ * must not be: a literal colour is a colour that only looks right in one
+ * theme, and this app opens in the other one.
+ *
+ * The editor itself is not here. `styles/editor.css` holds the pane's frame
+ * and the few rules that have to reach into CodeMirror's DOM, and
+ * `editor/theme.ts` holds its colours — see the comment at the top of that
+ * stylesheet for why those two are not the same place.
+ *
+ * Dark is the default. Light is not an afterthought, it just needs no rules of
+ * its own: every value here is a token, and the tokens already know.
+ */
+
+/*
+ * Two values the palette does not carry, mixed here from ones it does.
+ *
+ * A scrim and a drop shadow are the one pair of things in the window that
+ * must come out *dark* in both themes, and every token in the suite flips
+ * with the theme by design: `--uwu-ink` is nearly black in light and nearly
+ * white in dark, so a scrim mixed from it dims the light theme and then
+ * politely turns the lights back on in the dark one. There is no token that
+ * stays dark, so these are declared twice, against the same two selectors the
+ * token file uses — mixed from tokens, never picked, so a change to the
+ * palette still reaches them.
+ *
+ * Light leans on ink over a pale window; dark leans on `--uwu-deep`, which is
+ * the darkest thing the suite has.
+ */
+:root {
+  --app-shade: color-mix(in srgb, var(--uwu-ink) 26%, transparent);
+  --app-scrim: color-mix(in srgb, var(--uwu-ink) 34%, transparent);
+}
+
+:root[data-theme='dark'] {
+  --app-shade: color-mix(in srgb, var(--uwu-deep) 80%, transparent);
+  --app-scrim: color-mix(in srgb, var(--uwu-deep) 68%, transparent);
+}
+
+/* ── Reset and type ────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/*
+ * The page itself never scrolls. Every region that can overflow says so for
+ * itself, and the editor does its own scrolling inside CodeMirror — a window
+ * whose *document* can be scrolled is a window where the title bar slides
+ * away under the mouse wheel.
+ */
+body {
+  overflow: hidden;
+  background: var(--uwu-canvas);
+  color: var(--uwu-ink);
+  font-family: var(--uwu-font);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The chrome is not selectable text. The editor and the few places that are
+   genuinely quotable turn it back on below. */
+body {
+  user-select: none;
+  cursor: default;
+}
+
+/* React writes `hidden` onto the editor host while a pane is empty, and a
+   `display` of our own would quietly win that argument. */
+[hidden] {
+  display: none !important;
+}
+
+h1,
+h2,
+h3,
+p,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--uwu-mono);
+  font-size: 0.92em;
+}
+
+mark {
+  background: none;
+  color: inherit;
+}
+
+/* One ring, one colour, everywhere. Pink means "this one", and where the
+   keyboard is standing is the most literal "this one" in the window. */
+:focus-visible {
+  outline: 2px solid var(--uwu-pink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reduced motion is handled globally in tokens.css, which collapses every
+   transition and animation to nothing. Nothing in this file uses `!important`
+   on either, so nothing in this file can escape it. */
+
+/*
+ * Scrollbars.
+ *
+ * The default scrollbar is the single most obvious tell that a desktop window
+ * is a web page: a wide light trough down the side of a dark editor that no
+ * native app has had in fifteen years. Thin, in-palette, no track, and the
+ * thumb pads itself with a transparent border so it does not touch the edge.
+ */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--uwu-radius-pill);
+  background: color-mix(in srgb, var(--uwu-muted) 34%, transparent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--uwu-muted) 60%, transparent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--uwu-pink) 60%, transparent);
+  background-clip: padding-box;
+}
+
+/* ── Buttons and controls ──────────────────────────────── */
+
+/*
+ * A base for every button in the window, so a control that has not been
+ * dressed yet still looks like a control. Most of the families below strip
+ * the border and the padding straight off again; that is fine, and cheaper
+ * than a window with one unstyled button in it after a refactor.
+ */
+button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 13px;
+  color: var(--uwu-ink);
+  background: var(--uwu-canvas);
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  padding: 6px 9px;
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.45;
+}
+
+/* Text fields are text: the window-wide `user-select: none` must not reach
+   into something you are meant to be able to select inside. */
+input,
+textarea {
+  user-select: text;
+  cursor: text;
+}
+
+select {
+  cursor: pointer;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--uwu-pink-solid);
+  cursor: pointer;
+}
+
+/* Icons take the colour of whatever they were put next to; `Icon.tsx` sets
+   the stroke to `currentColor` on the element itself. */
+.icon {
+  display: block;
+  flex: none;
+}
+
+/* ── Title bar ─────────────────────────────────────────── */
+
+/*
+ * `decorations: false` in tauri.conf.json, so there is no system frame and
+ * this grid *is* the window. Three rows, and only the middle one may grow.
+ */
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'titlebar'
+    'body'
+    'statusbar';
+}
+
+.titlebar {
+  grid-area: titlebar;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding-left: 12px;
+  background: var(--uwu-surface);
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-right: 8px;
+}
+
+.titlebar-wordmark {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.titlebar-wordmark span {
+  color: var(--uwu-pink);
+}
+
+.titlebar-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--uwu-hairline);
+}
+
+.titlebar-action {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.titlebar-action:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/* The sidebar toggle is the one button up here that holds a state. */
+.titlebar-action[aria-pressed='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+/*
+ * The file name, in the draggable stretch. It grows to eat the slack so the
+ * window buttons stay pinned to the corner, and the name itself is centred in
+ * whatever is left over.
+ */
+.titlebar-file {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 12px;
+  color: var(--uwu-muted);
+}
+
+.titlebar-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amber, not pink: pink already means "this one" on the tab strip, and a file
+   with unsaved work in it is a state, not a selection. */
+.titlebar-file-dirty {
+  flex: none;
+  color: var(--uwu-code-modified);
+  font-size: 15px;
+  line-height: 0;
+}
+
+.titlebar-spacer {
+  flex: none;
+  width: 8px;
+}
+
+/* Windows' own caption buttons: 46 px wide, the full height of the bar. Any
+   other size and the corner of the window feels wrong under the mouse. */
+.window-controls {
+  display: flex;
+  align-self: stretch;
+}
+
+.window-control {
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--uwu-ink);
+}
+
+.window-control svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 1;
+}
+
+.window-control:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.window-control-close:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+/* The ring would be clipped by the window edge at the default offset. */
+.window-control:focus-visible {
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+/* ── Sidebar and file tree ─────────────────────────────── */
+
+.app-body {
+  grid-area: body;
+  display: grid;
+  min-height: 0;
+}
+
+.app[data-sidebar='open'] .app-body {
+  grid-template-columns: 258px minmax(0, 1fr);
+}
+
+.app[data-sidebar='closed'] .app-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  background: var(--uwu-surface);
+  border-right: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 6px 7px 12px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.sidebar-actions {
+  display: flex;
+  flex: none;
+  gap: 1px;
+}
+
+.sidebar-action {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.sidebar-action:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 12px;
+  border-top: 1px solid var(--uwu-hairline);
+  font-size: 11px;
+  color: var(--uwu-muted);
+}
+
+.sidebar-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sidebar-branch-name,
+.sidebar-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-path {
+  direction: rtl;
+  text-align: left;
+}
+
+/* The second face of the panel: no folder, so an invitation instead of an
+   empty box with a disabled tree in it. */
+.sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 16px 16px;
+  overflow-y: auto;
+}
+
+.sidebar-empty-scene {
+  width: 116px;
+  height: auto;
+}
+
+.sidebar-empty-text {
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--uwu-muted);
+}
+
+/* The one thing to do on this screen, so it is the one pink thing on it. */
+.sidebar-open-button {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.sidebar-open-button:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.sidebar-recent {
+  align-self: stretch;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-recent-title {
+  padding: 0 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.sidebar-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-recent-item {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--uwu-radius-control);
+  background: transparent;
+  text-align: left;
+}
+
+.sidebar-recent-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.sidebar-recent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right-to-left so a long path ellipses at the front: the end of a path is
+   the part that tells you which folder this is. */
+.sidebar-recent-path {
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--uwu-muted);
+}
+
+.filetree {
+  position: relative;
+  min-height: 0;
+  display: grid;
+}
+
+.filetree-rows {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0 10px;
+}
+
+/* The tree is one tab stop with a roving selection inside it, so the ring
+   belongs *inside* the scroll box — outside it would be a rectangle around a
+   panel, which says nothing about which row has the keyboard. */
+.filetree-rows:focus-visible {
+  outline-offset: -2px;
+  border-radius: 0;
+}
+
+.filetree-empty {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--uwu-muted);
+}
+
+/*
+ * One row. The indent is an inline `padding-inline-start` from FileTree.tsx —
+ * the only thing about a row this stylesheet is not allowed to decide.
+ */
+.filetree-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 23px;
+  padding-right: 10px;
+  color: var(--uwu-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filetree-row:hover {
+  background: var(--uwu-elevated);
+}
+
+.filetree-row-active {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+/* Hover on the selected row must not undo the selection colour. */
+.filetree-row-active:hover {
+  background: var(--uwu-pink-tint-strong);
+}
+
+.filetree-twisty {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--uwu-muted);
+}
+
+.filetree-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--uwu-muted);
+}
+
+/* Folders are the structure of the tree and files are its contents, so the
+   folder carries the brand colour and a little more weight, and the file
+   carries neither. */
+.filetree-row-dir .filetree-icon {
+  color: var(--uwu-pink);
+}
+
+.filetree-row-dir .filetree-name {
+  font-weight: 600;
+}
+
+.filetree-row-file .filetree-name {
+  font-weight: 400;
+}
+
+.filetree-row-active .filetree-twisty,
+.filetree-row-active .filetree-icon {
+  color: inherit;
+}
+
+.filetree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A folder being read. Not a spinner: the row is on screen for a few frames
+   in the ordinary case, and a spinner that flashes is worse than nothing. */
+.filetree-row-loading {
+  color: var(--uwu-muted);
+}
+
+.filetree-row-hidden {
+  opacity: 0.55;
+}
+
+/*
+ * Git, in the gutter of the tree.
+ *
+ * Green, amber and red, never pink — pink is the selection, and a file cannot
+ * be told "you are selected" and "you are modified" in the same colour.
+ * Deleted also gets a strike, so the three are not separated by hue alone;
+ * the row's `aria-label` already carries the word for anyone not reading
+ * colours at all.
+ */
+.filetree-row-git-added .filetree-name,
+.filetree-row-git-untracked .filetree-name {
+  color: var(--uwu-code-added);
+}
+
+.filetree-row-git-modified .filetree-name {
+  color: var(--uwu-code-modified);
+}
+
+.filetree-row-git-deleted .filetree-name {
+  color: var(--uwu-code-deleted);
+  text-decoration: line-through;
+}
+
+.filetree-row-git-conflicted .filetree-name {
+  color: var(--uwu-code-deleted);
+  font-weight: 700;
+}
+
+.filetree-row-active .filetree-name {
+  color: inherit;
+}
+
+/* Renaming and creating are the same row with a field where the name was, so
+   nothing may shift sideways when it appears. */
+.filetree-row-editing {
+  cursor: default;
+}
+
+.filetree-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border-color: var(--uwu-pink);
+  background: var(--uwu-canvas);
+}
+
+/* ── Tab bar ───────────────────────────────────────────── */
+
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  min-height: 34px;
+  padding-right: 4px;
+  background: var(--uwu-surface);
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.tabbar-strip {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* The strip scrolls with the wheel; a bar three pixels tall under the tabs
+   would be a second border in a place that already has one. */
+.tabbar-strip::-webkit-scrollbar {
+  height: 0;
+}
+
+.tabbar-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 220px;
+  min-width: 0;
+  border-right: 1px solid var(--uwu-hairline);
+  color: var(--uwu-muted);
+}
+
+.tabbar-tab:hover {
+  background: var(--uwu-elevated);
+}
+
+/*
+ * The active tab: the reading surface rising through the bar, so the tab and
+ * the text under it are one shape, and a pink edge along the top. This is the
+ * loudest pink in the window and it is spent on the single question the
+ * window is always answering — which file is this.
+ */
+.tabbar-tab[data-active='true'] {
+  background: var(--uwu-deep);
+  color: var(--uwu-ink);
+  box-shadow: inset 0 2px 0 0 var(--uwu-pink);
+}
+
+/*
+ * The active tab of a pane that does not have the keyboard.
+ *
+ * Only inside a split — an unsplit window has one pane and it is always the
+ * active one, so saying so there would be a light that is never off. Faded
+ * rather than removed: it is still the file this half is showing, it is just
+ * not the half being typed in.
+ */
+.split-half .editorpane[data-active='false'] .tabbar-tab[data-active='true'] {
+  box-shadow: inset 0 2px 0 0 color-mix(in srgb, var(--uwu-pink) 38%, transparent);
+}
+
+.tabbar-tab[data-dragging] {
+  opacity: 0.4;
+}
+
+.tabbar-tab-select {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 500;
+}
+
+.tabbar-tab-select:hover:not(:disabled) {
+  background: transparent;
+}
+
+.tabbar-tab-select:focus-visible {
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+.tabbar-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A file that changed underneath us. Amber on the name, because the tab is
+   about to disagree with the disk and that is worth reading before clicking. */
+.tabbar-tab[data-stale] .tabbar-tab-name {
+  color: var(--uwu-alarm);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.tabbar-tab[data-git='added'] .tabbar-tab-name,
+.tabbar-tab[data-git='untracked'] .tabbar-tab-name {
+  color: var(--uwu-code-added);
+}
+
+.tabbar-tab[data-git='modified'] .tabbar-tab-name {
+  color: var(--uwu-code-modified);
+}
+
+.tabbar-tab[data-git='deleted'] .tabbar-tab-name,
+.tabbar-tab[data-git='conflicted'] .tabbar-tab-name {
+  color: var(--uwu-code-deleted);
+}
+
+/*
+ * Close, and the unsaved dot.
+ *
+ * Both glyphs are always in the DOM; which one shows is decided here. A
+ * modified file wears the dot until the pointer is over the tab, at which
+ * point the dot becomes the cross under the finger that is already there.
+ */
+.tabbar-tab-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.tabbar-tab-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  color: var(--uwu-ink);
+}
+
+.tabbar-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--uwu-code-modified);
+}
+
+.tabbar-tab-close:not([data-dirty='true']) .tabbar-tab-dot {
+  display: none;
+}
+
+.tabbar-tab-close[data-dirty='true'] .icon {
+  display: none;
+}
+
+.tabbar-tab:hover .tabbar-tab-close[data-dirty='true'] .tabbar-tab-dot,
+.tabbar-tab-close[data-dirty='true']:focus-visible .tabbar-tab-dot {
+  display: none;
+}
+
+.tabbar-tab:hover .tabbar-tab-close[data-dirty='true'] .icon,
+.tabbar-tab-close[data-dirty='true']:focus-visible .icon {
+  display: block;
+}
+
+.tabbar-new {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.tabbar-new:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+/*
+ * Where a dragged tab would land.
+ *
+ * `TabBar.tsx` writes these attributes straight onto the DOM rather than
+ * through React, because the bar that has to show the marker usually belongs
+ * to a different pane. A bar before the tab it would displace, and — since
+ * the strip is a flex row — a pseudo-element of the strip itself for the end
+ * of the list, which lands exactly after the last tab for free.
+ */
+.tabbar-tab[data-drop-edge='before']::before {
+  content: '';
+  position: absolute;
+  inset: 3px auto 3px -1px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--uwu-pink);
+}
+
+.tabbar-strip[data-drop-edge='end']::after {
+  content: '';
+  flex: none;
+  align-self: stretch;
+  width: 2px;
+  margin: 3px 0;
+  border-radius: 1px;
+  background: var(--uwu-pink);
+}
+
+/* ── Editor pane and splitter ──────────────────────────── */
+
+/*
+ * The splits, and nothing else: a pane's own frame lives in `editor.css`
+ * beside the CodeMirror rules it has to agree with.
+ *
+ * Named areas rather than source order, because the two things rendered after
+ * the splits do not both belong after them: the project search is a panel
+ * down the side and has to span the full height beside everything else.
+ *
+ * The find bar goes along the bottom edge. It is a sibling of the whole split
+ * block, so "above the editor" could only mean above every pane's tab bar as
+ * well — a second toolbar under the title bar, with the tabs pushed away from
+ * the window frame they belong to. Along the bottom it is where a find bar
+ * has lived since Notepad++ put one there, and it is nearer the text than the
+ * title bar is either way.
+ */
+.app-editors {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'splits search'
+    'find search';
+  background: var(--uwu-canvas);
+}
+
+.splitcontainer {
+  grid-area: splits;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split[data-direction='horizontal'] {
+  flex-direction: row;
+}
+
+.split[data-direction='vertical'] {
+  flex-direction: column;
+}
+
+/* The ratio arrives as an inline `flex` from SplitContainer.tsx. */
+.split-half {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * A wide grab zone with a thin line drawn inside it: a 1 px target is a
+ * target nobody hits, and a 6 px line is a gutter.
+ */
+.split-divider {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.split[data-direction='horizontal'] > .split-divider {
+  width: 9px;
+  cursor: col-resize;
+}
+
+.split[data-direction='vertical'] > .split-divider {
+  height: 9px;
+  cursor: row-resize;
+}
+
+.split-divider-line {
+  background: var(--uwu-hairline);
+  transition: background-color 120ms ease;
+}
+
+.split[data-direction='horizontal'] > .split-divider .split-divider-line {
+  width: 1px;
+  height: 100%;
+}
+
+.split[data-direction='vertical'] > .split-divider .split-divider-line {
+  width: 100%;
+  height: 1px;
+}
+
+.split-divider:hover .split-divider-line,
+.split-divider[data-dragging] .split-divider-line,
+.split-divider:focus-visible .split-divider-line {
+  background: var(--uwu-pink);
+}
+
+/* Drawn inwards: a 2 px ring with a positive offset on a 9 px strip would
+   overlap the text in both panes. */
+.split-divider:focus-visible {
+  outline-offset: -2px;
+  border-radius: 0;
+}
+
+/* ── Empty pane ────────────────────────────────────────── */
+
+/*
+ * What a pane shows with nothing in it. Scrollable, because a short window
+ * with a folder full of recent files can run out of room, and the buttons at
+ * the top are the ones that matter.
+ */
+.emptypane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  padding: 40px 24px;
+  overflow-y: auto;
+  color: var(--uwu-muted);
+}
+
+.emptypane-scene {
+  width: 148px;
+  height: auto;
+}
+
+.emptypane-greeting {
+  max-width: 34ch;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.emptypane-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(360px, 100%);
+}
+
+.emptypane-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 12px;
+  border-color: transparent;
+  background: transparent;
+  font-weight: 500;
+  text-align: left;
+}
+
+.emptypane-action:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.emptypane-action-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The key hints are the same table the palette reads from, so they should
+   look the same in both places. */
+.emptypane-keys,
+.palette-row-shortcut {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 5px;
+  background: var(--uwu-canvas);
+  font-size: 11px;
+  color: var(--uwu-muted);
+  white-space: nowrap;
+}
+
+.emptypane-recent {
+  width: min(420px, 100%);
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.emptypane-recent-title {
+  padding: 0 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.emptypane-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.emptypane-recent-item {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  width: 100%;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--uwu-radius-control);
+  background: transparent;
+  font-weight: 500;
+  text-align: left;
+}
+
+.emptypane-recent-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.emptypane-recent-item .icon {
+  align-self: center;
+  color: var(--uwu-muted);
+}
+
+.emptypane-recent-name {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptypane-recent-path {
+  flex: 1;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--uwu-muted);
+}
+
+/* ── Find bar ──────────────────────────────────────────── */
+
+/*
+ * A strip, not a window: it sits beside the text it is searching instead of
+ * over it. Two rows when replace is showing, one otherwise.
+ */
+.findbar {
+  grid-area: find;
+  display: grid;
+  gap: 5px;
+  padding: 6px 8px;
+  background: var(--uwu-surface);
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.findbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The field and its four option toggles are one control: the toggles sit
+   inside the box, the way they do in every editor that has ever shipped one. */
+.findbar-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  padding-right: 4px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.findbar-field:focus-within {
+  border-color: var(--uwu-pink);
+}
+
+.findbar-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.findbar-input:focus-visible {
+  outline: none;
+}
+
+.findbar-input[aria-invalid='true'] {
+  color: var(--uwu-alarm);
+}
+
+.findbar-toggles {
+  display: flex;
+  flex: none;
+  gap: 1px;
+}
+
+.findbar-toggle,
+.searchpanel-toggle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-family: var(--uwu-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.findbar-toggle:hover:not(:disabled),
+.searchpanel-toggle:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.findbar-toggle-on,
+.searchpanel-toggle-on {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.findbar-toggle-on:hover:not(:disabled),
+.searchpanel-toggle-on:hover:not(:disabled) {
+  background: var(--uwu-pink-tint-strong);
+  color: var(--uwu-pink-ink);
+}
+
+.findbar-count {
+  flex: none;
+  min-width: 11ch;
+  font-size: 12px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.findbar-wrapped {
+  font-style: italic;
+}
+
+.findbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.findbar-button {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-size: 12px;
+}
+
+.findbar-button:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.findbar-button-wide {
+  padding: 0 11px;
+  border-color: var(--uwu-border);
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+}
+
+.findbar-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+}
+
+.findbar-error {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--uwu-alarm);
+}
+
+/* ── Search panel ──────────────────────────────────────── */
+
+/*
+ * Find in files. A panel down the right-hand side rather than a dialog,
+ * because the results stream in and are meant to be clicked through while the
+ * file behind them stays on screen.
+ */
+.searchpanel {
+  grid-area: search;
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  width: 330px;
+  min-height: 0;
+  background: var(--uwu-surface);
+  border-left: 1px solid var(--uwu-hairline);
+}
+
+.searchpanel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 6px 7px 12px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.searchpanel-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  color: var(--uwu-ink);
+}
+
+.searchpanel-form {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.searchpanel-field {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+  padding-right: 4px;
+}
+
+.searchpanel-field:focus-within {
+  border-color: var(--uwu-pink);
+}
+
+.searchpanel-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.searchpanel-field .searchpanel-input:focus-visible {
+  outline: none;
+}
+
+/* Outside the combined field — the glob boxes and the replacement — the
+   input is an ordinary box again and wants its own border back. */
+.searchpanel-glob .searchpanel-input,
+.searchpanel-replace .searchpanel-input {
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.searchpanel-toggles {
+  display: flex;
+  flex: none;
+  gap: 1px;
+}
+
+.searchpanel-globs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.searchpanel-glob {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.searchpanel-glob-label,
+.searchpanel-option {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.searchpanel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.searchpanel-button {
+  padding: 5px 12px;
+}
+
+/* The one button that starts the work. Everything else in the panel — stop,
+   replace everywhere — is a second thought and looks like one. */
+.searchpanel-button[type='submit'] {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.searchpanel-button[type='submit']:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.searchpanel-replace {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.searchpanel-status {
+  display: grid;
+  gap: 2px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.searchpanel-status:empty {
+  display: none;
+}
+
+/* The count is the answer; everything else in this block is a caveat about
+   how complete the answer is. */
+.searchpanel-status-line {
+  color: var(--uwu-ink);
+}
+
+.searchpanel-status-warn {
+  color: var(--uwu-alarm);
+}
+
+.searchpanel-error {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--uwu-alarm);
+}
+
+.searchpanel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-empty-scene {
+  width: 116px;
+  height: auto;
+}
+
+.searchpanel-empty-text {
+  font-size: 12.5px;
+}
+
+.searchpanel-results {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+/* A hairline between file groups. Rows stream in while the search is still
+   running, and without it a long result list is one undifferentiated column
+   of file names and line numbers. */
+.searchpanel-file + .searchpanel-file {
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.searchpanel-matches {
+  padding-bottom: 4px;
+}
+
+.searchpanel-file-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.searchpanel-file-row:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.searchpanel-file-twisty {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-file-name {
+  flex: none;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchpanel-file-folder {
+  flex: 1;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-file-count {
+  flex: none;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-elevated);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  color: var(--uwu-muted);
+}
+
+.searchpanel-match {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 10px 2px 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+  text-align: left;
+}
+
+.searchpanel-match:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.searchpanel-match-line {
+  flex: none;
+  min-width: 4ch;
+  font-family: var(--uwu-mono);
+  font-size: 10.5px;
+  text-align: right;
+  color: var(--uwu-code-line-number);
+  font-variant-numeric: tabular-nums;
+}
+
+.searchpanel-match-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/* The same tint the editor paints a match in, so a result found here and the
+   same result found in the text are recognisably the same thing. */
+.searchpanel-match-hit {
+  border-radius: 2px;
+  background: var(--uwu-code-match-active);
+  color: var(--uwu-ink);
+}
+
+/* ── Status bar ────────────────────────────────────────── */
+
+/*
+ * Every item on the right is a control, not a label. They look like text
+ * until the pointer is over them, because a bar of five buttons along the
+ * bottom edge would shout at a window whose job is to be quiet.
+ */
+.statusbar {
+  grid-area: statusbar;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 4px 0 12px;
+  background: var(--uwu-surface);
+  border-top: 1px solid var(--uwu-hairline);
+  font-size: 11.5px;
+}
+
+.statusbar-message {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.statusbar-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusbar-notice[data-tone='warning'] {
+  color: var(--uwu-alarm);
+}
+
+/* The save confirmation and Nyu's line after it. Green, because it is the one
+   message down here that is good news. */
+.statusbar-notice[data-tone='calm'] {
+  color: var(--uwu-online);
+}
+
+.statusbar-items {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusbar-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.statusbar-item[aria-expanded='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.statusbar-item:focus-visible {
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+/* Git is not a fact about the document the way the encoding and the line
+   endings are, so it stands on the other side of a hairline. */
+.statusbar-branch {
+  margin-left: 4px;
+  padding-left: 11px;
+  border-left: 1px solid var(--uwu-hairline);
+}
+
+.statusbar-branch-name {
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Command palette ───────────────────────────────────── */
+
+/*
+ * Near the top of the window rather than the middle: the list grows
+ * downwards, and a box that is centred at rest walks up the screen as it
+ * fills — which makes the row under the pointer a moving target.
+ */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  padding: 72px 24px 24px;
+  background: var(--app-scrim);
+}
+
+.palette {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(640px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-surface);
+  box-shadow: 0 28px 64px -28px var(--app-shade);
+}
+
+.palette-input {
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--uwu-hairline);
+  border-radius: 0;
+  background: transparent;
+  font-size: 15px;
+}
+
+.palette-input:focus-visible {
+  outline: none;
+}
+
+.palette-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+/* File rows are paths and want the mono face; command rows are sentences and
+   do not. The list says which kind it is holding. */
+.palette-list-files .palette-row-name,
+.palette-list-files .palette-row-path {
+  font-family: var(--uwu-mono);
+  font-size: 12px;
+}
+
+.palette-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 11px;
+  border-radius: var(--uwu-radius-control);
+  cursor: pointer;
+}
+
+.palette-row-active {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.palette-row-name {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/*
+ * How much of the row the name may take, which is not the same question in
+ * the two modes. A command is a whole sentence and its group is one word, so
+ * the name gets most of the row; a file name is short and the path beside it
+ * is the thing that tells two `index.ts` apart, so it gets less.
+ */
+.palette-list-commands .palette-row-name {
+  max-width: 62%;
+}
+
+.palette-list-files .palette-row-name {
+  max-width: 45%;
+}
+
+.palette-row-group {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/*
+ * The one path in the window that does *not* get the right-to-left ellipsis
+ * the others do.
+ *
+ * `CommandPalette.tsx` slices this one as `rel.slice(0, nameAt)`, where
+ * `nameAt` is one past the last separator — so the string ends in a `/`. A
+ * slash is bidi-neutral, and in a right-to-left run a trailing neutral is
+ * reordered to the other end: `apps/desktop/src/` would be drawn as
+ * `/apps/desktop/src`. Losing the front of a long path is the smaller price.
+ */
+.palette-row-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--uwu-muted);
+}
+
+.palette-row-active .palette-row-group,
+.palette-row-active .palette-row-path {
+  color: inherit;
+}
+
+.palette-row-shortcut {
+  margin-left: auto;
+}
+
+/* The matched characters. Pink and bold rather than a highlighter block: the
+   run is often two characters wide and a block that narrow is a smudge. */
+.palette-hit {
+  color: var(--uwu-pink);
+  font-weight: 700;
+}
+
+.palette-row-active .palette-hit {
+  color: var(--uwu-pink-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.palette-nothing {
+  padding: 14px 12px;
+  text-align: center;
+  font-style: italic;
+  color: var(--uwu-muted);
+}
+
+.palette-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--uwu-hairline);
+  background: var(--uwu-elevated);
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.palette-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Modals and settings ───────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: var(--app-scrim);
+}
+
+.modal {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(520px, 100%);
+  max-height: 100%;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-surface);
+  box-shadow: 0 28px 64px -28px var(--app-shade);
+}
+
+.modal[data-size='wide'] {
+  width: min(820px, 100%);
+  height: min(640px, 100%);
+}
+
+/* A warning never looks like a routine dialog: amber along the top edge, and
+   deliberately not pink, which in this window only ever means "this one". */
+.modal[data-tone='warning'] {
+  border-color: var(--uwu-alarm);
+  border-top-width: 3px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 14px 13px 20px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.modal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.modal[data-tone='warning'] .modal-title {
+  color: var(--uwu-alarm);
+}
+
+.modal-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.modal-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  color: var(--uwu-ink);
+}
+
+.modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 20px;
+  line-height: 1.55;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 14px;
+  border-top: 1px solid var(--uwu-hairline);
+  background: var(--uwu-elevated);
+  border-radius: 0 0 var(--uwu-radius-card) var(--uwu-radius-card);
+}
+
+/* Settings is the wide modal, and it is a single scrolling column of
+   sections. No section list beside it: there are six sections, and a
+   navigation rail for six things is furniture. */
+.settings {
+  display: grid;
+  gap: 26px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-section-title {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--uwu-hairline);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.settings-section-body {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  align-items: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.settings-label {
+  min-width: 0;
+  padding: 0;
+  font-weight: 500;
+}
+
+/* The hint belongs under the label, not under the control, and it must not
+   push the control out of the row it is explaining. */
+.settings-hint {
+  grid-column: 1;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}
+
+.settings-select,
+.settings-text-input {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-number,
+.settings-range {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-number-input {
+  width: 74px;
+}
+
+.settings-number-unit {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.settings-range-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--uwu-pink-solid);
+  cursor: pointer;
+}
+
+.settings-range-value {
+  flex: none;
+  min-width: 5ch;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A short list of exclusive options, as a segmented control. Real radios
+ * under the surface, so the arrow keys still behave.
+ *
+ * These two live in <fieldset>s, and a <legend> is never an ordinary child:
+ * the browser lifts it out of the box and draws it over the top border edge
+ * whatever the box's `display` says, so it can neither be the first cell of a
+ * grid row nor sit above a border without cutting a notch in it. Both
+ * fieldsets therefore wear their label as a line of its own.
+ */
+.settings-choice,
+.encmenu-choice {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.settings-field-choice {
+  display: block;
+}
+
+.settings-field-choice > .settings-label,
+.encmenu-section-eol > .encmenu-title {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.settings-field-choice > .settings-hint {
+  margin-top: 6px;
+}
+
+.encmenu-section-eol {
+  border-top: 0;
+  padding-top: 4px;
+}
+
+.settings-choice-option,
+.encmenu-choice-option {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--uwu-muted);
+  cursor: pointer;
+}
+
+.settings-choice-option:hover,
+.encmenu-choice-option:hover {
+  color: var(--uwu-ink);
+}
+
+.settings-choice-option-active,
+.encmenu-choice-option-active {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+/* The radio is the accessible control and the label is the visible one, so
+   the input is taken out of the picture rather than out of the tree. */
+.settings-choice-input,
+.encmenu-choice-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-choice-input:focus-visible + .settings-choice-label,
+.encmenu-choice-input:focus-visible + .encmenu-choice-label {
+  outline: 2px solid var(--uwu-pink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* A switch, for the settings that are simply on or off. */
+.settings-field-switch {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.settings-field-switch .settings-switch {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.settings-switch,
+.encmenu-switch {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-canvas);
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.settings-switch[aria-checked='true'],
+.encmenu-switch[aria-checked='true'] {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+}
+
+.settings-switch:hover:not(:disabled),
+.encmenu-switch:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.settings-switch[aria-checked='true']:hover:not(:disabled),
+.encmenu-switch[aria-checked='true']:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.settings-switch-knob,
+.encmenu-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--uwu-muted);
+  transition: translate 140ms ease;
+}
+
+.settings-switch[aria-checked='true'] .settings-switch-knob,
+.encmenu-switch[aria-checked='true'] .encmenu-switch-knob {
+  translate: 17px 0;
+  background: var(--uwu-on-pink);
+}
+
+.settings-empty {
+  font-style: italic;
+  color: var(--uwu-muted);
+}
+
+.settings-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.settings-footer-note {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.settings-reset {
+  flex: none;
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.settings-reset:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+/*
+ * Encoding and language, as popovers anchored to the status bar. Both are
+ * placed by `usePopoverPosition`, which measures them — so the width is this
+ * stylesheet's business and the position is not.
+ */
+.encmenu,
+.langpicker {
+  position: fixed;
+  z-index: 35;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-surface);
+  box-shadow: 0 20px 48px -20px var(--app-shade);
+}
+
+.encmenu {
+  display: grid;
+  gap: 14px;
+  width: 340px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+}
+
+.encmenu-current {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.encmenu-section {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--uwu-hairline);
+  padding-top: 12px;
+}
+
+.encmenu-title {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.encmenu-note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}
+
+/* "This throws away your unsaved changes" is not a hint. */
+.encmenu-note-danger,
+.encmenu-note-warning {
+  color: var(--uwu-alarm);
+}
+
+.encmenu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.encmenu-select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The first section follows the "currently: …" line, and a rule between a
+   sentence and the section it introduces is a rule in the wrong place. */
+.encmenu-section-reopen {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* This select is on its own rather than in a row, so `flex: 1` has nothing to
+   grow inside of. */
+.encmenu-section-convert .encmenu-select {
+  width: 100%;
+}
+
+.encmenu-reopen-button {
+  flex: none;
+}
+
+.encmenu-section-bom .encmenu-title {
+  flex: 1;
+}
+
+.langpicker {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 300px;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.langpicker-search {
+  border: 0;
+  border-bottom: 1px solid var(--uwu-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 9px 13px;
+}
+
+.langpicker-search:focus-visible {
+  outline: none;
+}
+
+.langpicker-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.langpicker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: var(--uwu-radius-control);
+  cursor: pointer;
+}
+
+.langpicker-row-active {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+/* The language this document is already set to. A tick would need a column
+   the list does not have; the weight says it just as clearly. */
+.langpicker-row-current .langpicker-name {
+  font-weight: 700;
+}
+
+.langpicker-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.langpicker-detected {
+  flex: none;
+  font-size: 11px;
+  color: var(--uwu-muted);
+}
+
+.langpicker-row-active .langpicker-detected {
+  color: inherit;
+}
+
+.langpicker-nothing {
+  padding: 12px 10px;
+  text-align: center;
+  font-style: italic;
+  color: var(--uwu-muted);
+}
+
+/* The about box: a portrait, the facts, and the links out. */
+.about {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.about-mark {
+  margin-bottom: 2px;
+}
+
+.about-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.about-tagline {
+  max-width: 38ch;
+  color: var(--uwu-muted);
+}
+
+.about-facts {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+  text-align: left;
+}
+
+.about-fact {
+  display: grid;
+  grid-template-columns: minmax(0, 11em) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.about-fact dt {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.about-fact dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A path is quotable: somebody filing a bug report has to be able to select
+   it, whatever the rest of the chrome does. */
+.about-path {
+  user-select: text;
+  cursor: text;
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+}
+
+.about-inline-link,
+.about-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--uwu-pink);
+  text-align: left;
+}
+
+.about-inline-link {
+  padding: 0;
+  font-size: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.about-inline-link:hover:not(:disabled) {
+  background: transparent;
+  color: var(--uwu-pink-ink);
+}
+
+.about-links {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* A grid item is `min-width: auto` by default, and the URL inside this one
+   has to be allowed to ellipsis rather than stretch the box. */
+.about-link {
+  min-width: 0;
+}
+
+.about-link-button {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--uwu-radius-control);
+}
+
+.about-link-button:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.about-link-label {
+  color: var(--uwu-ink);
+  font-weight: 500;
+}
+
+.about-link-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--uwu-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--uwu-muted);
+}
+
+.about-footer {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.about-note {
+  max-width: 40ch;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/* The one button in the box, and it exists for bug reports: quiet, because
+   nobody comes to an about box to press something. */
+.about-copy {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--uwu-muted);
+}
+
+.about-copy:hover:not(:disabled) {
+  color: var(--uwu-ink);
+}
+
+/* Go to line: three rows, and the field is the whole point of the box. */
+.gotoline {
+  display: grid;
+  gap: 6px;
+}
+
+.gotoline-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--uwu-muted);
+}
+
+.gotoline-input {
+  width: 100%;
+  padding: 8px 11px;
+  font-family: var(--uwu-mono);
+  font-size: 15px;
+}
+
+.gotoline-input[aria-invalid='true'] {
+  border-color: var(--uwu-alarm);
+}
+
+.gotoline-hint {
+  min-height: 2.9em;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}
+
+.gotoline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.gotoline-cancel {
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-weight: 500;
+}
+
+.gotoline-submit {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.gotoline-submit:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+/* ── Context menu ──────────────────────────────────────── */
+
+/*
+ * Positioned by ContextMenu.tsx, which measures it and then keeps it inside
+ * the window — so `left` and `top` arrive inline and the size is decided
+ * here.
+ */
+.contextmenu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  min-width: 212px;
+  max-width: 340px;
+  padding: 5px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 12px;
+  background: var(--uwu-surface);
+  box-shadow: 0 18px 44px -18px var(--app-shade);
+  animation: contextmenu-in 110ms ease both;
+}
+
+@keyframes contextmenu-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+/* The menu itself holds focus and moves a highlight with the arrow keys, so
+   an outline around the whole box would be a ring around nothing. */
+.contextmenu:focus-visible {
+  outline: none;
+}
+
+.contextmenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.contextmenu-item[data-active='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.contextmenu-item[data-danger] {
+  color: var(--uwu-alarm);
+}
+
+.contextmenu-item[data-danger][data-active='true'] {
+  background: color-mix(in srgb, var(--uwu-alarm) 20%, transparent);
+  color: var(--uwu-alarm);
+}
+
+.contextmenu-item[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The gutter stays, ticked or not, so a menu that shows a current choice does
+   not shuffle its labels sideways when the choice moves. */
+.contextmenu-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.contextmenu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Toasts ────────────────────────────────────────────── */
+
+/*
+ * Bottom right, above the status bar, newest at the bottom. `pointer-events`
+ * off on the stack and back on for each toast, so the column does not swallow
+ * clicks aimed at the text underneath it.
+ */
+.toasts {
+  position: fixed;
+  right: 14px;
+  bottom: 34px;
+  z-index: 25;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+  max-width: min(400px, calc(100vw - 28px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--uwu-border);
+  border-left-width: 3px;
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-elevated);
+  box-shadow: 0 14px 34px -16px var(--app-shade);
+  pointer-events: auto;
+  animation: toast-in 140ms ease both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* The tone lives on the left edge and the icon, never on the whole card: a
+   message you have to squint past is a message nobody reads twice. */
+.toast[data-tone='info'] {
+  border-left-color: var(--uwu-muted);
+}
+
+.toast[data-tone='info'] .toast-icon {
+  color: var(--uwu-muted);
+}
+
+.toast[data-tone='success'] {
+  border-left-color: var(--uwu-online);
+}
+
+.toast[data-tone='success'] .toast-icon {
+  color: var(--uwu-online);
+}
+
+.toast[data-tone='error'] {
+  border-left-color: var(--uwu-alarm);
+}
+
+.toast[data-tone='error'] .toast-icon {
+  color: var(--uwu-alarm);
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.toast-action {
+  flex: none;
+  padding: 3px 9px;
+  border-color: var(--uwu-border);
+  background: var(--uwu-surface);
+  font-size: 12px;
+}
+
+.toast-dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.toast-dismiss:hover:not(:disabled) {
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+}
+
+/* ── Prompts ───────────────────────────────────────────── */
+
+/*
+ * The questions `lib/files.ts` cannot answer itself, in the footer of an
+ * ordinary modal. Three tones: the safe answer is pink, the one that loses
+ * something is amber and never the default, and the way out is quiet.
+ */
+.prompt-body {
+  line-height: 1.55;
+}
+
+.prompt-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.prompt-choice[data-tone='primary'] {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.prompt-choice[data-tone='primary']:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.prompt-choice[data-tone='danger'] {
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.prompt-choice[data-tone='danger']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+.prompt-choice[data-tone='quiet'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-weight: 500;
+}
+
+.prompt-choice[data-tone='quiet']:hover:not(:disabled) {
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+}
+
+/* ── Start-up screen ───────────────────────────────────── */
+
+/*
+ * Usually on screen for a single frame. It exists for the case where it is
+ * not — a folder on a slow share — so it is deliberately plain: a window that
+ * announces itself while it loads is a window that feels slow even when it
+ * is not.
+ */
+.startup {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: var(--uwu-canvas);
+}
+
+.startup-greeting {
+  max-width: 32ch;
+  text-align: center;
+  color: var(--uwu-muted);
+}

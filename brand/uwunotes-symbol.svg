@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Nyu, the UwUNotes notepad cat">
+  <title>Nyu</title>
+
+  <!--
+    The static twin of <NyuFigure mood="uwu"> in
+    apps/desktop/src/components/nyu/Nyu.tsx. Change one, change the other: this
+    copy is for anything that cannot run React — the readme, a paste into a
+    chat window, an image in a release note.
+  -->
+
+  <!-- die-cut white edge -->
+  <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M62 88 L80 36 L114 88 Z"/>
+    <path d="M142 88 L176 36 L194 88 Z"/>
+    <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z"/>
+  </g>
+
+  <!-- ears, before the sheet so their feet disappear behind it -->
+  <g stroke="#4B1D3F" stroke-width="9" stroke-linejoin="round">
+    <path d="M62 88 L80 36 L114 88 Z" fill="#FF6FA6"/>
+    <path d="M142 88 L176 36 L194 88 Z" fill="#FF6FA6"/>
+  </g>
+  <path d="M76 82 L84 52 L100 82 Z" fill="#FFB8D3"/>
+  <path d="M156 82 L172 52 L180 82 Z" fill="#FFB8D3"/>
+
+  <!-- the sheet, which is also the face -->
+  <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z" fill="#FFB8D3" stroke="#4B1D3F" stroke-width="9" stroke-linejoin="round"/>
+
+  <!-- folded corner: the back of the sheet, so it takes the deeper pink -->
+  <path d="M184 74 L228 118 H184 Z" fill="#FF6FA6"/>
+  <path d="M184 74 V118 H228" fill="none" stroke="#4B1D3F" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- two ruled lines under the mouth -->
+  <g fill="none" stroke="#FF6FA6" stroke-width="7" stroke-linecap="round">
+    <path d="M56 196 H172"/>
+    <path d="M56 206 H136"/>
+  </g>
+
+  <ellipse cx="74" cy="168" rx="12" ry="7.5" fill="#FF4D8D" opacity="0.5"/>
+  <ellipse cx="182" cy="168" rx="12" ry="7.5" fill="#FF4D8D" opacity="0.5"/>
+
+  <g fill="none" stroke="#4B1D3F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M88 142 Q102 160 116 142"/>
+    <path d="M140 142 Q154 160 168 142"/>
+    <path d="M112 170 L120 182 L128 170 L136 182 L144 170"/>
+  </g>
+</svg>

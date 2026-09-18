@@ -1,0 +1,260 @@
+/*
+ * The editor pane's frame, and the few rules that have to reach into
+ * CodeMirror's own DOM.
+ *
+ * ## Why the editor's colours are not in here
+ *
+ * They are in `editor/theme.ts`, and that is not an accident of history.
+ *
+ * A theme in this app is *one object* — `uwuChrome` plus a `HighlightStyle` —
+ * that the theming system hands to CodeMirror, swaps out, and stacks variants
+ * on top of with `tokenOverride()`. `editor/themes.ts` picks one, `setup.ts`
+ * reconfigures the open documents, and every view re-colours in the same
+ * frame. A theme that were an object *plus a stylesheet* could not be swapped
+ * at all: the stylesheet would still be in the document, still applying, and
+ * still winning some of the arguments — because a rule in a file like this one
+ * is a plain `.cm-selectionBackground` while a rule from `EditorView.theme()`
+ * is a generated class on the editor itself, so the second theme would lose
+ * to the first theme's leftovers by specificity alone. The bug that produces
+ * is the worst kind: a colour that is right until you change the theme once.
+ *
+ * So the rule is simple. **If it is a colour the editor paints on the text,
+ * the gutter or a popup, it belongs in `theme.ts`.** What is left for this
+ * file is the things a theme object has no business holding: where the pane
+ * sits in the window, how the scroller behaves at the end of a file, how wide
+ * the line-number column has to be before it stops jittering, and what the
+ * scrollbar looks like. Structure, not palette — and the handful of colours
+ * that do appear below are the app's chrome colours, on the app's chrome, in
+ * the same `var(--uwu-*)` form as everywhere else.
+ */
+
+/* ── The editor pane ───────────────────────────────────── */
+
+/*
+ * A tab bar, and one CodeMirror view underneath it for the pane's whole life.
+ * `--uwu-deep` and not `--uwu-canvas`: the text sits in the deepest part of
+ * the window and the chrome floats above it, which is where the dark theme's
+ * "goth, not pastel" actually comes from.
+ */
+.editorpane {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: var(--uwu-deep);
+}
+
+/*
+ * One cell, and exactly one occupant: React hides the host with `hidden`
+ * while the pane is empty and renders the empty screen instead, so the two
+ * never share the cell.
+ */
+.editorpane-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.editorpane-host {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * A tab is being dragged over this pane, and letting go here would move it in.
+ * Inset, because the ring has to read as "into this rectangle" and an outline
+ * on the outside of a pane is a line between two panes.
+ */
+.editorpane[data-drop-over] {
+  box-shadow: inset 0 0 0 2px var(--uwu-pink);
+}
+
+/* ── CodeMirror frame and content ──────────────────────── */
+
+/*
+ * `height: 100%` comes from `uwuChrome`. What it cannot give itself is
+ * permission to be smaller than its content, which is the one thing a grid
+ * item in a `minmax(0, 1fr)` row has to have.
+ */
+.cm-editor {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+}
+
+/*
+ * The scroll stops at the end of the file.
+ *
+ * Without `contain`, a flick past the last line keeps going into whatever is
+ * behind the pane — and with two panes open, that is the other person's file.
+ */
+.cm-scroller {
+  overscroll-behavior: contain;
+}
+
+/*
+ * The window sets `user-select: none` and `cursor: default` on <body> so the
+ * chrome does not behave like a web page. The text is the one place that is
+ * wrong: this is a document, and it is meant to be selected, dragged and
+ * copied like one.
+ */
+.cm-content {
+  user-select: text;
+  cursor: text;
+  /* A couple of lines of air under the last one. Deliberately not half a
+     screen: "scroll past the end of the file" is a preference other editors
+     ask about, and there is no setting for it here to answer with. */
+  padding-bottom: 2.5em;
+}
+
+/* ── Gutters and line numbers ──────────────────────────── */
+
+/*
+ * Four digits' worth of column, always.
+ *
+ * The gutter is sized from its widest element, so without a floor the whole
+ * text shifts sideways the moment a file crosses line 100 — while you are
+ * typing in it. Four digits covers almost every file anyone opens, and past
+ * 9999 the gutter grows once and stays grown.
+ */
+.cm-lineNumbers .cm-gutterElement {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The fold arrows are furniture, not content: they should be legible when
+   looked for and invisible when not. */
+.cm-foldGutter .cm-gutterElement {
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+
+.cm-editor:hover .cm-foldGutter .cm-gutterElement,
+.cm-foldGutter .cm-gutterElement:hover {
+  opacity: 1;
+}
+
+/* ── Scrollbars ────────────────────────────────────────── */
+
+/*
+ * The editor's own, a shade apart from the window's.
+ *
+ * `app.css` already styles every scrollbar in the window, but the editor is
+ * the one surface standing on `--uwu-deep` rather than `--uwu-canvas`, and a
+ * thumb mixed for the lighter ground disappears against this one. Same shape,
+ * more of it.
+ *
+ * `minimap.ts` measures this width at run time — `offsetWidth - clientWidth`
+ * — to decide where the map sits, so the number here is the one that moves
+ * the map, and neither has to be told about the other.
+ */
+.cm-scroller::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.cm-scroller::-webkit-scrollbar-track,
+.cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--uwu-radius-pill);
+  background: color-mix(in srgb, var(--uwu-muted) 46%, transparent);
+  background-clip: padding-box;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--uwu-muted) 72%, transparent);
+  background-clip: padding-box;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--uwu-pink) 70%, transparent);
+  background-clip: padding-box;
+}
+
+/* ── The minimap ───────────────────────────────────────── */
+
+/*
+ * Where the canvas sits, how wide it is and what it is painted in are all
+ * `editor/minimap.ts`: the map is redrawn on every viewport change and reads
+ * its colours through `readToken()`, because a <canvas> cannot take a
+ * `var()` as a fill. What is left here is the two things a canvas needs
+ * before it can be dragged.
+ */
+.cm-uwuMinimap {
+  /* The map scrolls the file under a held pointer, so the browser must not
+     claim the gesture for panning first. */
+  touch-action: none;
+  /* Chromium will happily start dragging a <canvas> as an image, which turns
+     a slow drag on the map into a ghost picture of it stuck to the cursor. */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* ── Autocomplete and tooltips ─────────────────────────── */
+
+/*
+ * `uwuChrome` colours the popup, gives it its border and its radius, and caps
+ * the list at sixteen rows. The rest is shape: a popup that floats has to
+ * look like it floats, and a completion list has to survive a long name
+ * without growing wider than the window.
+ */
+.cm-tooltip {
+  box-shadow: 0 16px 40px -16px var(--app-shade);
+}
+
+.cm-tooltip.cm-tooltip-autocomplete > ul {
+  min-width: 15em;
+  max-width: 34em;
+}
+
+.cm-tooltip.cm-tooltip-autocomplete > ul > li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Kept, even when a source has no icon for a completion, so the labels in a
+   mixed list stay on one left edge. */
+.cm-completionIcon {
+  flex: none;
+  width: 1.1em;
+  padding-right: 0;
+  opacity: 0.6;
+}
+
+.cm-completionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The kind of thing a completion is belongs at the far edge, out of the way
+   of the name being read. */
+.cm-completionDetail {
+  flex: none;
+  margin-left: auto;
+  font-size: 0.9em;
+}
+
+.cm-tooltip.cm-completionInfo {
+  max-width: 28em;
+  padding: 8px 10px;
+  line-height: 1.5;
+  white-space: normal;
+}

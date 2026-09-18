@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none" stroke="currentColor" role="img" aria-label="Nyu, the UwUNotes notepad cat">
+  <title>Nyu (mono)</title>
+
+  <!--
+    One colour, taken from whatever is around it: menu items, the tray icon,
+    anything that must not carry pink. The ears stay open at the bottom because
+    a closed triangle over the sheet's edge doubles the line at this weight.
+  -->
+
+  <g stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M62 88 L80 36 L114 88"/>
+    <path d="M142 88 L176 36 L194 88"/>
+    <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z"/>
+    <path d="M184 74 V118 H228"/>
+  </g>
+  <g stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M88 142 Q102 160 116 142"/>
+    <path d="M140 142 Q154 160 168 142"/>
+    <path d="M112 170 L120 182 L128 170 L136 182 L144 170"/>
+  </g>
+  <g stroke-width="7" stroke-linecap="round">
+    <path d="M56 196 H172"/>
+    <path d="M56 206 H136"/>
+  </g>
+</svg>

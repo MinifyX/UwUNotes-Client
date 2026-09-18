@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "UwUNotes",
+  "version": "0.1.0",
+  "identifier": "app.uwunotes.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1421",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "UwUNotes",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 640,
+        "minHeight": 420,
+        "center": true,
+        "decorations": false,
+        "shadow": true,
+        "resizable": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data:",
+        "font-src": "'self' data:",
+        "media-src": "'self' data:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'"
+      },
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "UwUNotes",
+    "homepage": "https://github.com/MinifyX/UwUNotes-Client",
+    "category": "DeveloperTool",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
+    "copyright": "GPL-3.0-only",
+    "license": "GPL-3.0-only",
+    "shortDescription": "A text and code editor with cat ears",
+    "longDescription": "The editor I build for myself, because Notepad++ is great and looks like 2004. Tabs, real syntax highlighting, find in files, splits — in pink."
+  }
+}

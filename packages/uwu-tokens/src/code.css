@@ -1,0 +1,86 @@
+/*
+ * UwU Suite code tokens — syntax colour on top of tokens.css.
+ *
+ * Split off from the base palette because not every app in the suite shows
+ * code: UwUNotes lives in here, UwUMail only needs it for a code block in a
+ * message. Import tokens.css first; these names build on --uwu-deep and the
+ * brand pink.
+ *
+ * The hues are Nyu's sticker palette pushed to text contrast — lilac, mint,
+ * sky, star gold — so highlighted code still reads as the same family as the
+ * cat, instead of as somebody else's colour scheme dropped into a pink app.
+ * Pink is reserved for keywords: it is the one thing the eye should catch
+ * first, and it is the one place the brand belongs inside the text itself.
+ *
+ * Every value is checked against its own ground (--uwu-deep), not against
+ * white: comments sit at 4.5:1 and everything else above it, so nothing here
+ * is decorative-only.
+ */
+
+:root {
+  --uwu-code-keyword: #c2185b;
+  --uwu-code-string: #16795f;
+  --uwu-code-number: #8a5a00;
+  --uwu-code-comment: #8a7f8f;
+  --uwu-code-function: #1d5f9e;
+  --uwu-code-type: #6d3fc4;
+  --uwu-code-variable: #1c1420;
+  --uwu-code-constant: #a3154f;
+  --uwu-code-operator: #716672;
+  --uwu-code-tag: #c2185b;
+  --uwu-code-attribute: #6d3fc4;
+  --uwu-code-heading: #a3154f;
+  --uwu-code-link: #1d5f9e;
+  --uwu-code-invalid: #c62828;
+
+  /* Editor furniture. The cursor and the selection are the two places the
+     brand pink is unmissable while typing — the whole reason the app looks
+     like part of the suite from across the room. */
+  --uwu-code-cursor: #e11d74;
+  --uwu-code-selection: #ffd0e2;
+  --uwu-code-selection-blur: #f2e8ee;
+  --uwu-code-match: #ffe4ef;
+  --uwu-code-match-active: #ffb0cd;
+  --uwu-code-active-line: #fdf6f9;
+  --uwu-code-line-number: #b3a8b3;
+  --uwu-code-line-number-active: #a3154f;
+  --uwu-code-indent-guide: #ece2e8;
+  --uwu-code-matching-bracket: #ffb0cd;
+
+  /* Git status in the gutter and on a tab. Green and amber, never pink. */
+  --uwu-code-added: #17796a;
+  --uwu-code-modified: #8e5510;
+  --uwu-code-deleted: #c62828;
+}
+
+:root[data-theme='dark'] {
+  --uwu-code-keyword: #ff7fac;
+  --uwu-code-string: #9ee6c4;
+  --uwu-code-number: #ffd66e;
+  --uwu-code-comment: #7d7285;
+  --uwu-code-function: #bde6ff;
+  --uwu-code-type: #c9b6f0;
+  --uwu-code-variable: #f8f2f6;
+  --uwu-code-constant: #ffa3c4;
+  --uwu-code-operator: #b3a8b3;
+  --uwu-code-tag: #ff7fac;
+  --uwu-code-attribute: #c9b6f0;
+  --uwu-code-heading: #ffa3c4;
+  --uwu-code-link: #bde6ff;
+  --uwu-code-invalid: #ff8080;
+
+  --uwu-code-cursor: #ff4d8d;
+  --uwu-code-selection: #4d2338;
+  --uwu-code-selection-blur: #2c2430;
+  --uwu-code-match: #3a1a2a;
+  --uwu-code-match-active: #7a2f4f;
+  --uwu-code-active-line: #171320;
+  --uwu-code-line-number: #5c5364;
+  --uwu-code-line-number-active: #ffa3c4;
+  --uwu-code-indent-guide: #241e28;
+  --uwu-code-matching-bracket: #7a2f4f;
+
+  --uwu-code-added: #5cc7ac;
+  --uwu-code-modified: #d8a25c;
+  --uwu-code-deleted: #ff8080;
+}

@@ -1,0 +1,32 @@
+[package]
+name = "uwunotes-desktop"
+description = "UwUNotes desktop app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "uwunotes_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+uwunotes-fs.workspace = true
+uwunotes-session.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Deleting a file from the tree goes to the recycle bin, never a hard delete.
+trash = "5"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }

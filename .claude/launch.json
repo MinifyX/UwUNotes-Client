@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "uwunotes-desktop-ui",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@uwunotes/desktop", "dev"],
+      "port": 1421
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+target/
+*.tsbuildinfo
+apps/*/src-tauri/gen/schemas/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Session and crash-recovery files written while trying the app out
+uwunotes-session.json
+backups/
+
+# Agent worktrees
+.claude/worktrees/
