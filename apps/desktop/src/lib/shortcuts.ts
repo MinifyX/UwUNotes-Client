@@ -197,8 +197,16 @@ export function macroShortcutFromEvent(event: KeyboardEvent): string | null {
 export function macroShortcutTaken(shortcut: string): boolean {
   const key = parseMacroShortcut(shortcut);
   if (!key) return true;
-  // The digits are zoom and the tab jumps, neither of which is in BINDINGS.
+  // The digits are zoom reset and the tab jumps, neither of which is in BINDINGS.
   if (/^(?:Digit|Numpad)\d$/.test(key.code)) return true;
+  // Zoom in and out are matched on the printed character, so their keys cannot
+  // be named by code — which is the only thing a macro shortcut stores. Every
+  // key that prints a `+` or a `-` on a layout this app runs under is therefore
+  // spoken for: `Minus`/`Equal` on QWERTY, `Slash`/`BracketRight` on QWERTZ, and
+  // the two numpad keys everywhere. Without this the dialog would happily hand
+  // a macro a key that `actionFor` answers before it ever looks at macros, and
+  // the macro would simply never run, with nothing on screen saying why.
+  if (/^(?:Minus|Equal|Slash|BracketRight|Numpad(?:Add|Subtract))$/.test(key.code)) return true;
   return BINDINGS.some((entry) => entry.code === key.code && entry.shift === key.shift);
 }
 

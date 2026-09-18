@@ -17,6 +17,15 @@
   <a href="docs/architecture.md"><b>How it works</b></a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/MinifyX/UwUNotes-Client/actions/workflows/ci.yml">
+    <img
+      src="https://github.com/MinifyX/UwUNotes-Client/actions/workflows/ci.yml/badge.svg"
+      alt="CI"
+    />
+  </a>
+</p>
+
 ---
 
 ## Why this exists
@@ -104,7 +113,12 @@ today.
 
 ## Install
 
-There is nothing to install yet. Building it needs:
+There is nothing to install yet — no release, no setup, no download. The long
+way round, for the day there is one and for the warning Windows will show about
+it, is [docs/install.md](docs/install.md); it also says where your session and
+your drafts live, in English and in German.
+
+Building it needs:
 
 - Node.js 24 and pnpm 11 (`corepack enable`)
 - Rust stable (via [rustup](https://rustup.rs))
@@ -158,6 +172,8 @@ working on components, useless for anything that touches a file.
 
 ## Documentation
 
+- [Install](docs/install.md) — what you need, what Windows will warn you about,
+  and where your data lives (English, then the same in German)
 - [Konzept](KONZEPT.md) — the full concept, in German
 - [Vision](docs/vision.md) — what I want UwUNotes to be and what it will never do
 - [Architecture](docs/architecture.md) — how the pieces fit together

@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      # Creating the release is the only thing here that writes anything.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Before anything is compiled: an installer that reports a different
+      # version than the tag it came from is a support problem forever, and a
+      # missing release note would only be noticed after the twelve-minute
+      # build.
+      - name: Check the tag and read the release notes
+        id: release
+        shell: pwsh
+        env:
+          # Through the environment rather than ${{ }} inside the script: a tag
+          # name is arbitrary text and has no business being pasted into source.
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          $configured = (Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ($version -ne $configured) {
+            Write-Output "::error::Tag $env:TAG means version $version, but tauri.conf.json says $configured. Fix one of them and tag again."
+            exit 1
+          }
+
+          $notes = "release-notes/$version.json"
+          if (-not (Test-Path $notes)) {
+            Write-Output "::error::$notes is missing. See release-notes/README.md."
+            exit 1
+          }
+          $english = (Get-Content $notes -Raw -Encoding utf8 | ConvertFrom-Json).en
+          if ([string]::IsNullOrWhiteSpace($english)) {
+            Write-Output "::error::$notes has no 'en' text, and that is what the release page shows."
+            exit 1
+          }
+
+          # As a file, so newlines and umlauts survive the trip into the action.
+          $body = Join-Path $env:RUNNER_TEMP 'release-body.md'
+          Set-Content -Path $body -Value $english -Encoding utf8
+          "body=$body" >> $env:GITHUB_OUTPUT
+
+          # A version with a suffix — v0.1.0-beta.1 — is not the finished thing.
+          $prerelease = if ($env:TAG.Contains('-')) { 'true' } else { 'false' }
+          "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
+          Write-Output "UwUNotes $version, pre-release: $prerelease"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # `tauri build` runs this again through beforeBuildCommand. Doing it here
+      # anyway means a TypeScript error fails as its own step after a minute,
+      # rather than somewhere inside the bundler's output.
+      - run: pnpm build
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Leaves the NSIS setup and the MSI in target/release/bundle. The Cargo
+      # workspace is the repository root, so that is the root's target, not one
+      # next to src-tauri.
+      - run: pnpm tauri build
+
+      # softprops rather than `gh release create`: the body comes from a file,
+      # the installers are globbed, the pre-release flag is an input, and an
+      # installer that failed to appear fails the job. With the CLI all four
+      # would be PowerShell plumbing, and PowerShell quoting is exactly the part
+      # that cannot be tested before the tag is pushed.
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.release.outputs.body }}
+          prerelease: ${{ steps.release.outputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            target/release/bundle/nsis/*-setup.exe
+            target/release/bundle/msi/*.msi

@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push makes the older run's answer worthless, and both would be sitting
+# in the same runner queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Corepack fetches the pnpm version from package.json the first time it is
+  # asked for one, and would rather confirm that first. There is nobody here to
+  # confirm it.
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # setup-node twice, on purpose: the pnpm cache asks `pnpm store path`
+      # where the store is, so pnpm has to exist before caching is switched on,
+      # and `corepack enable` can only put it next to a Node that is already
+      # installed. The second call finds the toolchain in place and costs a
+      # second.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  rust:
+    # Windows and nowhere else. The desktop crate is a Tauri app: it wants
+    # WebView2, Windows is the only platform UwUNotes ships on today, and a
+    # Linux runner would have to install the whole GTK and webkit2gtk stack to
+    # produce a binary nobody would ever run. The two library crates would
+    # compile anywhere, but they are not worth a job of their own.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # tauri-build refuses to compile the desktop crate while frontendDist
+      # (../dist) is missing, so even `cargo test` needs the frontend built.
+      - run: pnpm build
+
+      # This action has no version tags; the branch name is the toolchain.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace

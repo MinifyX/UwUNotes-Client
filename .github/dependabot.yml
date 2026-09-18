@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  # Patch and minor arrive as one pull request per ecosystem. Ungrouped, a quiet
+  # week still means a dozen branches, each with its own CI run, all of them
+  # saying "bumps 6.4.1 to 6.4.2". Majors stay on their own, because those are
+  # the ones worth reading.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      root:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /apps/desktop
+    schedule:
+      interval: weekly
+    groups:
+      desktop:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      crates:
+        update-types:
+          - minor
+          - patch
