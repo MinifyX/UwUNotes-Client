@@ -1,11 +1,11 @@
 {
-  "version": "0.2.0",
-  "notes": "UwUNotes keeps itself current from here on ✧\n\n- New versions announce themselves in the window and install on a click. Every update is signed, and UwUNotes installs nothing that was not signed with this project's key\n- The check runs shortly after start-up and can be switched off in the settings; looking by hand works at any time\n- If you installed 0.1.0 you need to download 0.2.0 by hand once more — 0.1.0 had no updater yet. After that it takes care of itself\n\nAlso:\n\n- Folders using Git LFS get their git marks back. 0.1.0 switched them off, because LFS uses the same configuration entries through which a downloaded project could start programs. What is actually written there is now checked: exactly what git-lfs writes itself is fine, anything else is still refused\n\nWindows 10 and 11 (64-bit). The setup is still not signed with a Windows certificate, so Windows will warn you when you start it — More info, then Run anyway.",
-  "pub_date": "2026-09-19T07:41:25Z",
+  "version": "0.3.0",
+  "notes": "UwUNotes brings its own installer now ✧\n\n- A setup with Nyu in it, like the rest of the UwU suite. It says where it is going to install and then does it — one window, not a wizard with five Next buttons\n- It installs under your own user, without administrator rights, to %LOCALAPPDATA%\\Programs\\UwUNotes. A Start-menu shortcut, and one on the desktop if you want\n- Uninstalling goes through Windows' own list of installed apps. Your session and your unsaved notes stay where they are unless you say otherwise\n- Updates go through this setup from now on. The signature is checked a second time immediately before it runs — between downloading and running, the file sits on disk. An older version is refused\n\nIf you have 0.2.0 you will be offered 0.3.0 automatically. If you are still on 0.1.0, download once by hand.\n\nWindows 10 and 11 (64-bit). The setup is not signed with a Windows certificate, so Windows will warn you when you start it — More info, then Run anyway. There is still an MSI for anyone who would rather have one.",
+  "pub_date": "2026-09-19T13:06:07Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm5kV243OWpuRWk1MnNjemlPMitVMVpCRXJoMjB1ODhsZnNJOGZWYlRFV2lFajNPS2N6UGJIT2NMNHp2ZElueVFFSmlaZElwTUxSaXlHd1hmV0t6VFFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5ODAzNjgwCWZpbGU6VXdVTm90ZXNfMC4yLjBfeDY0LXNldHVwLmV4ZQprVEVJNGhDUis0VGhDVEZjN2JlNkRWbndrMzdtQUZtSy9UblMyTGRRT2Z6azFYNklWSFhxMVFiTVNvK2w5clRSUEtHT0Z1ZnEwOWVVYXVoUGhUdW9Edz09Cg==",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.2.0/UwUNotes_0.2.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmhKU0d4T3pLM0Vodi96eStrU0FUSTd4dVRjaHV4RkppQ0ZPY044cUtnZGp1ZTBieXNVdUF1cjRGdS9aT3docXJxRmxaMjhEeEhTdGpOVFFmcWZXSVFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5ODIyOTM0CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC4zLjAuZXhlCnc3L1NxWVhxR0s1TjVlM0pobUVyK1FNYUI4dFppcUF0aE5heFJVakZRRXhqQmlORTZ6dTNLOHFEQlpxd3pzNitDMGhEVlZiS3hpZGlpeWRYdDU5Q0JnPT0K",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.3.0/UwUNotes-Setup-0.3.0.exe"
     }
   }
 }
