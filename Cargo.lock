@@ -4816,7 +4816,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-desktop"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.22.1",
  "minisign-verify",
@@ -4837,7 +4837,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-fs"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "chardetng",
  "encoding_rs",
@@ -4853,7 +4853,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-session"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -4863,7 +4863,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-setup"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "semver",
  "serde",
