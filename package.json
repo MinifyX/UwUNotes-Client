@@ -1,6 +1,6 @@
 {
   "name": "uwunotes",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "license": "GPL-3.0-only",
   "packageManager": "pnpm@11.0.0+sha224.af6c2da29ce3aa678c9bc04ec12647bf16883af2d2bb8bc10101f35f",
