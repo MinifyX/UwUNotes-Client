@@ -12,6 +12,7 @@
 //! - [`session`] — what was open last time, and the drafts beside it
 //! - [`git`] — the letters next to file names, when the folder is a repository
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
+//! - [`updates`] — whether there is a newer UwUNotes, and installing it
 //!
 //! What this layer deliberately does not do: anything worth a unit test. A
 //! command that grows a second `if` has grown logic, and that logic belongs in
@@ -23,6 +24,7 @@ mod git;
 mod search;
 mod session;
 mod system;
+mod updates;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -62,6 +64,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // The updater plugin registers commands of its own, and none of them
+        // are in `capabilities/default.json` — so the page cannot reach them,
+        // and the feed address stays where it is configured instead of becoming
+        // something the window could be talked into changing.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // %APPDATA%\app.uwunotes.desktop on Windows. UWUNOTES_DIR points
             // somewhere else, so trying things out never touches the session
@@ -77,6 +84,10 @@ pub fn run() {
                 config_directory: directory,
                 searches: Mutex::new(HashMap::new()),
             });
+            // Its own state rather than a field on `AppState`: nothing else in
+            // the app has anything to say about updates, and the type it holds
+            // belongs to the updater plugin.
+            app.manage(updates::Updates::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -107,6 +118,8 @@ pub fn run() {
             system::app_info,
             system::open_external,
             system::reveal_in_file_manager,
+            updates::check_for_update,
+            updates::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("failed to start UwUNotes");

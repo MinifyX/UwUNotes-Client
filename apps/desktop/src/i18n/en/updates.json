@@ -1,0 +1,15 @@
+{
+  "Nach Updates suchen": "Check for updates",
+  "Sieht kurz nach dem Start auf GitHub nach, ob es eine neuere Version gibt. Ältere Installationen als diese hatten noch keine Updatefunktion und melden sich nie von selbst.": "Looks on GitHub shortly after starting to see whether there is a newer version. Installations older than this one had no updater in them and never say anything on their own.",
+  "UwUNotes {version} ist verfügbar.": "UwUNotes {version} is available.",
+  "UwUNotes {version} wird geladen …": "Downloading UwUNotes {version} …",
+  "UwUNotes {version} wird geladen … {percent} %": "Downloading UwUNotes {version} … {percent}%",
+  "UwUNotes {version} ist installiert. Starte den Editor neu, um es zu benutzen.": "UwUNotes {version} is installed. Restart the editor to use it.",
+  "UwUNotes {version} ist die neueste Version.": "UwUNotes {version} is the newest version.",
+  "Die Suche nach Updates hat keine Antwort bekommen.": "The check for updates got no answer.",
+  "Das Update ließ sich nicht installieren: {reason}": "The update could not be installed: {reason}",
+  "Installieren und neu starten": "Install and restart",
+  "Was ist neu?": "What's new?",
+  "Weniger": "Less",
+  "Später": "Later"
+}

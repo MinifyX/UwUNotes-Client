@@ -23,6 +23,10 @@ serde_json.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+# The updater checks the minisign signature of what it downloaded before it
+# hands the bytes to the installer. That check is the reason this is a
+# dependency rather than a `reqwest` call and a `Command::spawn`.
+tauri-plugin-updater = "2"
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Deleting a file from the tree goes to the recycle bin, never a hard delete.

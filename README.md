@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="#install"><b>Build it from source</b></a>
+  <a href="https://github.com/MinifyX/UwUNotes-Client/releases"><b>Download</b></a>
   ·
   <a href="KONZEPT.md"><b>Konzept auf Deutsch</b></a>
   ·
@@ -80,18 +80,19 @@ today.
 - **Nothing is lost when the app closes.** Unsaved buffers are written as drafts
   next to the session, so the window comes back the way you left it, split
   layout and caret positions included.
-- **Private by default.** No telemetry, no account, no cloud, no update ping.
-  It reads and writes files on your disk and that is the whole list.
+- **Private by default.** No telemetry, no account, no cloud. Since 0.2.0 it
+  asks GitHub once per start whether a newer version exists, and that one
+  request for a file is everything it sends anywhere. Otherwise it reads and
+  writes files on your disk and that is the whole list.
 - **Playful.** Nyu, the notepad cat, keeps you company. Prefer it plain?
   Settings → Tone → Neutral. Warnings and errors are never playful, in either
   tone.
 
-> **Status: 0.1.0, still nothing has shipped.** There are no downloads, no
-> installer and no release. What exists is this repository — the Tauri shell,
-> the Rust file and session crates, the shared token package, and the whole IPC
-> contract in [`lib/api.ts`](apps/desktop/src/lib/api.ts) — and what runs in it
-> is everything in the list above, plus the four things I kept reaching for
-> afterwards:
+> **Status: 0.2.0, and there is a setup to download.** It is on the
+> [releases page](https://github.com/MinifyX/UwUNotes-Client/releases) with a
+> checksum beside it, unsigned as far as Windows is concerned — what that means
+> is in [docs/install.md](docs/install.md). What runs is everything in the list
+> above, plus what has landed since:
 >
 > - **Macros.** Record, play, play _n_ times, play to the end of the file. Save
 >   one under a name and give it a Ctrl shortcut and it stays.
@@ -105,11 +106,20 @@ today.
 >   code, so the editor can edit one: copy a bundled theme, change what annoys
 >   you, export it as JSON, paste in one somebody sent you.
 > - **Git marks in the gutter.** Added, changed and deleted lines straight out
->   of `git diff`, next to the line numbers, in green and amber — never pink.
+>   of `git diff`, next to the line numbers, in green and amber — never pink. A
+>   repository that uses Git LFS went without them in 0.1.0: the check that
+>   keeps a downloaded repository from running programs could not tell git-lfs
+>   from one. 0.2.0 knows the handful of lines `git lfs install` writes and lets
+>   exactly those through.
+> - **It updates itself, and only from here.** New in 0.2.0. Once, a few
+>   seconds after the window opens, it asks GitHub whether something newer
+>   exists; if so, a strip above the status bar offers it, and the setup it
+>   downloads has to carry the project's signature or it is not run. 0.1.0 has
+>   none of this and will never offer you 0.2.0 — that one is a download by
+>   hand.
 >
-> If you want to look at it, you build it yourself. If you want to use it as
-> your editor, come back later. The [roadmap](docs/roadmap.md) is what is left,
-> and it still has no dates on purpose.
+> The [roadmap](docs/roadmap.md) is what is left, and it still has no dates on
+> purpose.
 
 ## Install
 
@@ -119,6 +129,10 @@ signed, so Windows will put a box in front of it — what that box means, and ho
 to check the download against the published checksum, is in
 [docs/install.md](docs/install.md); it also says where your session and your
 drafts live, in English and in German.
+
+That is the last download you have to think about: from 0.2.0 on the editor
+looks once per start and offers the newer version itself. 0.1.0 does not look at
+all, so coming from it is one more trip to the releases page.
 
 Building it needs:
 
@@ -148,7 +162,7 @@ are a Tauri build target away in theory and untried in practice.
 | `crates/uwunotes-session` | The session file, the drafts beside it, the recent lists          |
 | `brand/`                  | Nyu in her notepad body: app icon, symbol, mono symbol            |
 | `docs/`                   | Vision, architecture, design, roadmap                             |
-| `scripts/`                | The translation check, and whatever else the build grows to need  |
+| `scripts/`                | The translation check, and the update feed a release publishes    |
 
 ## Development
 

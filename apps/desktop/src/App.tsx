@@ -23,6 +23,7 @@ import { startGitWatch } from './lib/git';
 import { t, useLanguage } from './lib/i18n';
 import { persistSession, restoreSession, startSessionAutosave } from './lib/session';
 import { installShortcuts } from './lib/shortcuts';
+import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
 import { AboutDialog } from './components/AboutDialog';
 import { CommandPalette } from './components/CommandPalette';
@@ -36,6 +37,7 @@ import { SplitContainer } from './components/SplitContainer';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
 import { Toasts } from './components/Toasts';
+import { UpdateHint } from './components/UpdateHint';
 import { PromptHost } from './components/PromptHost';
 import { Nyu } from './components/nyu/Nyu';
 import { pickGreeting } from './components/nyu/greetings';
@@ -91,6 +93,7 @@ export function App() {
   useEffect(() => startSessionAutosave(), []);
   useEffect(() => startFileWatchers(), []);
   useEffect(() => startGitWatch(), []);
+  useEffect(() => startUpdateCheck(), []);
 
   /**
    * Ctrl+B, for the sidebar.
@@ -190,6 +193,11 @@ export function App() {
           {dialog === 'projectSearch' ? <SearchPanel /> : null}
         </div>
       </div>
+
+      {/* Between the text and the status bar, and nothing at all when there is
+          no update to mention: a new version is worth a row of the window and
+          never a dialog over the file somebody is writing. */}
+      <UpdateHint />
 
       <StatusBar />
 

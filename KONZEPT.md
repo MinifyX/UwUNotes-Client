@@ -4,7 +4,7 @@
 
 |                 |                                                                                                                      |
 | --------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Stand**       | 2026-09-18 · Entwurf v0.1                                                                                            |
+| **Stand**       | 2026-09-19 · zur Version 0.2.0                                                                                       |
 | **Basis**       | Tauri 2 + React 18 + CodeMirror 6 + Rust                                                                             |
 | **Bundle-ID**   | `app.uwunotes.desktop`                                                                                               |
 | **Repo**        | [MinifyX/UwUNotes-Client](https://github.com/MinifyX/UwUNotes-Client) · GPL-3.0                                      |
@@ -41,8 +41,9 @@ kaputt._
 - **Keine Cloud.** Keine Synchronisierung deiner Dateien, auch nicht über meinen
   Server. Deine Dateien liegen schon irgendwo; ein Editor ist die falsche
   Schicht für eine zweite Kopie.
-- **Keine Telemetrie, kein Account, kein Abo.** Die App macht mit einem
-  Netzwerk-Stack exakt nichts.
+- **Keine Telemetrie, kein Account, kein Abo.** Das Einzige, was über das Netz
+  geht, ist seit 0.2.0 die Frage nach einer neueren Version: eine Anfrage nach
+  einer Datei, in der nichts über den Rechner steht, der fragt.
 - **Kein Team-Produkt.** Keine geteilten Workspaces, keine fremden Cursor, keine
   Kommentare.
 - **Kein Marketplace.** Eine Plugin-Registry gibt es seit Phase 2, einen Laden
@@ -276,6 +277,29 @@ alte Datei heil, nicht eine halbe.
   Git-Aufruf pro Datei, weshalb es eine Einstellung dazu gibt, die das auch
   sagt.
 
+### Nach 0.1.0 — gebaut
+
+- **Signierte Updates.** Eine installierte Kopie fragt einmal pro Start, etwa
+  fünfzehn Sekunden nach dem Öffnen des Fensters, eine JSON-Datei in einem
+  Branch dieses Repositories (`…/updates/latest.json`). Gibt es etwas Neueres,
+  erscheint ein Streifen über der Statusleiste — nie ein Dialog, nie ein zweites
+  Mal im selben Lauf. Das Setup, das dabei heruntergeladen wird, muss mit dem
+  Schlüssel des Projekts signiert sein: `tauri-plugin-updater` prüft es gegen
+  den öffentlichen Schlüssel aus `tauri.conf.json`, bevor irgendetwas gestartet
+  wird, und älter als die laufende Version darf es auch nicht sein.
+  Vorabversionen landen absichtlich nie im Feed. Unter Windows beendet der
+  Installer die laufende App, deshalb schreibt die Seite Sitzung und Entwürfe
+  weg, bevor sie den Download anstößt — der Close-Guard des Fensters kommt nicht
+  mehr dazu. 0.1.0 hat von alldem nichts und wird 0.2.0 nie anbieten.
+- **Git LFS ist keine Sperre mehr.** Der Schutz gegen `.git/config`-Einträge,
+  die in Wahrheit Programme sind, hat in 0.1.0 jedes Repository mit LFS
+  mitgesperrt: keine Statusbuchstaben, keine Gutter-Marken. Jetzt werden die
+  Werte mitgelesen und mit genau den Zeilen verglichen, die
+  `git lfs install --local` selbst schreibt — ganze Werte nach `trim()`, nie als
+  Präfix, nie als Teilstring. Alles andere in denselben Schlüsseln wird
+  weiterhin abgelehnt. Was damit delegiert ist, steht in
+  [`docs/security-review-2026-09.md`](docs/security-review-2026-09.md).
+
 ### Was aus Phase 2 offen bleibt
 
 - **Makros im Menü.** Ein Makro hat ein Kürzel und steht in der Palette. Was
@@ -411,7 +435,7 @@ die Prüfung, und `t()` passiert dort, wo er angezeigt wird.
 | `crates/uwunotes-session` | Sitzungsdatei, Entwürfe, Zuletzt-Listen                        |
 | `brand/`                  | Nyu im Notizblock-Körper: App-Icon, Symbol, Mono-Symbol        |
 | `docs/`                   | Vision, Architektur, Design, Roadmap                           |
-| `scripts/`                | Die Übersetzungsprüfung                                        |
+| `scripts/`                | Die Übersetzungsprüfung und der Update-Feed eines Releases     |
 
 Ein Repo, ein pnpm-Workspace, ein Cargo-Workspace. Kein Server, kein zweites
 Repo, nichts, was betrieben werden müsste.
@@ -420,10 +444,10 @@ Repo, nichts, was betrieben werden müsste.
 
 ## 10. Stand und offene Punkte
 
-**Stand: 0.1.0, nichts veröffentlicht.** Es gibt keinen Download, kein Setup,
-kein Release. Was es gibt, ist dieses Repository: die Tauri-Shell, die
-Rust-Crates, das Token-Paket und den Editor selbst — Phase 1 vollständig, Phase
-2 bis auf die oben genannten Punkte ebenfalls.
+**Stand: 0.2.0, veröffentlicht.** Das Setup liegt auf der Releases-Seite, mit
+Prüfsumme daneben und ohne Windows-Zertifikat dahinter, und ab dieser Version
+hält sich eine Installation selbst aktuell. Phase 1 ist vollständig, Phase 2 bis
+auf die oben genannten Punkte ebenfalls.
 
 Offene Entscheidungen, die noch niemand getroffen hat:
 
@@ -435,9 +459,18 @@ Offene Entscheidungen, die noch niemand getroffen hat:
 - **Wie viel Git?** Marken am Tab, im Dateibaum und seit Phase 2 auch im
   Gutter. Mehr als das — stagen, committen — wäre ein zweites Programm im
   ersten, und dabei bleibt es vorerst.
-- **Setup und Updates.** Die Geschwister haben ein eigenes Installer-Projekt.
-  Ob UwUNotes das erbt oder erst einmal als portables Verzeichnis ausgeliefert
-  wird, ist offen.
+- **Setup und Updates.** Entschieden: ein eigenes NSIS-Setup und ein eigener
+  Updater, beide aus dem Release-Workflow. Das Setup trägt die Signatur des
+  Projektschlüssels, die der Updater prüft — ein Windows-Zertifikat ist das
+  nicht und ersetzt es auch keins. Offen ist nur noch, ob der Suite-Launcher der
+  Geschwister irgendwann die Erstinstallation übernimmt; aktuell halten muss er
+  UwUNotes nicht mehr. Ein
+  portables Verzeichnis gibt es weiterhin nicht; am nächsten dran ist
+  `UWUNOTES_DIR`. Mitentschieden ist damit ein Risiko: Geht der private
+  Schlüssel verloren, bekommt keine vorhandene Installation je wieder ein
+  Update, weil jede genau diesen einen öffentlichen Schlüssel kennt. Dass er
+  eine Sicherung außerhalb dieses Rechners hat, ist eine Abmachung und keine
+  Funktion.
 
 ---
 

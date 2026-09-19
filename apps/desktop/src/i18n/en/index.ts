@@ -9,6 +9,7 @@ import files from './files.json';
 import macros from './macros.json';
 import search from './search.json';
 import settings from './settings.json';
+import updates from './updates.json';
 
 export const EN: Readonly<Record<string, string>> = {
   ...app,
@@ -17,4 +18,5 @@ export const EN: Readonly<Record<string, string>> = {
   ...search,
   ...settings,
   ...macros,
+  ...updates,
 };

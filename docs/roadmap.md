@@ -49,6 +49,21 @@ open, scroll, and let you jump to a line. That means reading in chunks on the
 Rust side and a document the editor knows is partial, which is enough of a
 change to deserve its own phase rather than being bolted onto the loader.
 
+## Updates · done
+
+Never a phase of its own, and built between 0.1.0 and 0.2.0 anyway: an editor
+that has been released and cannot mention the next release is a problem that
+grows with every version. An installed copy asks one JSON file on a branch of
+this repository whether something newer exists, once per start; what it
+downloads has to be signed with the project's key or it is not run; and a
+pre-release never reaches that file. [install.md](install.md) says what that
+does and does not promise, and the [security review](security-review-2026-09.md)
+says what it costs.
+
+What is deliberately not there: a schedule, a background service, a check while
+you type, and anything that reports back. The app sends no identifier of any
+kind; a request for a public file is all GitHub is given.
+
 ## Phase 3 · Elsewhere
 
 **macOS and Linux builds.** Tauri makes this sound like a checkbox. It is not:
@@ -63,9 +78,10 @@ On the list because the suite's other apps want the same thing.
 
 **A UwU Suite launcher.** Three apps that share a palette, a cat, a token
 package and an installer story. One small thing that knows about all of them,
-installs and updates them, and puts them behind one icon. This is the least
-urgent item here and the one I will probably build first anyway, because it is
-fun.
+installs them, and puts them behind one icon. Keeping them current is less of a
+reason for it than it was — this one does that itself now — so what is left is
+the first install and the one icon. Still the least urgent item here, and still
+the one I will probably build first anyway, because it is fun.
 
 ## Things that are not on this list
 

@@ -323,6 +323,48 @@ export const openExternal = (url: string) => invoke<void>('open_external', { url
 export const revealInFileManager = (path: string) =>
   invoke<void>('reveal_in_file_manager', { path });
 
+/* ── Updates ───────────────────────────────────────────── */
+
+/**
+ * What a look at the update feed found.
+ *
+ * `failed` is not an error: the command resolves with it. Which of `none` and
+ * `failed` the user gets told about is `lib/updates.ts`'s decision, and it
+ * depends on whether they asked — see the comment there.
+ */
+export type UpdateCheck =
+  | { status: 'none' }
+  | {
+      status: 'available';
+      version: string;
+      /** The release notes from the feed. Text from elsewhere: never markup. */
+      notes: string | null;
+    }
+  | { status: 'failed'; message: string };
+
+/** Asks the configured feed. The address is Rust's; the page cannot set it. */
+export const checkForUpdate = () => invoke<UpdateCheck>('check_for_update');
+
+export type DownloadProgress = {
+  received: number;
+  /** `null` when the server sent no length, so there is no percentage to show. */
+  total: number | null;
+};
+
+/**
+ * Downloads the update the last {@link checkForUpdate} found and starts the
+ * installer.
+ *
+ * On Windows this promise never resolves: the setup takes over and the app is
+ * ended. Everything that has to be on disk must be written before this is
+ * called — the window's close guard does not get a turn.
+ */
+export const installUpdate = (onProgress: (progress: DownloadProgress) => void) => {
+  const channel = new Channel<DownloadProgress>();
+  channel.onmessage = onProgress;
+  return invoke<void>('install_update', { onProgress: channel });
+};
+
 /**
  * An error a command returned. Rust sends `{ kind, message, path }` for
  * everything a user could plausibly hit, so the UI can react to the kind

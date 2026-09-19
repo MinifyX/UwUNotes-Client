@@ -72,6 +72,8 @@ export type Settings = {
   defaultEol: 'lf' | 'crlf';
 
   restoreSession: boolean;
+  /** Look for a newer version shortly after starting. See `lib/updates.ts`. */
+  autoCheckUpdates: boolean;
   /** A coloured bar on the tab and in the gutter, from `git status`. */
   gitIndicators: boolean;
   /** The per-line marks beside the text, from `git diff`. Costs one git call per file. */
@@ -131,6 +133,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultEol: 'crlf',
 
   restoreSession: true,
+  autoCheckUpdates: true,
   gitIndicators: true,
   gitGutter: true,
   sounds: false,
@@ -209,6 +212,7 @@ export function sanitize(raw: unknown): Settings {
     defaultEol: oneOf(input.defaultEol, ['lf', 'crlf'] as const, d.defaultEol),
 
     restoreSession: bool(input.restoreSession, d.restoreSession),
+    autoCheckUpdates: bool(input.autoCheckUpdates, d.autoCheckUpdates),
     gitIndicators: bool(input.gitIndicators, d.gitIndicators),
     gitGutter: bool(input.gitGutter, d.gitGutter),
     sounds: bool(input.sounds, d.sounds),

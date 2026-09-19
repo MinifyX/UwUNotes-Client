@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "UwUNotes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "app.uwunotes.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -45,6 +45,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "publisher": "UwUNotes",
     "homepage": "https://github.com/MinifyX/UwUNotes-Client",
     "category": "DeveloperTool",
@@ -53,5 +54,11 @@
     "license": "GPL-3.0-only",
     "shortDescription": "A text and code editor with cat ears",
     "longDescription": "The editor I build for myself, because Notepad++ is great and looks like 2004. Tabs, real syntax highlighting, find in files, splits — in pink."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY2NUZFOTIzQkNEMkU2QTQKUldTazV0SzhJK2xmWmphYVBuN3cwNW1xTDRCbHhNb20yOGtBeW10eHlTbUhCTFRaSWdPL21tdnMK",
+      "endpoints": ["https://raw.githubusercontent.com/MinifyX/UwUNotes-Client/updates/latest.json"]
+    }
   }
 }
