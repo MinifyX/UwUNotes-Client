@@ -138,7 +138,14 @@ jobs:
             $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
             "$hash  $($file.Name)"
           }
-          Set-Content -Path SHA256SUMS.txt -Value $lines -Encoding ascii
+          # LF, written by hand. `Set-Content` ends every line with CRLF on
+          # Windows, and `sha256sum -c` — the tool this file exists for, and the
+          # one people on Linux and macOS actually have — reads the carriage
+          # return as part of the file name and reports that the file is
+          # missing. v0.2.0 shipped a checksum file that could not be checked
+          # that way.
+          $text = ($lines -join "`n") + "`n"
+          [System.IO.File]::WriteAllText("$PWD/SHA256SUMS.txt", $text, [System.Text.UTF8Encoding]::new($false))
           Get-Content SHA256SUMS.txt
 
       # softprops rather than `gh release create`: the body comes from a file,
