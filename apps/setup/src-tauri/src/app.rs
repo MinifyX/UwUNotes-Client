@@ -54,6 +54,11 @@ enum Launch {
         /// Already running from the copy in the temp folder, which is the only
         /// place an uninstaller can delete itself from.
         from_temp: bool,
+        /// Remove it without putting a window up: `/S` out of a script, or a
+        /// management tool taking the program off a machine nobody is sitting
+        /// at. Windows' own "Installed apps" list passes no switch and gets the
+        /// window, which is what somebody clicking Uninstall should get.
+        silent: bool,
     },
 }
 
@@ -86,13 +91,17 @@ fn parse_arguments(arguments: &[String]) -> Launch {
             .and_then(|at| arguments.get(at + 1))
     };
 
+    let nsis = ["/S", "/P", "/R", "/NCRC"].iter().any(|switch| has(switch));
     if has("--uninstall") {
         return Launch::Uninstall {
             folder: value_after("--dir").map(PathBuf::from),
             from_temp: has("--from-temp"),
+            // `/R` is not in here: for an install it means "start it again
+            // afterwards", and there is nothing to start again once the program
+            // is gone.
+            silent: has("--silent") || has("/S") || has("/P") || has("/NCRC"),
         };
     }
-    let nsis = ["/S", "/P", "/R", "/NCRC"].iter().any(|switch| has(switch));
     if has("--update") || nsis {
         let wait_pid = value_after("--wait-pid").and_then(|pid| pid.parse().ok());
         return Launch::Update {
@@ -356,14 +365,38 @@ pub fn run() {
     // the window closes.
     if let (
         Launch::Uninstall {
-            from_temp: false, ..
+            from_temp: false,
+            silent,
+            ..
         },
         Some(folder),
     ) = (&launch, &uninstall_folder)
     {
-        if restart_from_temp(folder) {
+        if restart_from_temp(folder, *silent) {
             return;
         }
+    }
+
+    // A silent removal never reaches the window below: it does the work here and
+    // ends, so whoever called it can wait for the process and believe the exit
+    // code. Settings are kept, because a switch on a command line is a thin
+    // thing to read "and throw away their notes" into.
+    if let (
+        Launch::Uninstall {
+            from_temp: true,
+            silent: true,
+            ..
+        },
+        Some(folder),
+    ) = (&launch, &uninstall_folder)
+    {
+        let failed = install::uninstall(&layout, folder, true, &mut |_| {}).is_err();
+        // The same tidy-up `close_setup` does for the window: this copy is in
+        // the temp folder and cannot delete itself while it is running.
+        if let Ok(copy) = std::env::current_exe() {
+            system::delete_after_exit(&copy);
+        }
+        std::process::exit(i32::from(failed));
     }
 
     if !offer_webview2() {
@@ -452,7 +485,7 @@ fn update_silently(layout: &Layout, wait_pid: Option<u32>, relaunch: bool) {
 
 /// Copies the uninstaller to the temp folder and starts it there. `true` when
 /// that worked and this process should stop.
-fn restart_from_temp(folder: &Path) -> bool {
+fn restart_from_temp(folder: &Path, silent: bool) -> bool {
     let Ok(me) = std::env::current_exe() else {
         return false;
     };
@@ -461,11 +494,15 @@ fn restart_from_temp(folder: &Path) -> bool {
         return false;
     }
     let folder = folder.display().to_string();
-    system::spawn_detached(
-        &copy,
-        &["--uninstall", "--from-temp", "--dir", folder.as_str()],
-    )
-    .is_ok()
+    let mut arguments = vec!["--uninstall", "--from-temp", "--dir", folder.as_str()];
+    // Without this the copy would forget it was asked to be quiet: the process
+    // that was asked exits 0 straight away, and the one actually doing the work
+    // puts a window up that nobody is waiting at. A script sees success and a
+    // machine is left with the program still on it.
+    if silent {
+        arguments.push("--silent");
+    }
+    system::spawn_detached(&copy, &arguments).is_ok()
 }
 
 /// The window needs WebView2, and so does the editor it installs. Windows 11
@@ -516,6 +553,36 @@ mod tests {
             Launch::Interactive,
             "an argument nobody knows is ignored, not refused"
         );
+    }
+
+    /// Found by removing the published 0.3.0 from a sandbox: `--uninstall /S`
+    /// exited 0 immediately and left a window nobody was waiting at, with the
+    /// program still installed. The uninstaller restarts itself from the temp
+    /// folder — Windows will not delete a running program — and the restart
+    /// passed a fixed argument list that dropped the switch.
+    #[test]
+    fn a_silent_removal_stays_silent_when_the_uninstaller_restarts_itself() {
+        for switch in ["--silent", "/S", "/s", "/P", "/NCRC"] {
+            assert!(
+                matches!(
+                    parse(&["--uninstall", switch]),
+                    Launch::Uninstall { silent: true, .. }
+                ),
+                "{switch} has to remove it without asking"
+            );
+        }
+        // Windows' own list of installed apps passes no switch, and somebody
+        // who clicked Uninstall should be asked.
+        assert!(matches!(
+            parse(&["--uninstall"]),
+            Launch::Uninstall { silent: false, .. }
+        ));
+        // `/R` means "start it again afterwards", which is meaningless once the
+        // program is gone, so it is not a reason to skip the window.
+        assert!(matches!(
+            parse(&["--uninstall", "/R"]),
+            Launch::Uninstall { silent: false, .. }
+        ));
     }
 
     /// The switches `tauri-plugin-updater` starts an NSIS installer with. A
@@ -596,6 +663,7 @@ mod tests {
             Launch::Uninstall {
                 folder: None,
                 from_temp: false,
+                silent: false,
             }
         );
         assert_eq!(
@@ -603,6 +671,22 @@ mod tests {
             Launch::Uninstall {
                 folder: Some(PathBuf::from(r"C:\Apps\UwUNotes")),
                 from_temp: true,
+                silent: false,
+            }
+        );
+        // What `restart_from_temp` now sends on for a silent removal.
+        assert_eq!(
+            parse(&[
+                "--uninstall",
+                "--from-temp",
+                "--dir",
+                r"C:\Apps\UwUNotes",
+                "--silent"
+            ]),
+            Launch::Uninstall {
+                folder: Some(PathBuf::from(r"C:\Apps\UwUNotes")),
+                from_temp: true,
+                silent: true,
             }
         );
         assert!(
