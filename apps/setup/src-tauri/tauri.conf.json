@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "UwUNotes Setup",
+  "version": "0.2.0",
+  "identifier": "app.uwunotes.setup",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1431",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data:",
+        "font-src": "'self' data:",
+        "media-src": "'self' data:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'",
+        "frame-src": "'none'"
+      },
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": false,
+    "publisher": "UwUNotes",
+    "homepage": "https://github.com/MinifyX/UwUNotes-Client",
+    "copyright": "GPL-3.0-only",
+    "license": "GPL-3.0-only",
+    "shortDescription": "Installs UwUNotes",
+    "icon": ["../../desktop/src-tauri/icons/32x32.png", "../../desktop/src-tauri/icons/icon.ico"]
+  }
+}

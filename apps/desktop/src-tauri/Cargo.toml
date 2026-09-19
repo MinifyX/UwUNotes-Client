@@ -18,6 +18,12 @@ tauri-build = { version = "2", features = [] }
 uwunotes-fs.workspace = true
 uwunotes-session.workspace = true
 
+# The downloaded setup is checked against the release key once more, on the
+# bytes on disk, just before it is started — so that check has to exist here
+# too and not only inside the updater plugin. Both are what the plugin itself
+# uses, so this adds no third-party code that was not already compiled in.
+base64 = "0.22"
+minisign-verify = "0.2"
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }

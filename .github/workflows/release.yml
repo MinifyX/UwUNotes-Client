@@ -22,7 +22,9 @@ jobs:
       # the repository that produces the installer people download and the only
       # one holding a token that can write, so an action whose content is
       # "whatever that branch says today" is the one unpinned input left: both
-      # lockfiles are committed and the install is `--frozen-lockfile`.
+      # lockfiles are committed and the install is `--frozen-lockfile`. The
+      # repository refuses an unpinned action outright now; the reason above is
+      # older than the rule.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # Otherwise checkout leaves the job's write-capable token in
@@ -45,10 +47,21 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           $version = $env:TAG -replace '^v', ''
-          $configured = (Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          if ($version -ne $configured) {
-            Write-Output "::error::Tag $env:TAG means version $version, but tauri.conf.json says $configured. Fix one of them and tag again."
-            exit 1
+          # Both apps, because the setup is what says a version out loud — in
+          # its window, in "Installed apps" and in the file name it is published
+          # under. `pnpm build:setup` refuses to build them apart; this is the
+          # same check at minute zero instead of minute three.
+          foreach ($app in 'desktop', 'setup') {
+            $file = "apps/$app/src-tauri/tauri.conf.json"
+            if (-not (Test-Path $file)) {
+              Write-Output "::error::$file is missing, and the release is built from it."
+              exit 1
+            }
+            $configured = (Get-Content $file -Raw | ConvertFrom-Json).version
+            if ($version -ne $configured) {
+              Write-Output "::error::Tag $env:TAG means version $version, but $file says $configured. Fix one of them and tag again."
+              exit 1
+            }
           }
 
           $notes = "release-notes/$version.json"
@@ -94,45 +107,70 @@ jobs:
         with:
           toolchain: stable
 
-      # Leaves the NSIS setup and the MSI in target/release/bundle. The Cargo
-      # workspace is the repository root, so that is the root's target, not one
-      # next to src-tauri.
+      # UwUNotes-Setup-<version>.exe in target/release: the editor built with
+      # --no-bundle and packed into UwUNotes' own installer, which is the file
+      # people download and the file an installed copy runs to update itself.
+      # The Cargo workspace is the repository root, so that is the root's
+      # target, not one next to src-tauri.
       #
       # The signing key reaches this step and no other, because this is the one
-      # that needs it: `tauri build` signs the updater artifacts and writes a
-      # .sig next to the setup. It arrives through `env:` and is never named in
-      # a `run:` line — a secret interpolated into a command is a secret in the
-      # log of the first job that fails in an interesting way.
-      - name: Build the installers
+      # that needs it: `pnpm build:setup` signs the finished setup and writes a
+      # .sig next to it. Inside the script the key is taken back out of the
+      # environment before any build starts, so none of the build scripts in the
+      # dependency graph ever see it. It arrives through `env:` and is never
+      # named in a `run:` line — a secret interpolated into a command is a
+      # secret in the log of the first job that fails in an interesting way.
+      - name: Build the setup
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm tauri build
+        run: pnpm build:setup
 
       # A release without a signature is a release nobody can update to, and an
-      # unset secret and a `createUpdaterArtifacts` left off both look the same
-      # from here: a bundle folder with no .sig in it. Worth twelve minutes of
-      # runner time to learn now rather than from a user in three weeks.
+      # unset secret looks from here exactly like a build that simply did not
+      # sign: a folder with no .sig in it. Worth twelve minutes of runner time
+      # to learn now rather than from a user in three weeks.
       - name: Check the setup was signed
         shell: pwsh
         run: |
-          $signed = @(Get-ChildItem target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue)
+          $signed = @(Get-ChildItem target/release/UwUNotes-Setup-*.exe.sig -ErrorAction SilentlyContinue)
           if ($signed.Count -ne 1) {
-            Write-Output "::error::Expected one signed NSIS setup, found $($signed.Count) .sig files. Check createUpdaterArtifacts in tauri.conf.json and the TAURI_SIGNING_PRIVATE_KEY secrets."
+            Write-Output "::error::Expected one signed setup, found $($signed.Count) .sig files. Check the TAURI_SIGNING_PRIVATE_KEY secrets and scripts/build-setup.mjs."
             exit 1
           }
           Write-Output "Signed: $($signed[0].Name)"
+
+      # A second asset, for people who would rather have an MSI — one that a
+      # policy can deploy, or that goes on a machine where the per-user install
+      # is not what is wanted. It costs one bundle step and no compile: the
+      # build above left target/release warm, so this is WiX and little else.
+      #
+      # No secrets here, and none needed. `createUpdaterArtifacts` is turned off
+      # for this build alone, because the artifact updates go through is the
+      # signed setup above and nothing reads a signature of the MSI. Left on,
+      # `tauri build` would find the public key in tauri.conf.json, expect to
+      # sign, and refuse to bundle without the private half — which is the whole
+      # point of it not being here.
+      - name: Build the MSI
+        shell: pwsh
+        run: |
+          $config = Join-Path $env:RUNNER_TEMP 'msi.json'
+          Set-Content -Path $config -Encoding utf8 -Value '{ "bundle": { "createUpdaterArtifacts": false } }'
+          pnpm tauri build --bundles msi --config $config
 
       # The signature above is for the updater. Windows still sees a program
       # nobody vouched for, so for a person downloading the installer by hand a
       # checksum stays the only thing to check it against. It proves nothing on
       # its own — it is published by the same job — but it makes a file that was
       # swapped afterwards, on a mirror or in a forwarded message, noticeable.
+      # Everything the release attaches is listed, the .sig included, so the
+      # file matches the release page rather than a subset of it.
       - name: Write the checksums
         shell: pwsh
         run: |
           $files = Get-ChildItem `
-            target/release/bundle/nsis/*-setup.exe, `
+            target/release/UwUNotes-Setup-*.exe, `
+            target/release/UwUNotes-Setup-*.exe.sig, `
             target/release/bundle/msi/*.msi
           $lines = foreach ($file in $files) {
             $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
@@ -163,8 +201,8 @@ jobs:
           prerelease: ${{ steps.release.outputs.prerelease }}
           fail_on_unmatched_files: true
           files: |
-            target/release/bundle/nsis/*-setup.exe
-            target/release/bundle/nsis/*-setup.exe.sig
+            target/release/UwUNotes-Setup-*.exe
+            target/release/UwUNotes-Setup-*.exe.sig
             target/release/bundle/msi/*.msi
             SHA256SUMS.txt
 

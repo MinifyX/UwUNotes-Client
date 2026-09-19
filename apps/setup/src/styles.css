@@ -1,0 +1,518 @@
+/*
+ * The setup window, dressed the way the editor is.
+ *
+ * Loaded after `@uwu/tokens`, and there is not one hex value below: every
+ * colour is a `var(--uwu-*)`, so this window and the editor it installs are
+ * demonstrably the same product. The title bar, the caption buttons and the
+ * pink primary button are deliberately the app's own rules, copied because an
+ * installer that shares a stylesheet with an application it has not installed
+ * yet would be a strange dependency to explain.
+ *
+ * Dark, always. `index.html` carries `data-theme="dark"` so the first paint is
+ * already right, and there is nothing here to switch it with: the window lives
+ * for a minute and has no settings of its own.
+ *
+ * Nyu's animations belong to `nyu.css`, which she imports herself. What is
+ * below are the four the installer adds — the fade between screens, the pop on
+ * the finish, and the hop and the toss in the working scene. Motion off is
+ * handled by `tokens.css` against `[data-motion='reduced']`, which `main.tsx`
+ * sets; nothing here uses `!important`, so nothing here escapes it.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--uwu-canvas);
+  color: var(--uwu-ink);
+  font-family: var(--uwu-font);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  /* The window is chrome, not a document. The path field and the error line
+     turn selection back on for themselves. */
+  user-select: none;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--uwu-pink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+/* A base, so a control that has not been dressed still looks like one. */
+button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+input[type='checkbox'] {
+  accent-color: var(--uwu-pink-solid);
+  cursor: pointer;
+}
+
+/* ── The window ────────────────────────────────────────── */
+
+.setup {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+}
+
+/* `decorations: false` in tauri.conf.json: this bar is the frame. */
+.titlebar {
+  display: flex;
+  align-items: stretch;
+  padding-left: 12px;
+  background: var(--uwu-surface);
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.titlebar-wordmark {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.titlebar-wordmark span {
+  color: var(--uwu-pink);
+}
+
+.titlebar-spacer {
+  flex: 1;
+}
+
+/* Windows' own caption buttons: 46 px wide, the full height of the bar. Any
+   other size and the corner of the window feels wrong under the mouse. */
+.window-controls {
+  display: flex;
+  align-self: stretch;
+}
+
+.window-control {
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--uwu-ink);
+}
+
+.window-control svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 1;
+}
+
+.window-control-muted {
+  color: var(--uwu-muted);
+}
+
+.window-control:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.window-control-close:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+/* The ring would be clipped by the window edge at the default offset. */
+.window-control:focus-visible {
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+/*
+ * One block, centred. Every screen is picture, sentence, and the two or three
+ * controls that belong to it, and none of them fills the window — so the block
+ * sits in the middle rather than hanging from the title bar with a hole under
+ * it. Nothing in here can outgrow the window: the one piece of text with no
+ * ceiling on its length is the engine's error line, which has one of its own.
+ */
+.setup-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 22px 16px;
+}
+
+/* ── Nyu, the headline, the sentence ───────────────────── */
+
+.stage {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.setup-scene {
+  display: block;
+  width: 292px;
+  max-width: 100%;
+  /* `DoneScene` wraps the canvas in the element that pops, and a block inside
+     a block is left-aligned however centred its parent is. */
+  margin-inline: auto;
+  /* Nyu's ears and stars sit outside the viewBox on purpose. */
+  overflow: visible;
+}
+
+.stage-title {
+  padding-top: 4px;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.stage-body {
+  max-width: 330px;
+  padding-top: 7px;
+  color: var(--uwu-muted);
+  text-align: center;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* ── The two questions ─────────────────────────────────── */
+
+.card {
+  display: grid;
+  gap: 11px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  background: var(--uwu-surface);
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+/* A path is a path: the same typeface the editor shows one in. */
+.field-input,
+.field-static {
+  font-family: var(--uwu-mono);
+  font-size: 12px;
+}
+
+.field-input {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--uwu-ink);
+  background: var(--uwu-canvas);
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  user-select: text;
+  cursor: text;
+}
+
+.field-input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--uwu-pink);
+}
+
+.field-static {
+  overflow: hidden;
+  padding: 1px 1px 2px;
+  color: var(--uwu-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 1px;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 2px 0 0;
+}
+
+.check-hint {
+  display: block;
+  padding-top: 1px;
+  color: var(--uwu-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* ── Buttons, bar, footer ──────────────────────────────── */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 18px;
+}
+
+.button-primary {
+  padding: 9px 22px;
+  border-color: var(--uwu-pink-solid);
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.button-quiet {
+  padding: 9px 16px;
+  border-color: transparent;
+  border-radius: var(--uwu-radius-pill);
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.button-quiet:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.progress {
+  width: 100%;
+  padding-top: 26px;
+}
+
+.bar {
+  overflow: hidden;
+  height: 8px;
+  background: var(--uwu-elevated);
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-pill);
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--uwu-pink-solid);
+  border-radius: inherit;
+  transition: width 120ms linear;
+}
+
+.progress-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 9px;
+  color: var(--uwu-muted);
+  font-size: 12px;
+}
+
+.progress-percent {
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  padding-top: 22px;
+  color: var(--uwu-muted);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.footer-dot {
+  padding: 0 6px;
+}
+
+.footer-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--uwu-pink);
+  font-size: 11.5px;
+}
+
+.footer-link:hover:not(:disabled) {
+  background: transparent;
+  color: var(--uwu-pink-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The engine's own words: English, factual, and the one thing in the window
+   worth copying into a bug report. */
+.error-message {
+  overflow-y: auto;
+  width: 100%;
+  max-height: 8em;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--uwu-elevated);
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-card);
+  color: var(--uwu-muted);
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+/* ── The installer's own four animations ───────────────── */
+
+.setup-fade {
+  animation: setup-fade 240ms ease-out;
+}
+
+.setup-pop {
+  width: 100%;
+  animation: setup-pop 480ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.setup-hop {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: setup-hop 1.1s cubic-bezier(0.3, 0.7, 0.4, 1) infinite;
+}
+
+.setup-toss {
+  transform-box: fill-box;
+  opacity: 0;
+  animation: setup-toss 1.65s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes setup-fade {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes setup-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes setup-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  45% {
+    transform: translateY(-9%) scale(0.97, 1.04);
+  }
+  75% {
+    transform: translateY(0) scale(1.03, 0.97);
+  }
+}
+
+/* Start, over the box, landed. The page fades out rather than stopping dead. */
+@keyframes setup-toss {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(62px, -58px) rotate(24deg);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(128px, 36px) rotate(40deg) scale(0.8);
+  }
+}
+
+/*
+ * `main.tsx` writes `data-motion` and `tokens.css` acts on it, which covers the
+ * window. This is for the moment before the script has run, and for a page
+ * opened straight in a browser while it is being worked on.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .setup-fade,
+  .setup-pop,
+  .setup-hop {
+    animation: none;
+  }
+
+  .setup-toss {
+    display: none;
+  }
+}

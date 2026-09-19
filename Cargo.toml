@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "apps/desktop/src-tauri"]
+members = ["crates/*", "apps/desktop/src-tauri", "apps/setup/src-tauri"]
 
 [workspace.package]
 version = "0.2.0"
@@ -32,6 +32,36 @@ grep-matcher = "0.1"
 grep-regex = "0.1"
 grep-searcher = "0.1"
 ignore = "0.4"
+
+# The setup (apps/setup/src-tauri). It carries the editor inside itself, packed
+# with zstd, and writes the things a Windows installation is made of: the
+# registry entry under "Installed apps" (winreg), the Start-menu shortcut and
+# the known folders it all goes into (windows), and a version comparison that
+# stops an update from going backwards (semver). Its tests install into a
+# folder of their own (tempfile).
+semver = "1"
+tempfile = "3"
+winreg = "0.55"
+zstd = "0.13"
+
+# Spelled out as a table of its own because of the feature list: the `windows`
+# crate compiles what is named here and nothing else.
+[workspace.dependencies.windows]
+version = "0.61"
+features = [
+  "Win32_Foundation",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Com_Urlmon",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_UI_WindowsAndMessaging",
+]
 
 [profile.dev]
 opt-level = 1

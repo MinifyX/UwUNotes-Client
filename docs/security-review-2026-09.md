@@ -11,10 +11,12 @@ there is nobody to attack and nothing to steal. What there is, is a program that
 opens other people's files and writes them back — and most of what follows is
 about that, not about intruders.
 
-Two things have changed since, both in 0.2.0, and both are in
+Three things have changed since, and all three are in
 [Since 0.1.0](#since-010): the Git LFS restriction was replaced by something
-narrower, and there is now an updater — the only part of UwUNotes that talks to
-a network, and the only one that puts a program on a disk on purpose.
+narrower and there is now an updater, both in 0.2.0 — and since then UwUNotes
+has its own setup, which is the program that updater runs. The updater is the
+only part of UwUNotes that talks to a network; the setup is the only part that
+puts a program on a disk on purpose.
 
 ## The trust boundary
 
@@ -123,22 +125,37 @@ code execution would be reachable from a merely-opened folder again.
 
 What it rests on, in the order an update travels:
 
-- **What is signed.** The release workflow signs the NSIS setup with the
-  project's minisign key. The private half is two repository secrets, reaches
-  exactly one step — the one that runs `pnpm tauri build` — through its `env:`,
-  and is never interpolated into a `run:` line, where it would be in the log of
-  the first job that failed interestingly. The job fails if that build produced
-  no `.sig`, because an unset secret and a missing `createUpdaterArtifacts` look
-  identical from the outside: a bundle folder with nothing to sign with. The
-  public half, key id `665FE923BCD2E6A4`, sits in `tauri.conf.json` and is
-  therefore in every installed copy.
+- **What is signed.** The release workflow signs `UwUNotes-Setup-<version>.exe`
+  with the project's minisign key. The private half is two repository secrets
+  and reaches exactly one step — the one that runs `pnpm build:setup` — through
+  its `env:`, never interpolated into a `run:` line, where it would be in the
+  log of the first job that failed interestingly. The script then takes both
+  values back out of `process.env` before it starts anything and asserts they
+  are gone, so the two builds underneath it — hundreds of `build.rs` and npm
+  scripts from the dependency graph — never run with the key in reach; only
+  `tauri signer sign` is handed it. The job fails if no `.sig` appeared, because
+  an unset secret looks from the outside exactly like a build that simply did
+  not sign. The MSI is bundled in a separate step with no secrets at all and
+  `createUpdaterArtifacts` switched off for that build alone. The public half,
+  key id `665FE923BCD2E6A4`, sits in `tauri.conf.json` and is therefore in every
+  installed copy.
 - **What is checked before anything is installed.** `Update::download` verifies
-  the signature against that public key before the bytes reach `install`, and it
-  is the only route to `install` in the app. No command takes an endpoint, a URL
-  or a path; the endpoint is config and nothing overrides it; and the plugin's
-  own commands are not in `capabilities/default.json`, so the page cannot reach
-  them either. The plugin offers an update only when its version is greater than
-  the running one.
+  the signature against that public key before the bytes reach the app, and it
+  is the only route to them. No command takes an endpoint, a URL or a path; the
+  endpoint is config and nothing overrides it; and the plugin's own commands are
+  not in `capabilities/default.json`, so the page cannot reach them either. The
+  plugin offers an update only when its version is greater than the running one.
+- **What is checked again, a moment later.** The downloaded setup is written
+  into `%LOCALAPPDATA%\app.uwunotes.desktop\updates`, which is emptied first —
+  a folder anything running as this user can write to. So it is read back from
+  there through a handle opened with `FILE_SHARE_READ`, which refuses everyone
+  else write and delete access, and the signature and the file name in its
+  trusted comment are verified a second time, on the bytes that are actually
+  going to run. That handle is held until the setup process exists; only then is
+  it dropped and the app exits. A setup that fails the second check is deleted
+  rather than left lying under the name a release published — after the handle
+  is gone, because the lock is precisely a refusal to let anyone delete it. A
+  check of bytes other than the ones that run is not a check.
 - **What is checked before the feed is published.** `scripts/update-feed.mjs`
   verifies the same signature the same way an installed copy will — key id
   against the configured public key, ed25519 over the blake2b prehash, the
@@ -165,13 +182,85 @@ What it rests on, in the order an update travels:
   today". Only a check the user asked for may report that it failed; the one at
   start-up never does, so nothing about the network can train somebody to click
   a warning away.
-- **What happens to unsaved text.** On Windows the installer ends the running
-  process, so the window's close guard never runs. The page writes the session
+- **What happens to unsaved text.** The app starts the setup and then ends
+  itself, so the window's close guard never runs. The page writes the session
   and its drafts to disk before it starts the download; without that, installing
-  an update would be the one action in the app that can lose text.
+  an update would be the one action in the app that can lose text. The setup on
+  the other side waits for that process to be gone before it replaces anything,
+  and never ends it.
+
+### The setup
+
+`apps/setup` is new surface: a program that writes executables, shortcuts and
+registry values, and the one thing an update runs. It was gone over on the same
+terms as the rest.
+
+- **It runs as the user, and stays in their profile.** No elevation, no manifest
+  asking for any, nothing per machine. What it writes is
+  `%LOCALAPPDATA%\Programs\UwUNotes` (or a folder the user typed instead), the
+  two shortcut folders, and `HKEY_CURRENT_USER\…\Uninstall\UwUNotes` plus one
+  key of its own. It can do nothing the person who double-clicked it could not
+  have done by hand, which is the property that makes an installer boring.
+- **The editor is inside it, not fetched.** `build.rs` packs `UwUNotes.exe` with
+  zstd and `include_bytes!` puts it in the binary; installing unpacks it and
+  compares the result against the size recorded at build time. Nothing is
+  downloaded while installing, so there is no second file to check and no
+  address to get wrong. A build made without a payload — every `cargo test`, and
+  anyone working on the page — says so on screen instead of installing nothing.
+- **The one exception is WebView2**, which the window itself needs: if the
+  runtime is missing the setup asks, then fetches Microsoft's bootstrapper over
+  https from `go.microsoft.com` into a folder named after its own process id,
+  runs it, and deletes the folder. It is under [Accepted](#accepted-for-now).
+- **A downgrade is refused, and so is not knowing.** The signature says a setup
+  came from this project; it says nothing about which version it is, so a feed
+  serving an old build would otherwise be a downgrade nobody asked for. An
+  update compares the packed version against the installed one and stops if it
+  is older — and stops too when the installed version cannot be read, rather
+  than assuming. It fails closed on purpose: that is a mistake the sibling made
+  once. Running the setup by hand is a person deciding and still installs.
+- **It never ends the editor.** Counting processes is all it does, by full path
+  rather than by name, so a second UwUNotes elsewhere is not mistaken for this
+  one. An open copy is reported and the user decides. An installer that closes a
+  text editor with unsaved text in it is a data-loss bug with a progress bar.
+- **Nothing is left half-written.** The editor and the uninstaller are written
+  beside their destinations as `.new` and renamed into place, with retries for
+  the moment Windows keeps an executable locked after it ends. A failed install
+  leaves the previous `UwUNotes.exe` intact.
+- **What the window can reach.** Six commands of its own and no plugin loaded at
+  all; the capability grants `core:default` plus dragging, minimizing and
+  closing. `open_external` takes `https://` with a real host and refuses
+  anything carrying control characters, whitespace or a quote — a setup is the
+  last program on a machine that should be talked into starting something. The
+  policy is `default-src 'self'` with `connect-src` on the IPC scheme, frozen
+  prototypes, no inline scripts and no frames. The window's own browser data
+  goes to the temp folder, so an uninstall leaves nothing of it behind.
+- **DLLs come from System32.** `SetDefaultDllDirectories` is the first thing
+  `main` does, before anything else in the process can load one, and
+  `/DEPENDENTLOADFLAG:0x800` covers the ones the loader resolves before that.
+  A setup runs from the Downloads folder, next to whatever else was downloaded
+  there, and that is exactly where a planted DLL would be.
+- **The uninstaller deletes itself carefully.** Windows will not remove a
+  running program, so it restarts from a copy in the temp folder and has that
+  copy removed after it exits. The path is handed to `cmd` through an
+  environment variable rather than in the command line, because `cmd` expands
+  `%…%` inside quotes too — a profile folder with a percent sign in its name
+  must never become part of the command.
+- **The sandbox is only a redirection.** `UWUNOTES_SETUP_SANDBOX` moves files,
+  shortcuts and registry under one folder and one key, which is what lets the
+  tests install, update and uninstall for real on the machine running them. It
+  narrows what the setup touches and never widens it, and anything able to set
+  it already runs as the user.
+- **What it does not claim.** Windows sees a program nobody vouched for, exactly
+  as before: the minisign signature is for the updater, not for SmartScreen.
 
 ## Accepted, for now
 
+- **Microsoft's WebView2 bootstrapper is downloaded and run.** Over https, from
+  a Microsoft address, into a folder of this process's own, after the user said
+  yes — and nothing in the setup checks the file beyond that transport. It is
+  Microsoft's own installer and the alternative is an editor with nothing to
+  draw in, but it is the one case where this setup runs bytes it did not bring
+  with it.
 - **Trusting git-lfs, in a repository that uses it.** The allowance above is
   value-exact, which is the point and also the price: the day git-lfs changes
   the string it writes, those repositories quietly go back to having no
@@ -193,7 +282,10 @@ What it rests on, in the order an update travels:
   machine would notice. And nothing ties the version a feed claims to the file
   it points at, so an old, properly signed setup can be offered as if it were
   new. The key stops somebody else's program from being installed; it does not
-  stop an older build of this one.
+  stop an older build of this one. What does, now, is the setup itself: it reads
+  what is installed and refuses to go backwards, so such an offer is downloaded,
+  started and then declines. That leaves a feed able to keep people on an old
+  version, not able to put them back on one.
 - **The check tells GitHub that somebody asked.** It is a plain request for a
   public file and carries nothing about the machine beyond what any HTTPS
   request carries: an address, a user agent, a time. That is not nothing, and it
@@ -317,6 +409,8 @@ and the artifact glob can only match what the build just produced. Dependency
 installs cannot run arbitrary scripts: one package is allowed to build and the
 lockfiles resolve everything from the default registry. DLLs load from System32
 only, in the app and at link time, because the app runs from a folder the user
-can write to. Release builds ship no source maps. The installer runs nothing of
-the project's own and touches no world-writable location. Nothing in the
-repository or its history is a secret that should not be there.
+can write to — the setup sets the same rule for itself, at link time and as its
+first statement. Release builds ship no source maps. The installer is now the
+project's own program and is reviewed as such above; it runs nothing else, and
+touches no world-writable location. Nothing in the repository or its history is
+a secret that should not be there.

@@ -4,7 +4,7 @@
 
 Two ways in. The setup from the releases page is a download, a warning from
 Windows that is explained below before you see it rather than after, and a
-double-click. [Building it yourself](#3-building-it-yourself) is a clone, two
+double-click. [Building it yourself](#4-building-it-yourself) is a clone, two
 commands and a first run in which Rust compiles for a while, and it gets you the
 state of the repository rather than what a release froze.
 
@@ -26,12 +26,18 @@ UwUNotes speaks German and English, following Windows.
 
 Releases are on the
 [releases page](https://github.com/MinifyX/UwUNotes-Client/releases). Take the
-newest one at the top and download the `.exe` setup under **Assets**.
+newest one at the top and download `UwUNotes-Setup-<version>.exe` under
+**Assets**. That is UwUNotes' own setup, it is the only file you need, and it is
+also the file an installed copy fetches when it updates itself.
 
-`SHA256SUMS.txt` sits next to it, if you want to check that what you have is
-what was built: `Get-FileHash .\UwUNotes_0.2.0_x64-setup.exe` in PowerShell,
-and compare. It is published by the same job that built the file, so it cannot
-tell you the build was honest — only that nothing happened to the file since.
+The `.msi` next to it is the same editor in Tauri's stock bundle, for a machine
+where an MSI is what gets deployed. It has none of the screens described below,
+and the updater never uses it.
+
+`SHA256SUMS.txt` lists all of them, if you want to check that what you have is
+what was built: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in PowerShell, and
+compare. It is published by the same job that built the file, so it cannot tell
+you the build was honest — only that nothing happened to the file since.
 
 The `.sig` beside the setup is not for you. It is what an installed UwUNotes
 checks before it installs an update, and it is explained under
@@ -60,7 +66,41 @@ one is UwUNotes deciding whether an update really came from this project; this
 box is Windows deciding whether to run a program at all, and nothing but a paid
 certificate makes it go away.
 
-## 3. Building it yourself
+## 3. What the setup does
+
+A small dark window with Nyu in it, German or English depending on what Windows
+is set to. It asks about two things:
+
+- **Folder.** `%LOCALAPPDATA%\Programs\UwUNotes` unless you type something else.
+  Everything goes under your own user account — no administrator, no UAC prompt,
+  nothing outside your profile.
+- **Shortcut on the desktop.** Off on a machine that has never had UwUNotes;
+  after that it starts wherever you last left it. The Start menu gets one either
+  way, and unticking the box on a later run takes the desktop one away again.
+
+Then it writes `UwUNotes.exe`, puts `uninstall.exe` beside it — the same program
+under a second name — and registers the editor under `HKEY_CURRENT_USER`, which
+is what makes it appear in Windows' list of installed apps. Nothing is
+downloaded while it installs: the editor is packed inside the setup file, which
+is most of why that file is as big as it is.
+
+If WebView2 is missing, the setup offers to fetch it from Microsoft before
+anything else. That is the only thing it ever downloads, and only on a machine
+that does not already have it.
+
+**An older installation is taken over.** 0.1.0 and 0.2.0 came from Tauri's stock
+installer, which called the editor `uwunotes-desktop.exe` and put it in
+`%LOCALAPPDATA%\UwUNotes`. The setup finds that, installs into `Programs`
+instead, and clears away the old executable and the entries describing it. Your
+session, drafts and settings live somewhere else entirely and are not touched.
+
+**UwUNotes has to be closed.** An installer that closes a text editor with
+unsaved text in it is a way to lose text, so the setup says "UwUNotes is still
+open" and waits for you to decide rather than deciding for you. The one
+exception is the editor updating itself, where it has already written everything
+to disk and closed itself before the setup starts.
+
+## 4. Building it yourself
 
 This is how you get the current state of the repository rather than whatever a
 release froze.
@@ -86,13 +126,21 @@ run compiles the Rust side and takes a while; every run after that does not.
 For something you can keep:
 
 ```bash
-pnpm tauri build
+pnpm build:setup
 ```
 
-The setup lands in `target/release/bundle/` in the repository root. It is the
-same unsigned file a release would be, so Windows greets it exactly as described
-above — which is a decent way to see that warning once in a context where you
-know precisely where the file came from.
+That builds the editor, packs it into the setup, and leaves
+`target/release/UwUNotes-Setup-<version>.exe` in the repository root. Without the
+project's signing key in the environment it says so and writes no `.sig`, which
+changes nothing about installing it — that signature is only what an _installed_
+copy checks before it updates itself. Windows greets your own build exactly as
+described above, which is a decent way to see that warning once in a context
+where you know precisely where the file came from.
+
+A bare `pnpm tauri build` is a different thing: Tauri's own bundles of the
+editor, and it stops without the signing key, because the config has updater
+artifacts switched on. The release workflow turns them off for the one build
+that makes the MSI.
 
 ## Updates
 
@@ -110,9 +158,19 @@ of this existed, so nothing in it can tell you anything. Download the setup by
 hand one more time and run it over your installation; from that one on the
 editor does the looking.
 
-**Install and restart** downloads the setup and runs it. On Windows that means
-UwUNotes closes itself, so the session and every unsaved buffer go to disk
-first: the tabs come back afterwards the way you left them.
+**Install and restart** downloads the setup, checks it, and hands over: the
+editor writes the session and every unsaved buffer to disk, starts the setup
+with its own process id to wait for, and closes. The setup waits for Windows to
+let go of the file, replaces it and starts the editor again. No window appears
+for any of that — the only thing you would ever see is a message box, and only
+if the update did not happen. The tabs come back the way you left them.
+
+**It will not walk you backwards.** Before an update replaces anything, the
+setup compares the version it carries with the one installed, and stops if it is
+the older of the two. It stops as well when it cannot read which version is
+installed, because an update is the one case where nobody is watching. Running a
+setup by hand is a person deciding, and there an older version is offered with a
+button that says exactly that.
 
 ### What the signature means, and what it does not
 
@@ -120,9 +178,9 @@ Every setup a release publishes is signed with the project's own key, and the
 public half of that key is built into the app. Before an update is installed the
 app checks the file it downloaded against that key and refuses anything the key
 did not sign — a file swapped somewhere on the way, or a feed pointing at
-somebody else's program, never runs. An update also has to be a _newer_ version
-than the one asking, so the same channel cannot walk you backwards into an older
-build.
+somebody else's program, never runs. It checks twice, in fact: once when the
+bytes arrive and once on what is lying in the folder a moment later, immediately
+before the setup is started.
 
 That is the whole of what it claims: this file came from this project and
 arrived unchanged. It is **not** the Windows code-signing certificate from the
@@ -171,17 +229,28 @@ rather than telling anybody anything.
 
 ## Uninstalling
 
-**Windows Settings → Apps → Installed apps → UwUNotes → Uninstall.** That takes
-the program away and leaves the two folders above alone, so a reinstall finds
-your tabs where you left them. If you want it gone completely, delete
-`%APPDATA%\app.uwunotes.desktop\` and `%LOCALAPPDATA%\app.uwunotes.desktop\`
-yourself — the first holds the drafts, the second the settings.
+**Windows Settings → Apps → Installed apps → UwUNotes → Uninstall**, or
+`uninstall.exe` in the install folder. It is the same program either way, and it
+asks one question: **Keep settings and session**, ticked.
+
+Ticked, it takes away the editor, both shortcuts and the entry in Windows' list,
+and leaves the two folders above alone — a reinstall then finds your tabs where
+you left them. Unticked, those two folders go as well, which includes the drafts
+of everything you never saved.
+
+Your own files are never touched, wherever you keep them, and neither is
+anything you put in the install folder yourself: that folder is only removed if
+nothing else is in it.
 
 ## If something goes wrong
 
 - **WebView2 could not be installed**: get the Evergreen WebView2 Runtime from
   [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/) and run
   the setup again.
+- **"UwUNotes is still open", and it is not**: look in the Task Manager for
+  `UwUNotes.exe`, and for `uwunotes-desktop.exe` if this machine ever had 0.1.0
+  or 0.2.0. Nothing has been changed at that point — the setup checks before it
+  writes anything.
 - **The build fails on the Rust side**: almost always a missing prerequisite.
   Walk the Tauri list above again, then `cargo clean` and retry.
 - **Everything comes back empty after an update**: check whether `UWUNOTES_DIR`
@@ -200,7 +269,7 @@ yourself — the first holds the drafts, the second the settings.
 
 Zwei Wege hinein. Das Setup von der Releases-Seite ist ein Download, eine
 Warnung von Windows, die weiter unten erklärt wird, bevor du sie siehst, und ein
-Doppelklick. [Selbst bauen](#3-selbst-bauen) ist ein Clone, zwei Befehle und ein
+Doppelklick. [Selbst bauen](#4-selbst-bauen) ist ein Clone, zwei Befehle und ein
 erster Lauf, in dem Rust eine Weile kompiliert — dafür bekommst du den aktuellen
 Stand des Repositories statt dessen, was ein Release eingefroren hat.
 
@@ -223,10 +292,17 @@ UwUNotes spricht Deutsch und Englisch, je nach Windows.
 
 Releases stehen auf der
 [Releases-Seite](https://github.com/MinifyX/UwUNotes-Client/releases). Nimm das
-neueste ganz oben und lade unter **Assets** das `.exe`-Setup herunter.
+neueste ganz oben und lade unter **Assets** `UwUNotes-Setup-<version>.exe`
+herunter. Das ist UwUNotes' eigenes Setup, die einzige Datei, die du brauchst —
+und genau die, die eine installierte Kopie auch selbst holt, wenn sie sich
+aktualisiert.
 
-Daneben liegt `SHA256SUMS.txt`, falls du prüfen möchtest, ob du auch wirklich
-die gebaute Datei hast: `Get-FileHash .\UwUNotes_0.2.0_x64-setup.exe` in der
+Die `.msi` daneben ist derselbe Editor in Tauris Standard-Paket, für Rechner, auf
+denen eine MSI verteilt wird. Sie hat keinen der unten beschriebenen Schritte,
+und der Updater benutzt sie nie.
+
+`SHA256SUMS.txt` listet alle davon, falls du prüfen möchtest, ob du auch wirklich
+die gebaute Datei hast: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in der
 PowerShell, dann vergleichen. Die Datei kommt aus demselben Lauf, der auch das
 Setup gebaut hat — sie kann dir also nicht sagen, dass der Build ehrlich war,
 nur dass der Datei seitdem nichts passiert ist.
@@ -261,7 +337,43 @@ Die entscheidet, ob ein Update wirklich aus diesem Projekt kommt; dieses Fenster
 entscheidet, ob Windows ein Programm überhaupt startet, und das geht nur mit
 einem bezahlten Zertifikat weg.
 
-## 3. Selbst bauen
+## 3. Was das Setup tut
+
+Ein kleines dunkles Fenster mit Nyu darin, auf Deutsch oder Englisch, je nach
+Windows. Gefragt wird nach zwei Dingen:
+
+- **Ordner.** `%LOCALAPPDATA%\Programs\UwUNotes`, wenn du nichts anderes
+  einträgst. Alles landet unter deinem Benutzerkonto — kein Administrator, keine
+  UAC-Abfrage, nichts außerhalb deines Profils.
+- **Verknüpfung auf dem Desktop.** Aus auf einem Rechner, auf dem UwUNotes noch
+  nie lag; danach steht der Haken da, wo du ihn zuletzt gelassen hast. Ins
+  Startmenü kommt sie ohnehin, und nimmst du den Haken bei einem späteren Lauf
+  weg, verschwindet die auf dem Desktop wieder.
+
+Danach schreibt es `UwUNotes.exe`, legt `uninstall.exe` daneben — dasselbe
+Programm unter einem zweiten Namen — und trägt den Editor unter
+`HKEY_CURRENT_USER` ein, weshalb er in der Windows-Liste der installierten Apps
+auftaucht. Beim Installieren wird nichts heruntergeladen: Der Editor steckt in
+der Setup-Datei, und das ist der größte Teil ihrer Größe.
+
+Fehlt WebView2, bietet das Setup vorher an, es bei Microsoft zu holen. Das ist
+das Einzige, was es je herunterlädt, und nur auf einem Rechner, der es noch
+nicht hat.
+
+**Eine ältere Installation wird übernommen.** 0.1.0 und 0.2.0 kamen aus Tauris
+Standard-Installer, der den Editor `uwunotes-desktop.exe` nannte und nach
+`%LOCALAPPDATA%\UwUNotes` legte. Das Setup findet das, installiert stattdessen
+nach `Programs` und räumt die alte Datei samt ihren Einträgen weg. Sitzung,
+Entwürfe und Einstellungen liegen ganz woanders und bleiben unangetastet.
+
+**UwUNotes muss geschlossen sein.** Ein Installer, der einen Editor mit
+ungespeichertem Text schließt, ist ein Weg, Text zu verlieren. Also sagt das
+Setup „UwUNotes ist noch offen“ und wartet auf deine Entscheidung, statt sie dir
+abzunehmen. Die einzige Ausnahme ist der Editor, der sich selbst aktualisiert —
+da hat er längst alles auf die Platte geschrieben und sich geschlossen, bevor das
+Setup startet.
+
+## 4. Selbst bauen
 
 Das ist der Weg zum aktuellen Stand des Repositories statt zu dem, was ein
 Release eingefroren hat.
@@ -287,13 +399,21 @@ Der erste Lauf kompiliert die Rust-Seite und dauert; jeder weitere nicht mehr.
 Für etwas zum Behalten:
 
 ```bash
-pnpm tauri build
+pnpm build:setup
 ```
 
-Das Setup landet in `target/release/bundle/` im Wurzelverzeichnis. Es ist
-dieselbe unsignierte Datei, die auch ein Release wäre, Windows begrüßt sie also
-genau wie oben beschrieben — was eine ganz gute Gelegenheit ist, diese Warnung
-einmal zu sehen, wenn man ganz genau weiß, woher die Datei kommt.
+Das baut den Editor, packt ihn ins Setup und legt
+`target/release/UwUNotes-Setup-<version>.exe` ins Wurzelverzeichnis. Ohne den
+Signaturschlüssel des Projekts in der Umgebung sagt es das und schreibt keine
+`.sig` — am Installieren ändert das nichts, denn diese Signatur prüft nur eine
+_installierte_ Kopie, bevor sie sich selbst aktualisiert. Windows begrüßt deinen
+eigenen Build genau wie oben beschrieben, was eine ganz gute Gelegenheit ist,
+diese Warnung einmal zu sehen, wenn man ganz genau weiß, woher die Datei kommt.
+
+Ein schlichtes `pnpm tauri build` ist etwas anderes: Tauris eigene Pakete des
+Editors. Es bricht ohne den Signaturschlüssel ab, weil in der Konfiguration die
+Updater-Artefakte eingeschaltet sind. Der Release-Workflow schaltet sie für den
+einen Build aus, der die MSI macht.
 
 ## Updates
 
@@ -311,10 +431,20 @@ worden, bevor es das alles gab, also kann dir nichts darin etwas sagen. Lad das
 Setup einmal von Hand herunter und installier es über die vorhandene Version; ab
 dieser Installation schaut der Editor selbst nach.
 
-**Installieren und neu starten** lädt das Setup herunter und startet es. Unter
-Windows heißt das: UwUNotes schließt sich selbst. Die Sitzung und jeder
-ungespeicherte Puffer gehen vorher auf die Platte, die Tabs kommen danach also
-wieder so, wie du sie verlassen hast.
+**Installieren und neu starten** lädt das Setup herunter, prüft es und übergibt:
+Der Editor schreibt Sitzung und jeden ungespeicherten Puffer auf die Platte,
+startet das Setup mit seiner eigenen Prozess-ID zum Warten und schließt sich. Das
+Setup wartet, bis Windows die Datei freigibt, ersetzt sie und startet den Editor
+wieder. Ein Fenster siehst du dabei nie — das Einzige, was überhaupt auftauchen
+kann, ist eine Meldung, und die nur, wenn das Update nicht geklappt hat. Die Tabs
+kommen wieder so, wie du sie verlassen hast.
+
+**Rückwärts geht es nicht.** Bevor ein Update irgendetwas ersetzt, vergleicht das
+Setup die Version, die es mitbringt, mit der installierten und bricht ab, wenn
+seine die ältere ist. Es bricht auch ab, wenn es nicht lesen kann, welche Version
+installiert ist — beim Update schaut niemand zu. Ein Setup von Hand zu starten
+ist dagegen eine Entscheidung eines Menschen, und dort wird die ältere Version
+mit einem Knopf angeboten, auf dem genau das steht.
 
 ### Was die Signatur heißt und was nicht
 
@@ -323,8 +453,8 @@ signiert, und die öffentliche Hälfte dieses Schlüssels steckt in der App. Bev
 ein Update installiert wird, prüft die App die heruntergeladene Datei gegen
 diesen Schlüssel und lehnt alles ab, was er nicht signiert hat — eine unterwegs
 ausgetauschte Datei oder ein Feed, der auf fremde Programme zeigt, läuft nie.
-Ein Update muss außerdem _neuer_ sein als das, was gerade fragt; rückwärts, in
-einen älteren Build, führt dieser Weg nicht.
+Sie prüft sogar zweimal: einmal, wenn die Bytes ankommen, und einmal an dem, was
+kurz darauf im Ordner liegt, direkt bevor das Setup gestartet wird.
 
 Mehr behauptet sie nicht: Diese Datei kommt aus diesem Projekt und ist
 unverändert angekommen. Sie ist **nicht** das Windows-Code-Signing-Zertifikat
@@ -374,17 +504,29 @@ fragt nach einer Datei, statt jemandem etwas zu erzählen.
 ## Deinstallieren
 
 **Windows-Einstellungen → Apps → Installierte Apps → UwUNotes →
-Deinstallieren.** Das nimmt das Programm weg und lässt die beiden Ordner von
-oben in Ruhe, eine Neuinstallation findet deine Tabs also da, wo du sie gelassen
-hast. Soll wirklich alles weg, lösch `%APPDATA%\app.uwunotes.desktop\` und
-`%LOCALAPPDATA%\app.uwunotes.desktop\` selbst — im ersten liegen die Drafts, im
-zweiten die Einstellungen.
+Deinstallieren**, oder `uninstall.exe` im Installationsordner. Beides ist
+dasselbe Programm, und es stellt eine Frage: **Einstellungen und Sitzung
+behalten**, angehakt.
+
+Angehakt nimmt es den Editor, beide Verknüpfungen und den Eintrag in der
+Windows-Liste weg und lässt die beiden Ordner von oben in Ruhe — eine
+Neuinstallation findet deine Tabs dann da, wo du sie gelassen hast. Ohne Haken
+gehen auch diese beiden Ordner, und damit die Entwürfe von allem, was du nie
+gespeichert hast.
+
+Deine eigenen Dateien bleiben unangetastet, wo immer du sie hast, und ebenso
+alles, was du selbst in den Installationsordner gelegt hast: Der Ordner wird nur
+entfernt, wenn sonst nichts mehr darin liegt.
 
 ## Wenn etwas nicht klappt
 
 - **WebView2 ließ sich nicht installieren**: Hol die Evergreen WebView2 Runtime
   von [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/) und
   starte das Setup noch einmal.
+- **„UwUNotes ist noch offen“, ist es aber nicht**: Schau im Task-Manager nach
+  `UwUNotes.exe`, und nach `uwunotes-desktop.exe`, falls auf diesem Rechner
+  einmal 0.1.0 oder 0.2.0 lag. Geändert ist zu diesem Zeitpunkt nichts — das
+  Setup prüft, bevor es irgendetwas schreibt.
 - **Der Build scheitert auf der Rust-Seite**: fast immer eine fehlende
   Voraussetzung. Geh die Tauri-Liste oben noch einmal durch, dann `cargo clean`
   und neu versuchen.

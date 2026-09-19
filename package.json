@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @uwunotes/desktop dev",
     "tauri": "pnpm --filter @uwunotes/desktop tauri",
     "build": "pnpm --filter @uwunotes/desktop build",
+    "build:setup": "node scripts/build-setup.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "prettier --check . && node scripts/check-i18n.mjs",

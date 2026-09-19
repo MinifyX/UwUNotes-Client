@@ -5,19 +5,21 @@
 //   node scripts/update-feed.mjs v0.2.0            (dry run: prints it, writes nothing)
 //
 // The version and the notes come from the tag and release-notes/<version>.json,
-// the signature from the .sig that `tauri build` leaves next to the NSIS setup,
-// and the URL from the release's own download path. Everything it is about to
-// write is checked first — the signature against the public key installed
-// copies have baked in, and with --verify-release against the release on
-// GitHub. A feed naming a file nobody can download is worse than no feed: the
-// app keeps asking it, and keeps failing.
+// the signature from the .sig that `pnpm build:setup` leaves next to
+// UwUNotes-Setup-<version>.exe, and the URL from the release's own download
+// path. That setup is UwUNotes' own installer rather than Tauri's NSIS one —
+// the file the release publishes, and the file an installed copy runs.
+// Everything this is about to write is checked first: the signature against the
+// public key installed copies have baked in, and with --verify-release against
+// the release on GitHub. A feed naming a file nobody can download is worse than
+// no feed: the app keeps asking it, and keeps failing.
 //
 // It deliberately publishes nothing. Pushing the `updates` branch is
 // .github/workflows/release.yml's job, and it happens only once the release
 // exists with its assets attached.
 
 import { createHash, createPublicKey, verify } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -158,17 +160,9 @@ export async function releaseAsset(version, name) {
   return release.assets?.find((asset) => asset.name === name);
 }
 
-/** The one NSIS setup `tauri build` left behind, when none was named. */
-function findSetup() {
-  const bundle = join(root, 'target/release/bundle/nsis');
-  const names = existsSync(bundle)
-    ? readdirSync(bundle).filter((name) => name.endsWith('-setup.exe'))
-    : [];
-  if (names.length !== 1) {
-    fail(`Found ${names.length} setups in ${bundle}. Build first, or name one with --setup.`);
-  }
-  return join(bundle, names[0]);
-}
+/** What `pnpm build:setup` calls the setup for a version, and where it puts it. */
+export const setupName = (version) => `UwUNotes-Setup-${version}.exe`;
+const setupFor = (version) => join(root, 'target/release', setupName(version));
 
 function fail(message) {
   console.error(`\n✗ ${message}`);
@@ -218,8 +212,8 @@ if (import.meta.main) {
     fail(`release-notes/${version}.json has no 'en' text, and that is what the feed shows.`);
   }
 
-  const setupPath = values.setup ? resolve(values.setup) : findSetup();
-  if (!existsSync(setupPath)) fail(`${setupPath} is missing.`);
+  const setupPath = values.setup ? resolve(values.setup) : setupFor(version);
+  if (!existsSync(setupPath)) fail(`${setupPath} is missing. Run pnpm build:setup first.`);
   const name = basename(setupPath);
   if (!existsSync(`${setupPath}.sig`)) {
     fail(`${name}.sig is missing: the build did not sign the setup, so there is nothing to feed.`);

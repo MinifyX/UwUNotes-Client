@@ -285,12 +285,32 @@ alte Datei heil, nicht eine halbe.
   erscheint ein Streifen über der Statusleiste — nie ein Dialog, nie ein zweites
   Mal im selben Lauf. Das Setup, das dabei heruntergeladen wird, muss mit dem
   Schlüssel des Projekts signiert sein: `tauri-plugin-updater` prüft es gegen
-  den öffentlichen Schlüssel aus `tauri.conf.json`, bevor irgendetwas gestartet
-  wird, und älter als die laufende Version darf es auch nicht sein.
-  Vorabversionen landen absichtlich nie im Feed. Unter Windows beendet der
-  Installer die laufende App, deshalb schreibt die Seite Sitzung und Entwürfe
-  weg, bevor sie den Download anstößt — der Close-Guard des Fensters kommt nicht
-  mehr dazu. 0.1.0 hat von alldem nichts und wird 0.2.0 nie anbieten.
+  den öffentlichen Schlüssel aus `tauri.conf.json`, und seit dem eigenen Setup
+  prüft die App ein zweites Mal — an den Bytes, die im Ordner liegen,
+  unmittelbar bevor sie gestartet werden. Älter als die laufende Version darf es
+  auch nicht sein. Vorabversionen landen absichtlich nie im Feed. Unter Windows
+  beendet sich die App selbst, sobald sie an das Setup übergeben hat, deshalb
+  schreibt die Seite Sitzung und Entwürfe weg, bevor sie den Download anstößt —
+  der Close-Guard des Fensters kommt nicht mehr dazu. 0.1.0 hat von alldem
+  nichts und wird 0.2.0 nie anbieten.
+- **Ein eigenes Setup, mit Nyu darin.** Im Baum, noch in keinem Release:
+  `UwUNotes-Setup-<version>.exe` löst Tauris Standard-NSIS-Installer ab, wie bei
+  den Geschwistern. Dieselbe Technik wie die App — Tauri 2, React, ein Fenster
+  460 × 640, dunkel, dieselben Tokens — und dieselbe Sprachwahl wie Windows.
+  Installiert wird pro Benutzer nach `%LOCALAPPDATA%\Programs\UwUNotes`, ohne
+  Administrator; der Editor steckt zstd-gepackt in der Setup-Datei selbst, beim
+  Installieren lädt nichts nach. Dasselbe Binary liegt als `uninstall.exe`
+  daneben und ist der Deinstallierer. Ein Update übergibt der Editor mit
+  `--update --wait-pid <pid>` und schließt sich; das Setup wartet, tauscht die
+  Datei und startet ihn wieder, ohne je ein Fenster zu zeigen. Wer auf 0.2.0
+  ist, dessen Updater startet das neue Setup mit den NSIS-Schaltern
+  `/P /R /S /NCRC` — die gelten deshalb als stilles Update, sonst würde dort ein
+  Fenster auf einen Klick warten, das niemand findet. Rückwärts installiert es
+  nicht, und wenn es die installierte Version nicht lesen kann, ebenfalls nicht.
+  Eine Installation aus 0.1.0 oder 0.2.0 wird erkannt, nach `Programs` geholt
+  und in ihren Resten aufgeräumt. Geprüft wird das alles über
+  `UWUNOTES_SETUP_SANDBOX`, das Dateien, Verknüpfungen und Registry in einen
+  Ordner umlenkt, der niemandem gehört.
 - **Git LFS ist keine Sperre mehr.** Der Schutz gegen `.git/config`-Einträge,
   die in Wahrheit Programme sind, hat in 0.1.0 jedes Repository mit LFS
   mitgesperrt: keine Statusbuchstaben, keine Gutter-Marken. Jetzt werden die
@@ -423,19 +443,28 @@ die niemand mehr benutzt.
 eine Sprache feststeht. Zur Laufzeit tut es nichts; es markiert den String für
 die Prüfung, und `t()` passiert dort, wo er angezeigt wird.
 
+**Das Setup hat von alledem nichts**, und das ist Absicht. Es ist ein Fenster
+mit rund vierzig Strings, es läuft genau einmal, und es läuft auf einem Rechner,
+auf dem UwUNotes noch gar nicht liegt — es gibt also keine Einstellung, aus der
+eine Sprache zu lesen wäre. Deutsch und Englisch stehen beide in
+`apps/setup/src/texts.ts`, die Systemsprache entscheidet einmal, und das ist der
+ganze Mechanismus. `scripts/check-i18n.mjs` sieht `apps/setup` nie; es liest
+`apps/desktop/src` und sonst nichts.
+
 ---
 
 ## 9. Repos und Aufbau
 
-| Pfad                      | Was dort lebt                                                  |
-| ------------------------- | -------------------------------------------------------------- |
-| `apps/desktop`            | Die Tauri-2-App: React-Oberfläche, CodeMirror-Kern, Rust-Shell |
-| `packages/uwu-tokens`     | `@uwu/tokens` — die Palette der ganzen Suite                   |
-| `crates/uwunotes-fs`      | Bytes: Encoding, atomare Writes, Baum, Dateisuche              |
-| `crates/uwunotes-session` | Sitzungsdatei, Entwürfe, Zuletzt-Listen                        |
-| `brand/`                  | Nyu im Notizblock-Körper: App-Icon, Symbol, Mono-Symbol        |
-| `docs/`                   | Vision, Architektur, Design, Roadmap                           |
-| `scripts/`                | Die Übersetzungsprüfung und der Update-Feed eines Releases     |
+| Pfad                      | Was dort lebt                                                       |
+| ------------------------- | ------------------------------------------------------------------- |
+| `apps/desktop`            | Die Tauri-2-App: React-Oberfläche, CodeMirror-Kern, Rust-Shell      |
+| `apps/setup`              | Das Setup: dieselbe Technik, ein Fenster, der Editor darin verpackt |
+| `packages/uwu-tokens`     | `@uwu/tokens` — die Palette der ganzen Suite                        |
+| `crates/uwunotes-fs`      | Bytes: Encoding, atomare Writes, Baum, Dateisuche                   |
+| `crates/uwunotes-session` | Sitzungsdatei, Entwürfe, Zuletzt-Listen                             |
+| `brand/`                  | Nyu im Notizblock-Körper: App-Icon, Symbol, Mono-Symbol             |
+| `docs/`                   | Vision, Architektur, Design, Roadmap                                |
+| `scripts/`                | Übersetzungsprüfung, Setup-Build, Update-Feed eines Releases        |
 
 Ein Repo, ein pnpm-Workspace, ein Cargo-Workspace. Kein Server, kein zweites
 Repo, nichts, was betrieben werden müsste.
@@ -447,7 +476,9 @@ Repo, nichts, was betrieben werden müsste.
 **Stand: 0.2.0, veröffentlicht.** Das Setup liegt auf der Releases-Seite, mit
 Prüfsumme daneben und ohne Windows-Zertifikat dahinter, und ab dieser Version
 hält sich eine Installation selbst aktuell. Phase 1 ist vollständig, Phase 2 bis
-auf die oben genannten Punkte ebenfalls.
+auf die oben genannten Punkte ebenfalls. Im Baum liegt inzwischen auch das
+eigene Setup; es geht mit dem nächsten Release hinaus und ersetzt dort den
+Standard-Installer.
 
 Offene Entscheidungen, die noch niemand getroffen hat:
 
@@ -459,14 +490,20 @@ Offene Entscheidungen, die noch niemand getroffen hat:
 - **Wie viel Git?** Marken am Tab, im Dateibaum und seit Phase 2 auch im
   Gutter. Mehr als das — stagen, committen — wäre ein zweites Programm im
   ersten, und dabei bleibt es vorerst.
-- **Setup und Updates.** Entschieden: ein eigenes NSIS-Setup und ein eigener
-  Updater, beide aus dem Release-Workflow. Das Setup trägt die Signatur des
-  Projektschlüssels, die der Updater prüft — ein Windows-Zertifikat ist das
-  nicht und ersetzt es auch keins. Offen ist nur noch, ob der Suite-Launcher der
-  Geschwister irgendwann die Erstinstallation übernimmt; aktuell halten muss er
-  UwUNotes nicht mehr. Ein
-  portables Verzeichnis gibt es weiterhin nicht; am nächsten dran ist
-  `UWUNOTES_DIR`. Mitentschieden ist damit ein Risiko: Geht der private
+- **Setup und Updates.** Entschieden: ein eigenes Setup, `apps/setup`, und ein
+  eigener Updater, beide aus dem Release-Workflow. Der Standard-Installer von
+  Tauri konnte das Nötige durchaus — er war nur ein fremdes Fenster in einer
+  Reihe eigener: NSIS-Grau, kein Nyu, keine Tokens, und jede Abweichung davon
+  wäre ein Skript in einer Sprache geworden, die sich nicht testen lässt. Das
+  eigene Setup ist dagegen dieselbe App-Technik wie der Editor, also auch
+  derselbe Prüflauf: `cargo test` deckt Installieren, Aktualisieren und
+  Entfernen in einer Sandbox ab, und die Oberfläche lässt sich im Browser
+  ansehen. Es trägt die Signatur des Projektschlüssels, die eine installierte
+  Kopie vor dem Start prüft — ein Windows-Zertifikat ist das nicht und ersetzt
+  auch keins. Offen ist nur noch, ob der Suite-Launcher der Geschwister
+  irgendwann die Erstinstallation übernimmt; aktuell halten muss er UwUNotes
+  nicht mehr. Ein portables Verzeichnis gibt es weiterhin nicht; am nächsten
+  dran ist `UWUNOTES_DIR`. Mitentschieden ist damit ein Risiko: Geht der private
   Schlüssel verloren, bekommt keine vorhandene Installation je wieder ein
   Update, weil jede genau diesen einen öffentlichen Schlüssel kennt. Dass er
   eine Sicherung außerhalb dieses Rechners hat, ist eine Abmachung und keine

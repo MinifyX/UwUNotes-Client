@@ -201,7 +201,8 @@ her page blinks at the editor's own rhythm. Settings → Appearance → Animatio
 **Sounds** are off by default and stay that way. A little chime on save is
 charming in a demo and unbearable in hour three of a file you keep saving every
 twelve seconds. Turning them on is one switch; making them the default would
-have been an apology I did not want to write.
+have been an apology I did not want to write. The setup is the exception, and
+the only one — see below.
 
 **Name.** Nyu only appears by name in the playful tone. The neutral tone keeps
 the pictures and says "UwUNotes".
@@ -247,3 +248,43 @@ Focus sits on the safe choice. Buttons that act on data say what they do —
 `Löschen` stays `Löschen`, never `Weg damit`.
 
 German is the source language for every string, and it uses "du".
+
+## The setup
+
+The installer is the first thing anybody sees of UwUNotes, so it is UwUNotes and
+not a grey box with a progress bar in it. `apps/setup` is the same Tauri and the
+same React as the editor: one window, 460 × 640, not resizable, its own title
+bar, `--uwu-canvas` behind everything and the same type scale. It imports
+`@uwu/tokens` rather than copying values out of it, and it imports Nyu herself
+out of `apps/desktop/src/components/nyu` rather than redrawing her — a second
+copy of the cat is a cat that slowly stops looking like the app's.
+
+- **Same scenes, same size.** The 320 × 220 canvas the editor uses, so she
+  stands at the same height here, in the editor and in UwUSSH. The waiting
+  screen is the editor's own `startup` scene, unchanged. Working, done,
+  uninstall and goodbye are composed here out of her primitives: pages flying
+  into a carton, a spiral pad, a star or two.
+- **Dark, always.** `data-theme="dark"` is in the HTML, so the first paint is
+  already dark and no script decides it. There is no light setting: the setup
+  runs once, and a colour scheme to choose is a question nobody came here to
+  answer.
+- **Animations follow the system.** The same `prefers-reduced-motion` rule as
+  the app, through the same `data-motion` attribute in `tokens.css`. Nyu holds
+  still when the machine asks for that.
+- **Failure is plain.** Rule 4 above, applied to the one window where it is
+  easiest to get wrong: the failure scene is Nyu looking sorry, her shadow and
+  one dropped page — no stars, no hearts, no hopping. The heading says what
+  went wrong, the line under
+  it says what to do, and Windows' own message sits below that in the muted
+  colour. Nothing playful appears anywhere near a disk that is full.
+- **Sound is on, with a switch in the title bar.** The editor's rule reversed,
+  deliberately: this window plays exactly one thing, the A5 → E6 chirp the
+  editor uses for a save, once, when an install finishes. It is the first thing
+  UwUNotes ever says and it sounds like what it will keep saying. A failure
+  makes no sound at all. The siblings' installers do it this way, and mine
+  should sound like theirs.
+- **Its own texts.** No `t()` and no catalogue: both languages live in
+  `apps/setup/src/texts.ts` and the system language picks one. The setup runs
+  before UwUNotes exists on the machine, so there is nothing to read a language
+  preference out of. Tone follows the app — playful where it may be, "Nyu
+  richtet ein …" while it works, and plain everywhere a warning lives.

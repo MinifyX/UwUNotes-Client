@@ -88,11 +88,12 @@ today.
   Settings → Tone → Neutral. Warnings and errors are never playful, in either
   tone.
 
-> **Status: 0.2.0, and there is a setup to download.** It is on the
-> [releases page](https://github.com/MinifyX/UwUNotes-Client/releases) with a
-> checksum beside it, unsigned as far as Windows is concerned — what that means
-> is in [docs/install.md](docs/install.md). What runs is everything in the list
-> above, plus what has landed since:
+> **Status: 0.2.0 is the release you can download, and the installer in the tree
+> is already the next one.** What is on the
+> [releases page](https://github.com/MinifyX/UwUNotes-Client/releases) has a
+> checksum beside it and is unsigned as far as Windows is concerned — what that
+> means is in [docs/install.md](docs/install.md). What runs is everything in the
+> list above, plus what has landed since:
 >
 > - **Macros.** Record, play, play _n_ times, play to the end of the file. Save
 >   one under a name and give it a Ctrl shortcut and it stays.
@@ -117,6 +118,12 @@ today.
 >   downloads has to carry the project's signature or it is not run. 0.1.0 has
 >   none of this and will never offer you 0.2.0 — that one is a download by
 >   hand.
+> - **An installer of its own, with Nyu in it.** In the tree, not in a release
+>   yet: `UwUNotes-Setup-<version>.exe` replaces Tauri's stock one. It installs
+>   under your user account without asking for an administrator, carries the
+>   editor inside itself rather than downloading anything, is also the
+>   uninstaller, and refuses an update that would take you backwards. An
+>   installation made by the old installer is picked up and moved across.
 >
 > The [roadmap](docs/roadmap.md) is what is left, and it still has no dates on
 > purpose.
@@ -124,11 +131,14 @@ today.
 ## Install
 
 The setup is on the
-[releases page](https://github.com/MinifyX/UwUNotes-Client/releases). It is not
-signed, so Windows will put a box in front of it — what that box means, and how
-to check the download against the published checksum, is in
-[docs/install.md](docs/install.md); it also says where your session and your
-drafts live, in English and in German.
+[releases page](https://github.com/MinifyX/UwUNotes-Client/releases). It puts
+the editor in `%LOCALAPPDATA%\Programs\UwUNotes` without asking for an
+administrator, and it takes itself off again through Windows' own list of
+installed apps. It is not signed, so Windows will put a box in front of it —
+what that box means, and how to check the download against the published
+checksum, is in [docs/install.md](docs/install.md); it also says what the setup
+asks you, where your session and your drafts live, and what an uninstall leaves
+behind, in English and in German.
 
 That is the last download you have to think about: from 0.2.0 on the editor
 looks once per start and offers the newer version itself. 0.1.0 does not look at
@@ -154,15 +164,16 @@ are a Tauri build target away in theory and untried in practice.
 
 ## Project layout
 
-| Path                      | What lives there                                                  |
-| ------------------------- | ----------------------------------------------------------------- |
-| `apps/desktop`            | The Tauri 2 app: React UI, CodeMirror editor core, Rust shell     |
-| `packages/uwu-tokens`     | `@uwu/tokens` — the palette the whole UwU Suite shares            |
-| `crates/uwunotes-fs`      | Bytes: encoding detection, atomic writes, the tree, find in files |
-| `crates/uwunotes-session` | The session file, the drafts beside it, the recent lists          |
-| `brand/`                  | Nyu in her notepad body: app icon, symbol, mono symbol            |
-| `docs/`                   | Vision, architecture, design, roadmap                             |
-| `scripts/`                | The translation check, and the update feed a release publishes    |
+| Path                      | What lives there                                                      |
+| ------------------------- | --------------------------------------------------------------------- |
+| `apps/desktop`            | The Tauri 2 app: React UI, CodeMirror editor core, Rust shell         |
+| `apps/setup`              | The installer: the same Tauri and React, one window, the editor in it |
+| `packages/uwu-tokens`     | `@uwu/tokens` — the palette the whole UwU Suite shares                |
+| `crates/uwunotes-fs`      | Bytes: encoding detection, atomic writes, the tree, find in files     |
+| `crates/uwunotes-session` | The session file, the drafts beside it, the recent lists              |
+| `brand/`                  | Nyu in her notepad body: app icon, symbol, mono symbol                |
+| `docs/`                   | Vision, architecture, design, roadmap                                 |
+| `scripts/`                | The translation check, the setup build, the update feed               |
 
 ## Development
 
@@ -182,9 +193,25 @@ cargo fmt --check && cargo clippy  # Rust formatting and lints
 every `t()` and `N_()` literal out of `apps/desktop/src` and fails if one of them
 is missing from the English catalogue. German is the source language; English is
 a lookup table. See [architecture](docs/architecture.md) for why round that way.
+The setup is deliberately outside all of that: it is one window with forty
+strings, it runs before UwUNotes exists on the machine, so it keeps both
+languages in `apps/setup/src/texts.ts` and picks by system language.
 
 The UI alone, without the Rust shell, is `pnpm dev` on port 1421 — useful for
-working on components, useless for anything that touches a file.
+working on components, useless for anything that touches a file. The setup's
+page is the same idea on port 1431:
+
+```bash
+pnpm --filter @uwunotes/setup dev   # the installer's page in a browser
+pnpm build:setup                    # editor, packed into UwUNotes-Setup-<version>.exe
+```
+
+In the browser it pretends: `?mode=update`, `?mode=uninstall`, `?mode=downgrade`
+and `?fail=inUse` reach the screens that otherwise need a real installation to
+go wrong in the right way. The engine has a sandbox of its own for that —
+`UWUNOTES_SETUP_SANDBOX=<folder>` moves files, shortcuts and registry into one
+folder nobody owns, which is how its tests install and uninstall for real
+without touching anything.
 
 ## Documentation
 

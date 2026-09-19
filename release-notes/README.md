@@ -15,30 +15,52 @@ Markdown works in both. A first line with a blank line under it reads as a headl
 
 ## Releasing a version
 
-1. Set the version in `Cargo.toml` (under `workspace.package`),
-   `apps/desktop/src-tauri/tauri.conf.json`, and the `package.json` files — the root one,
-   `apps/desktop` and `packages/uwu-tokens`.
-2. Add `release-notes/<version>.json`.
+1. One version everywhere: `Cargo.toml` (under `workspace.package`),
+   `apps/desktop/src-tauri/tauri.conf.json`, `apps/setup/src-tauri/tauri.conf.json`, and the
+   `package.json` files — the root one, `apps/desktop`, `apps/setup` and `packages/uwu-tokens`.
+   The setup says a version out loud in three places nobody else does: its window, Windows' list of
+   installed apps, and the file name it is published under.
+2. Add `release-notes/<version>.json`, with a non-empty `en`.
 3. Commit.
-4. Tag and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
+4. Tag and push the tag: `git tag v0.3.0 && git push origin v0.3.0`.
 
-That is the whole manual part. `.github/workflows/release.yml` takes it from there: it compares the tag
-against the version in `tauri.conf.json` and stops if the two disagree, builds the frontend, runs
-`pnpm tauri build` on a Windows runner with the signing key from the repository secrets, and stops
-again if that build produced no signature. Then it creates the release with the `en` notes as its body
-and the NSIS `-setup.exe`, its `.sig`, the `.msi` and `SHA256SUMS.txt` attached, and last of all
-publishes the update feed. A tag with a suffix, `v0.1.0-beta.1`, is marked as a pre-release; a plain
-one is not, and only a plain one reaches the feed.
+That is the whole manual part. `.github/workflows/release.yml` takes it from there:
+
+- **Minute zero, before anything compiles.** The tag is compared against _both_ `tauri.conf.json`
+  files and the notes are read; a mismatch or a missing `en` stops the job there rather than after
+  twelve minutes of compiling. `pnpm build:setup` refuses the same mismatch locally.
+- **The setup.** `pnpm build:setup` on a Windows runner builds the editor with `--no-bundle`, packs
+  it into the installer, and leaves `target/release/UwUNotes-Setup-<version>.exe` with a `.sig` next
+  to it. This is the only step that gets the signing secrets, and the job fails if no `.sig`
+  appeared — an unset secret otherwise looks exactly like a build that simply did not sign.
+- **The MSI.** A second asset for machines where an MSI is what gets deployed, bundled in a step
+  with no secrets at all and `createUpdaterArtifacts` switched off for that one build. Left on,
+  `tauri build` finds the public key, expects to sign, and refuses to bundle without the private
+  half — which is the whole point of it not being in that step.
+- **The release.** `SHA256SUMS.txt` over the setup, its `.sig` and the MSI, written with LF endings
+  so `sha256sum -c` can read it; then the release itself, with the `en` notes as the body and all
+  four files attached. A tag with a suffix, `v0.3.0-beta.1`, is marked as a pre-release.
+- **The feed, last.** Only once the release exists with its files on it, and never for a
+  pre-release — which is said in a `::notice::` rather than skipped in silence.
 
 Nothing is built on my own machine, so nothing depends on what happens to be installed there this month.
+
+Locally, to see what a release would produce without making one:
+
+```bash
+pnpm build:setup                    # the setup; says so when it is unsigned
+node scripts/update-feed.mjs v0.3.0 # prints the feed it would publish, writes nothing
+```
 
 ## The signing key
 
 The key exists. Its public half sits in `tauri.conf.json` next to the updater endpoint, and that half
 belongs in the repository. The private half and its password are repository secrets,
-`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, handed to the one step that
-builds the installers and to no other. Neither ever goes into this repository — not as a file, not in a
-workflow, not in a comment — and no step ever echoes one into a log.
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, handed to the one step that runs
+`pnpm build:setup` and to no other. That script takes both back out of the environment before it
+starts a build and checks they are gone, so the build scripts in the dependency graph never see them;
+only `tauri signer sign` is handed the key. Neither ever goes into this repository — not as a file, not
+in a workflow, not in a comment — and no step ever echoes one into a log.
 
 Losing the private key is the one mistake here that cannot be repaired. The public key is baked into
 every installed copy, and a copy out there accepts an update signed with that key and nothing else. A
@@ -59,16 +81,14 @@ delay, it is a failed update on someone's machine, retried until the next releas
 reaches the feed — betas are for the people who went looking for them, and the feed is what everyone
 else follows.
 
-The same script reads a finished build and says what a release would publish. It wants the `.sig`, so
-the local `pnpm tauri build` has to have had the key and its password in the environment:
-
-```bash
-node scripts/update-feed.mjs v0.2.0
-```
+The same script reads a finished build and says what a release would publish. It looks for
+`target/release/UwUNotes-Setup-<version>.exe` and wants the `.sig` beside it, so the local
+`pnpm build:setup` has to have had the key and its password in the environment.
 
 It prints the feed and writes nothing. It refuses when the signature does not match the setup or was
-made with a key installed copies do not trust; in the workflow it also asks GitHub whether the file it
-names is really attached to the release.
+made with a key installed copies do not trust, and it checks the file name inside the signature's
+trusted comment — which is what catches a `.sig` an earlier build left in `target/`. In the workflow it
+also asks GitHub whether the file it names is really attached to the release.
 
 The installers are still not code-signed for Windows itself, which is why the setup is greeted with
 SmartScreen. That takes a certificate, and certificates cost money. It has nothing to do with the

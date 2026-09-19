@@ -1,0 +1,31 @@
+[package]
+name = "uwunotes-setup"
+description = "UwUNotes' own installer, updater and uninstaller for Windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+# The editor is packed into the executable at build time; see build.rs.
+zstd.workspace = true
+
+[dependencies]
+# Comparing what is packed with what is installed, so an update can refuse to
+# go backwards.
+semver.workspace = true
+serde.workspace = true
+tauri = { version = "2", features = [] }
+zstd.workspace = true
+
+# Everything this program does is Windows: shortcuts, the registry entry Windows
+# lists under "Installed apps", and the processes it must not overwrite.
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+winreg.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
