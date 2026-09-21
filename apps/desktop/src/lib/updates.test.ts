@@ -123,6 +123,7 @@ describe('an update on offer', () => {
       phase: 'available',
       version: '0.2.0',
       notes: 'Ein Updater.',
+      installable: true,
     });
   });
 
