@@ -34,6 +34,9 @@ pub fn home() -> Option<PathBuf> {
 /// Starts a program without waiting for it, in a process group of its own, so
 /// that closing the terminal a setup was started from does not take the editor
 /// down with it.
+/// Linux only in practice: macOS starts the installed bundle through `open`,
+/// which is what gives it a Dock icon and a proper activation.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn spawn_detached(exe: &Path, arguments: &[&str]) -> Result<(), String> {
     Command::new(exe)
         .args(arguments)
