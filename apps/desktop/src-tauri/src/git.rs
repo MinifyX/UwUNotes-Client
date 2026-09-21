@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{LazyLock, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
@@ -23,11 +24,20 @@ use serde::Serialize;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// One answer per folder to "can this repository be asked anything safely?".
-/// The status poll runs every eight seconds and the gutter asks per open file,
-/// so working it out each time would be a `git config` per file per poll.
-static REPOSITORY_IS_INERT: LazyLock<Mutex<HashMap<PathBuf, bool>>> =
+/// One answer per folder to "can this repository be asked anything safely?",
+/// for a few seconds. The gutter asks per open file, so a burst of files opened
+/// at once costs one `git config` and not twenty.
+///
+/// Only for a few seconds: until 0.3.1 an answer was kept for the whole run,
+/// and a `.git/config` that changed afterwards — a synced folder catching up,
+/// an archive unpacked over the project — was polled on the old verdict every
+/// eight seconds from then on. Now the next poll after the expiry asks again.
+static REPOSITORY_IS_INERT: LazyLock<Mutex<HashMap<PathBuf, (bool, Instant)>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// How long a verdict holds. Shorter than the status poll, so every poll that
+/// runs git has had its repository looked at within the same breath.
+const TRUST_CACHE_TTL: Duration = Duration::from_secs(5);
 
 /// A folder per open document, and every one of them opened by hand. Still: a
 /// cache with no ceiling is a leak.
@@ -83,7 +93,16 @@ fn statuses(folder: &Path) -> Option<GitStatuses> {
 
     // `-z` because it is the only format in which a file name containing a
     // quote, a newline or a non-UTF-8 byte survives intact.
-    let porcelain = git(folder, &["status", "--porcelain", "-z"])?;
+    //
+    // `--ignore-submodules=all` because a submodule's own configuration lives
+    // in `.git/modules/<name>/config`, which the check above never reads, and a
+    // status of the parent runs a status inside every submodule — clean
+    // filters and all. A submodule shows up as the one entry for its folder
+    // either way; what it contains is its own repository's business.
+    let porcelain = git(
+        folder,
+        &["status", "--porcelain", "-z", "--ignore-submodules=all"],
+    )?;
 
     Some(GitStatuses {
         root: display_path(&repository),
@@ -114,6 +133,10 @@ fn git(folder: &Path, arguments: &[&str]) -> Option<Vec<u8>> {
         .arg("--no-optional-locks")
         .arg("-c")
         .arg("core.fsmonitor=false")
+        // The same reason as `--ignore-submodules` on status, for every other
+        // command: never descend into a repository nobody has checked.
+        .arg("-c")
+        .arg("diff.ignoreSubmodules=all")
         .args(arguments)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -175,12 +198,14 @@ fn resolve_git() -> Option<PathBuf> {
 /// reading the answers, is itself safe.
 fn repository_is_inert(folder: &Path) -> bool {
     let key = folder.to_path_buf();
-    if let Some(known) = REPOSITORY_IS_INERT
+    if let Some((known, at)) = REPOSITORY_IS_INERT
         .lock()
         .ok()
         .and_then(|cache| cache.get(&key).copied())
     {
-        return known;
+        if at.elapsed() < TRUST_CACHE_TTL {
+            return known;
+        }
     }
 
     // No answer is not an answer: the folder is not a repository yet, or git is
@@ -198,39 +223,72 @@ fn repository_is_inert(folder: &Path) -> bool {
         );
     }
     if let Ok(mut cache) = REPOSITORY_IS_INERT.lock() {
+        if cache.len() >= TRUST_CACHE_LIMIT {
+            cache.retain(|_, (_, at)| at.elapsed() < TRUST_CACHE_TTL);
+        }
         if cache.len() < TRUST_CACHE_LIMIT {
-            cache.insert(key, answer);
+            cache.insert(key, (answer, Instant::now()));
         }
     }
     answer
 }
 
 fn inspect_repository(folder: &Path) -> Option<bool> {
-    // Values as well as names now. Printing a value is not running it: `git
+    // Values as well as names. Printing a value is not running it: `git
     // config` reads the file and writes what it found on stdout, whatever the
     // key would have meant to a command that acted on it.
-    let listing = git(folder, &["config", "--local", "--list", "--null"])?;
+    //
+    // Everything git would load, not `--local` alone. `--local` is
+    // `.git/config` and nothing else: it neither follows an `include.path`
+    // nor lists `.git/config.worktree`, and both are read by the `status` and
+    // `diff` this check stands in front of — a filter hidden in an included
+    // file ran while this check reported the repository clean. `--includes`
+    // follows the includes, and `--show-scope` says which file every entry
+    // came from, so the user's own global and system settings, which are not
+    // the repository's to set, can be told apart and left alone.
+    let listing = git(
+        folder,
+        &["config", "--list", "--includes", "--show-scope", "--null"],
+    )?;
     Some(!lists_a_program(&String::from_utf8_lossy(&listing)))
 }
 
-/// Whether any entry of a `git config --list --null` listing is a program.
+/// Whether any repository-scoped entry of a `git config --list --show-scope
+/// --null` listing is a program.
 ///
 /// `--null`, and not one entry per line, because a value may contain a newline:
 /// read line by line, the rest of such a value reads as an entry of its own,
 /// which would let a repository write its own alibi underneath a key that is
-/// not innocent at all. With `--null` an entry ends at a NUL — which no value
-/// can contain — and its key is what precedes the first newline inside it.
+/// not innocent at all. With `--null` a record is the scope, a NUL, then the
+/// entry and another NUL — which no value can contain — and an entry's key is
+/// what precedes the first newline inside it.
+///
+/// Only `local` and `worktree` are the repository's; an included file counts
+/// as the scope that included it. An `include` or `includeIf` key in the
+/// repository's own config is refused by itself: the file it points at is read
+/// on every git command and can change after this check has looked at it.
 fn lists_a_program(listing: &str) -> bool {
-    listing
-        .split('\0')
-        .filter(|entry| !entry.is_empty())
-        .any(|entry| match entry.split_once('\n') {
-            Some((key, value)) => runs_a_program(key, Some(value)),
+    let mut fields = listing.split('\0');
+    while let (Some(scope), Some(entry)) = (fields.next(), fields.next()) {
+        if !matches!(scope, "local" | "worktree") || entry.is_empty() {
+            continue;
+        }
+        let (key, value) = match entry.split_once('\n') {
+            Some((key, value)) => (key, Some(value)),
             // A key written on its own with no `=`, which git reads as a
             // boolean. Not a command line, but not what git-lfs writes either,
             // so it is judged by its name alone.
-            None => runs_a_program(entry, None),
-        })
+            None => (entry, None),
+        };
+        let lower = key.trim().to_ascii_lowercase();
+        if lower.starts_with("include.") || lower.starts_with("includeif.") {
+            return true;
+        }
+        if runs_a_program(key, value) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Whether this entry is one git would execute, key and value together.
@@ -595,12 +653,14 @@ mod tests {
         // Line by line, this is `filter.lfs.clean` set to exactly what git-lfs
         // writes, followed by an unrelated line. As entries, it is one key
         // holding a value git-lfs did not write.
-        let tampered = "filter.lfs.clean\ngit-lfs clean -- %f\nevil\0user.name\nuwu\0";
+        let tampered =
+            "local\0filter.lfs.clean\ngit-lfs clean -- %f\nevil\0local\0user.name\nuwu\0";
         assert!(lists_a_program(tampered));
 
         // And the same boundary the other way round: a newline in a value
         // nobody executes does not invent a key that would be.
-        let innocent = "user.name\nuwu\nfilter.evil.clean\nevil\0core.filemode\nfalse\0";
+        let innocent =
+            "local\0user.name\nuwu\nfilter.evil.clean\nevil\0local\0core.filemode\nfalse\0";
         assert!(!lists_a_program(innocent));
     }
 
@@ -608,9 +668,57 @@ mod tests {
     fn a_listing_from_a_repository_with_lfs_in_it_reads_as_inert() {
         // What `git config --local --list --null` prints after `git init` and
         // `git lfs install --local`, down to the key that has no value.
-        let listing = "core.repositoryformatversion\n0\0core.filemode\nfalse\0\
-             filter.lfs.clean\ngit-lfs clean -- %f\0filter.lfs.smudge\ngit-lfs smudge -- %f\0\
-             filter.lfs.process\ngit-lfs filter-process\0filter.lfs.required\ntrue\0emptyval.flag\0";
+        let listing = "local\0core.repositoryformatversion\n0\0local\0core.filemode\nfalse\0\
+             local\0filter.lfs.clean\ngit-lfs clean -- %f\0local\0filter.lfs.smudge\ngit-lfs smudge -- %f\0\
+             local\0filter.lfs.process\ngit-lfs filter-process\0local\0filter.lfs.required\ntrue\0\
+             local\0emptyval.flag\0";
+        assert!(!lists_a_program(listing));
+    }
+
+    #[test]
+    fn an_include_or_a_worktree_config_is_the_repository_speaking() {
+        // What an included file contributes is labelled with the scope that
+        // included it, and `config.worktree` is its own scope: both count.
+        assert!(lists_a_program("local\0include.path\nevil.cfg\0"));
+        assert!(lists_a_program("local\0includeif.gitdir:~/.path\nx.cfg\0"));
+        assert!(lists_a_program("worktree\0filter.x.clean\nsh -c evil\0"));
+        assert!(lists_a_program(
+            "local\0core.bare\nfalse\0local\0filter.x.clean\nsh -c evil\0"
+        ));
+    }
+
+    /// The exploit the 0.4.0 review found, against a real git: a clean-looking
+    /// `.git/config` that includes a file carrying a filter. Skipped where git
+    /// is not installed.
+    #[test]
+    fn a_filter_hidden_in_an_included_file_is_found() {
+        if git_program().is_none() {
+            return;
+        }
+        let folder =
+            std::env::temp_dir().join(format!("uwunotes-git-include-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        assert!(super::git(&folder, &["init", "-q"]).is_some());
+        assert_eq!(super::inspect_repository(&folder), Some(true));
+
+        std::fs::write(
+            folder.join(".git").join("evil.cfg"),
+            "[filter \"x\"]\n\tclean = echo nope\n",
+        )
+        .unwrap();
+        assert!(super::git(&folder, &["config", "--local", "include.path", "evil.cfg"]).is_some());
+        assert_eq!(super::inspect_repository(&folder), Some(false));
+
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[test]
+    fn the_users_own_settings_are_not_held_against_a_repository() {
+        // A global pager or a system-wide diff tool is the user's choice, not
+        // something a downloaded folder slipped in.
+        let listing = "global\0core.pager\nless -R\0system\0diff.external\nmydiff\0\
+             command\0core.fsmonitor\nfalse\0local\0core.filemode\nfalse\0";
         assert!(!lists_a_program(listing));
     }
 
