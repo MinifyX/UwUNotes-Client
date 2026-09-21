@@ -34,12 +34,14 @@ grep-searcher = "0.1"
 ignore = "0.4"
 
 # The setup (apps/setup/src-tauri). It carries the editor inside itself, packed
-# with zstd, and writes the things a Windows installation is made of: the
-# registry entry under "Installed apps" (winreg), the Start-menu shortcut and
-# the known folders it all goes into (windows), and a version comparison that
-# stops an update from going backwards (semver). Its tests install into a
-# folder of their own (tempfile).
+# with zstd — the macOS app bundle as a tar archive first (tar) — and writes
+# the things an installation is made of: on Windows the registry entry under
+# "Installed apps" (winreg), the Start-menu shortcut and the known folders it
+# all goes into (windows); everywhere a version comparison that stops an
+# update from going backwards (semver). Its tests install into a folder of
+# their own (tempfile).
 semver = "1"
+tar = "0.4"
 tempfile = "3"
 winreg = "0.55"
 zstd = "0.13"
@@ -56,6 +58,7 @@ features = [
   "Win32_System_Com_Urlmon",
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_LibraryLoader",
+  "Win32_System_SystemInformation",
   "Win32_System_Threading",
   "Win32_System_Variant",
   "Win32_UI_Shell",

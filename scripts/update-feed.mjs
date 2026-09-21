@@ -1,18 +1,34 @@
 // Builds latest.json, the feed an installed UwUNotes asks whether there is
-// something newer, out of a finished Windows build.
+// something newer, out of finished, signed builds.
 //
 //   node scripts/update-feed.mjs v0.2.0 --out latest.json
 //   node scripts/update-feed.mjs v0.2.0            (dry run: prints it, writes nothing)
+//   node scripts/update-feed.mjs v0.2.0 --dir dist --require-all --verify-release --out latest.json
 //
 // The version and the notes come from the tag and release-notes/<version>.json,
-// the signature from the .sig that `pnpm build:setup` leaves next to
-// UwUNotes-Setup-<version>.exe, and the URL from the release's own download
-// path. That setup is UwUNotes' own installer rather than Tauri's NSIS one —
-// the file the release publishes, and the file an installed copy runs.
-// Everything this is about to write is checked first: the signature against the
-// public key installed copies have baked in, and with --verify-release against
-// the release on GitHub. A feed naming a file nobody can download is worse than
-// no feed: the app keeps asking it, and keeps failing.
+// the signatures from the .sig files beside the setups, and the URLs from the
+// release's own download paths. One entry per system, each naming the file a
+// release publishes for it:
+//
+//   windows-x86_64   UwUNotes-Setup-<v>.exe                   run with --update by the editor
+//   linux-x86_64     UwUNotes-Setup-<v>-linux-x86_64.tar.gz   announced, installed by hand
+//   darwin-aarch64   UwUNotes-Setup-<v>-macos-arm64.dmg       announced, installed by hand
+//   darwin-x86_64    UwUNotes-Setup-<v>-macos-x64.dmg         announced, installed by hand
+//
+// Only Windows installs an update by itself (see apps/desktop/src-tauri/src/
+// updates.rs). The others are in the feed all the same, because the updater
+// plugin answers "platform not found" to a copy whose system the feed does not
+// name — and those copies should hear about a new version as much as any other.
+//
+// Everything this is about to write is checked first: every signature against
+// the public key installed copies have baked in, and with --verify-release
+// against the release on GitHub. A feed naming a file nobody can download is
+// worse than no feed: the app keeps asking it, and keeps failing.
+//
+// Windows is required, always: it is what every installed copy since 0.2.0
+// follows. The others are included when their files are there, and with
+// --require-all — which is what the release workflow passes — a missing one is
+// an error rather than a quieter feed.
 //
 // It deliberately publishes nothing. Pushing the `updates` branch is
 // .github/workflows/release.yml's job, and it happens only once the release
@@ -20,13 +36,22 @@
 
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 export const REPOSITORY = 'MinifyX/UwUNotes-Client';
 export const FEED_BRANCH = 'updates';
+/** The one platform the feed cannot be without. */
 export const PLATFORM = 'windows-x86_64';
+
+/** Every platform the feed names, and what a release calls its file. */
+export const PLATFORMS = {
+  'windows-x86_64': (version) => `UwUNotes-Setup-${version}.exe`,
+  'linux-x86_64': (version) => `UwUNotes-Setup-${version}-linux-x86_64.tar.gz`,
+  'darwin-aarch64': (version) => `UwUNotes-Setup-${version}-macos-arm64.dmg`,
+  'darwin-x86_64': (version) => `UwUNotes-Setup-${version}-macos-x64.dmg`,
+};
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -34,17 +59,23 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const downloadUrl = (version, name) =>
   `https://github.com/${REPOSITORY}/releases/download/v${version}/${name}`;
 
-/** Tauri v2's updater format, for one setup ({ name, signature }). */
-export function updateFeed({ version, notes, setup, date = new Date() }) {
+/**
+ * Tauri v2's updater format, for one setup per platform:
+ * `setups` maps a platform key to `{ name, signature }`.
+ */
+export function updateFeed({ version, notes, setups, date = new Date() }) {
   return {
     version,
     notes,
     // RFC 3339. Without the milliseconds: nothing reads them, and they make two
     // feeds built a second apart look more different than they are.
     pub_date: date.toISOString().replace(/\.\d+Z$/, 'Z'),
-    platforms: {
-      [PLATFORM]: { signature: setup.signature, url: downloadUrl(version, setup.name) },
-    },
+    platforms: Object.fromEntries(
+      Object.entries(setups).map(([platform, setup]) => [
+        platform,
+        { signature: setup.signature, url: downloadUrl(version, setup.name) },
+      ]),
+    ),
   };
 }
 
@@ -113,8 +144,11 @@ export function signatureProblems({ file, signature, pubkey, name }) {
   return problems;
 }
 
-/** Reads back what would be published and says what is wrong with it. */
-export function feedProblems(text, { version, name }) {
+/**
+ * Reads back what would be published and says what is wrong with it.
+ * `names` maps each platform the feed is meant to carry to its file name.
+ */
+export function feedProblems(text, { version, names }) {
   let feed;
   try {
     feed = JSON.parse(text);
@@ -128,17 +162,25 @@ export function feedProblems(text, { version, name }) {
   if (Number.isNaN(Date.parse(feed.pub_date))) {
     problems.push(`pub_date ${feed.pub_date} is not a date.`);
   }
+  if (!feed.platforms?.[PLATFORM]) {
+    problems.push(`The feed has no ${PLATFORM}, which every installed copy since 0.2.0 follows.`);
+  }
 
-  const platform = feed.platforms?.[PLATFORM];
-  if (!platform) {
-    problems.push(`The feed has no ${PLATFORM}, the only platform UwUNotes ships on.`);
-    return problems;
+  for (const [key, name] of Object.entries(names)) {
+    const platform = feed.platforms?.[key];
+    if (!platform) {
+      problems.push(`The feed has no ${key}.`);
+      continue;
+    }
+    if (typeof platform.signature !== 'string' || !platform.signature.trim()) {
+      problems.push(`${key} carries no signature: every installed copy would refuse the update.`);
+    }
+    if (platform.url !== downloadUrl(version, name)) {
+      problems.push(`${key} points at ${platform.url} instead of ${downloadUrl(version, name)}.`);
+    }
   }
-  if (typeof platform.signature !== 'string' || !platform.signature.trim()) {
-    problems.push('The feed carries no signature: every installed copy would refuse the update.');
-  }
-  if (platform.url !== downloadUrl(version, name)) {
-    problems.push(`The feed points at ${platform.url} instead of ${downloadUrl(version, name)}.`);
+  for (const key of Object.keys(feed.platforms ?? {})) {
+    if (!(key in names)) problems.push(`The feed names ${key}, which nothing was built for.`);
   }
   return problems;
 }
@@ -160,9 +202,8 @@ export async function releaseAsset(version, name) {
   return release.assets?.find((asset) => asset.name === name);
 }
 
-/** What `pnpm build:setup` calls the setup for a version, and where it puts it. */
-export const setupName = (version) => `UwUNotes-Setup-${version}.exe`;
-const setupFor = (version) => join(root, 'target/release', setupName(version));
+/** What `pnpm build:setup` calls the Windows setup for a version. */
+export const setupName = (version) => PLATFORMS[PLATFORM](version);
 
 function fail(message) {
   console.error(`\n✗ ${message}`);
@@ -170,7 +211,7 @@ function fail(message) {
 }
 
 const usage =
-  'Usage: node scripts/update-feed.mjs <tag> [--setup <exe>] [--out <file>] [--verify-release]';
+  'Usage: node scripts/update-feed.mjs <tag> [--dir <folder>] [--require-all] [--out <file>] [--verify-release]';
 
 if (import.meta.main) {
   let positionals = [];
@@ -179,8 +220,9 @@ if (import.meta.main) {
     ({ positionals, values } = parseArgs({
       allowPositionals: true,
       options: {
-        setup: { type: 'string' },
+        dir: { type: 'string' },
         out: { type: 'string' },
+        'require-all': { type: 'boolean', default: false },
         'verify-release': { type: 'boolean', default: false },
       },
     }));
@@ -212,39 +254,55 @@ if (import.meta.main) {
     fail(`release-notes/${version}.json has no 'en' text, and that is what the feed shows.`);
   }
 
-  const setupPath = values.setup ? resolve(values.setup) : setupFor(version);
-  if (!existsSync(setupPath)) fail(`${setupPath} is missing. Run pnpm build:setup first.`);
-  const name = basename(setupPath);
-  if (!existsSync(`${setupPath}.sig`)) {
-    fail(`${name}.sig is missing: the build did not sign the setup, so there is nothing to feed.`);
+  const dir = values.dir ? resolve(values.dir) : join(root, 'target/release');
+  console.log(`UwUNotes ${version}, from ${dir}`);
+
+  const setups = {};
+  const paths = {};
+  for (const [platform, nameFor] of Object.entries(PLATFORMS)) {
+    const name = nameFor(version);
+    const path = join(dir, name);
+    if (!existsSync(path)) {
+      if (platform === PLATFORM || values['require-all']) {
+        fail(`${path} is missing. Run pnpm build:setup first.`);
+      }
+      console.log(`  · ${platform}: no ${name} here, left out`);
+      continue;
+    }
+    if (!existsSync(`${path}.sig`)) {
+      fail(`${name}.sig is missing: the build was not signed, so there is nothing to feed.`);
+    }
+    const signature = readFileSync(`${path}.sig`, 'utf8').trim();
+    if (!signature) fail(`${name}.sig is empty.`);
+    const signed = signatureProblems({ file: readFileSync(path), signature, pubkey, name });
+    if (signed.length > 0) fail(signed.join('\n  '));
+    console.log(`  ✓ ${platform}: ${name}, signed with ${publicKey(pubkey).id}`);
+    setups[platform] = { name, signature };
+    paths[platform] = path;
   }
-  const signature = readFileSync(`${setupPath}.sig`, 'utf8').trim();
-  if (!signature) fail(`${name}.sig is empty.`);
 
-  console.log(`UwUNotes ${version}, ${name}`);
-  const signed = signatureProblems({ file: readFileSync(setupPath), signature, pubkey, name });
-  if (signed.length > 0) fail(signed.join('\n  '));
-  console.log(`  ✓ signed with ${publicKey(pubkey).id}, the key installed copies trust`);
-
-  const feed = updateFeed({ version, notes, setup: { name, signature } });
+  const feed = updateFeed({ version, notes, setups });
   const text = `${JSON.stringify(feed, null, 2)}\n`;
-  const written = feedProblems(text, { version, name });
+  const names = Object.fromEntries(Object.entries(setups).map(([key, { name }]) => [key, name]));
+  const written = feedProblems(text, { version, names });
   if (written.length > 0) fail(written.join('\n  '));
-  console.log(`  ✓ ${PLATFORM}, ${notes.length} characters of notes`);
+  console.log(`  ✓ ${Object.keys(setups).length} platforms, ${notes.length} characters of notes`);
 
   if (values['verify-release']) {
-    const asset = await releaseAsset(version, name);
-    if (!asset || asset.state !== 'uploaded') {
-      fail(`Release v${version} has no finished ${name}: the feed would send everyone to a 404.`);
+    for (const [platform, { name }] of Object.entries(setups)) {
+      const asset = await releaseAsset(version, name);
+      if (!asset || asset.state !== 'uploaded') {
+        fail(`Release v${version} has no finished ${name}: the feed would send everyone to a 404.`);
+      }
+      if (asset.browser_download_url !== feed.platforms[platform].url) {
+        fail(`The release serves ${name} from ${asset.browser_download_url}.`);
+      }
+      const size = statSync(paths[platform]).size;
+      if (asset.size !== size) {
+        fail(`The attached ${name} is ${asset.size} bytes, the signed one ${size}.`);
+      }
+      console.log(`  ✓ ${name} attached to release v${version}, ${size} bytes`);
     }
-    if (asset.browser_download_url !== feed.platforms[PLATFORM].url) {
-      fail(`The release serves ${name} from ${asset.browser_download_url}.`);
-    }
-    const size = statSync(setupPath).size;
-    if (asset.size !== size) {
-      fail(`The attached ${name} is ${asset.size} bytes, the signed one ${size}.`);
-    }
-    console.log(`  ✓ attached to release v${version}, ${size} bytes`);
   }
 
   if (values.out) {

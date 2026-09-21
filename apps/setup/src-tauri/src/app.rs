@@ -6,7 +6,15 @@
 //!   UwUNotes;
 //! - `--update` (or an NSIS switch, see [`parse_arguments`]) — an update the
 //!   app itself started, which runs with no window at all;
-//! - `--uninstall` — the entry in Windows' list of installed apps.
+//! - `--uninstall` — the entry in Windows' list of installed apps, the
+//!   "Uninstall UwUNotes" action of the Linux menu entry, or the `uninstall`
+//!   copy of the setup on a Mac, started from a terminal.
+//!
+//! All of this is the same on every system. What differs — where UwUNotes
+//! goes, what a shortcut is, how an uninstaller gets rid of itself — is behind
+//! the names `install` and `system` export, and the few places below that are
+//! Windows' alone (WebView2, the uninstaller's detour through the temp folder)
+//! say so where they are.
 //!
 //! What this module deliberately does not do: put a window in front of a silent
 //! update. The editor is gone from the screen by then and the user is waiting
@@ -24,9 +32,7 @@ use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager as _, State, WebviewUrl, WebviewWindowBuilder};
 
-use crate::install::{
-    self, Existing, Installed, Layout, Options, Package, Progress, SetupError, APP_EXE,
-};
+use crate::install::{self, Existing, Installed, Layout, Options, Package, Progress, SetupError};
 use crate::system;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -164,6 +170,30 @@ struct SetupState {
     /// shortcut the user asked for. Not part of the agreed shape, and the page
     /// is free to ignore it.
     desktop_shortcut: bool,
+    /// Which system this is. The page words a few things by it — the Start
+    /// menu is a Launchpad on a Mac — and shows the folder without letting it
+    /// be edited where UwUNotes always goes to the same place.
+    platform: Platform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum Platform {
+    Windows,
+    Macos,
+    Linux,
+}
+
+impl Platform {
+    const fn current() -> Self {
+        if cfg!(target_os = "macos") {
+            Self::Macos
+        } else if cfg!(target_os = "linux") {
+            Self::Linux
+        } else {
+            Self::Windows
+        }
+    }
 }
 
 struct Setup {
@@ -201,6 +231,7 @@ impl Setup {
             has_payload: install::has_payload(),
             silent: matches!(self.launch, Launch::Update { .. }),
             desktop_shortcut: self.layout.wanted_desktop_shortcut(),
+            platform: Platform::current(),
         }
     }
 }
@@ -289,10 +320,7 @@ fn launch_installed_app(setup: State<'_, Setup>) -> Result<(), SetupError> {
         .and_then(|folder| folder.clone())
         .or_else(|| setup.layout.existing().map(|existing| existing.folder))
         .ok_or_else(|| SetupError::other("UwUNotes isn't installed."))?;
-    if setup.layout.sandbox {
-        return Ok(());
-    }
-    system::spawn_detached(&folder.join(APP_EXE), &[]).map_err(SetupError::other)
+    install::launch(&setup.layout, &folder)
 }
 
 #[tauri::command(async)]
@@ -302,13 +330,18 @@ fn open_external(url: String) -> Result<(), SetupError> {
 
 #[tauri::command]
 fn close_setup(app: AppHandle) {
-    let setup = app.state::<Setup>();
-    if let Launch::Uninstall {
-        from_temp: true, ..
-    } = setup.launch
+    // Only Windows needs the detour: macOS and Linux let the uninstaller
+    // delete its own file while it runs, and it already has.
+    #[cfg(windows)]
     {
-        if let Ok(copy) = std::env::current_exe() {
-            system::delete_after_exit(&copy);
+        let setup = app.state::<Setup>();
+        if let Launch::Uninstall {
+            from_temp: true, ..
+        } = setup.launch
+        {
+            if let Ok(copy) = std::env::current_exe() {
+                system::delete_after_exit(&copy);
+            }
         }
     }
     app.exit(0);
@@ -352,17 +385,14 @@ pub fn run() {
         Launch::Uninstall { folder, .. } => folder
             .clone()
             .or_else(|| layout.existing().map(|existing| existing.folder))
-            .or_else(|| {
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|me| me.parent().map(Path::to_path_buf))
-            }),
+            .or_else(|| fallback_uninstall_folder(&layout)),
         _ => None,
     };
 
     // Windows will not delete a running program, and the uninstaller is one. So
     // it starts again from a copy in the temp folder, which removes itself when
     // the window closes.
+    #[cfg(windows)]
     if let (
         Launch::Uninstall {
             from_temp: false,
@@ -381,24 +411,31 @@ pub fn run() {
     // ends, so whoever called it can wait for the process and believe the exit
     // code. Settings are kept, because a switch on a command line is a thin
     // thing to read "and throw away their notes" into.
+    //
+    // On Windows only the copy in the temp folder gets this far; everywhere
+    // else there is no copy, and the uninstaller removes its own file itself.
     if let (
         Launch::Uninstall {
-            from_temp: true,
+            from_temp,
             silent: true,
             ..
         },
         Some(folder),
     ) = (&launch, &uninstall_folder)
     {
-        let failed = install::uninstall(&layout, folder, true, &mut |_| {}).is_err();
-        // The same tidy-up `close_setup` does for the window: this copy is in
-        // the temp folder and cannot delete itself while it is running.
-        if let Ok(copy) = std::env::current_exe() {
-            system::delete_after_exit(&copy);
+        if *from_temp || cfg!(not(windows)) {
+            let failed = install::uninstall(&layout, folder, true, &mut |_| {}).is_err();
+            // The same tidy-up `close_setup` does for the window: this copy is
+            // in the temp folder and cannot delete itself while it is running.
+            #[cfg(windows)]
+            if let Ok(copy) = std::env::current_exe() {
+                system::delete_after_exit(&copy);
+            }
+            std::process::exit(i32::from(failed));
         }
-        std::process::exit(i32::from(failed));
     }
 
+    #[cfg(windows)]
     if !offer_webview2() {
         return;
     }
@@ -413,10 +450,10 @@ pub fn run() {
     tauri::Builder::default()
         .manage(setup)
         .setup(|app| {
-            // The window's own browser data goes to the temp folder. The
-            // editor's belongs to the editor, and a setup that shares it would
-            // leave something behind after an uninstall.
-            let data = std::env::temp_dir().join("UwUNotes-Setup-WebView");
+            // The window's own browser data goes to a folder of the setup's
+            // own. The editor's belongs to the editor, and a setup that shares
+            // it would leave something behind after an uninstall.
+            let data = webview_data();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title(TITLE)
                 .inner_size(460.0, 640.0)
@@ -432,6 +469,44 @@ pub fn run() {
         .invoke_handler(handler())
         .run(tauri::generate_context!())
         .expect("failed to start UwUNotes Setup");
+}
+
+/// Where the setup window keeps its browser data: the temp folder, which is
+/// the user's own on Windows and on macOS. On Linux `/tmp` is everybody's, and
+/// a folder somebody else created there first would be theirs — so it is the
+/// user's runtime folder instead, or their cache when there is none.
+fn webview_data() -> PathBuf {
+    const NAME: &str = "UwUNotes-Setup-WebView";
+    #[cfg(target_os = "linux")]
+    {
+        let own = |variable: &str| {
+            std::env::var_os(variable)
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+        };
+        if let Some(runtime) = own("XDG_RUNTIME_DIR") {
+            return runtime.join(NAME);
+        }
+        if let Some(cache) =
+            own("XDG_CACHE_HOME").or_else(|| system::home().map(|home| home.join(".cache")))
+        {
+            return cache.join("app.uwunotes.setup").join("WebView");
+        }
+    }
+    std::env::temp_dir().join(NAME)
+}
+
+/// Where an uninstaller that was told nothing and finds nothing works: on
+/// Windows the folder it was started from, which is the install folder; on the
+/// others the one place the setup ever installs to.
+fn fallback_uninstall_folder(layout: &Layout) -> Option<PathBuf> {
+    if cfg!(windows) {
+        std::env::current_exe()
+            .ok()
+            .and_then(|me| me.parent().map(Path::to_path_buf))
+    } else {
+        Some(layout.default_folder())
+    }
 }
 
 /// The whole of an update the app started: wait for it to be gone, refuse to go
@@ -474,7 +549,7 @@ fn update_silently(layout: &Layout, wait_pid: Option<u32>, relaunch: bool) {
         // ago; give it back rather than leaving them with nothing.
         if relaunch {
             if let Some(existing) = existing {
-                let _ = system::spawn_detached(&existing.folder.join(APP_EXE), &[]);
+                let _ = install::launch(layout, &existing.folder);
             }
         }
         // The updater that started this has already ended, but a `/S` out of
@@ -485,6 +560,7 @@ fn update_silently(layout: &Layout, wait_pid: Option<u32>, relaunch: bool) {
 
 /// Copies the uninstaller to the temp folder and starts it there. `true` when
 /// that worked and this process should stop.
+#[cfg(windows)]
 fn restart_from_temp(folder: &Path, silent: bool) -> bool {
     let Ok(me) = std::env::current_exe() else {
         return false;
@@ -509,6 +585,11 @@ fn restart_from_temp(folder: &Path, silent: bool) -> bool {
 /// always has it and Windows 10 usually does; when it is missing the setup
 /// offers to fetch it, because the alternative is a program that starts and
 /// shows nothing. `false` means the setup should stop.
+///
+/// Windows only. macOS has WebKit built in; on Linux the setup is itself linked
+/// against WebKitGTK and would not have started at all without it, so there is
+/// nothing left to check by the time this could run.
+#[cfg(windows)]
 fn offer_webview2() -> bool {
     if system::webview2_installed() {
         return true;
@@ -731,14 +812,32 @@ mod tests {
             has_payload: true,
             silent: false,
             desktop_shortcut: true,
+            platform: Platform::Windows,
         };
         assert_eq!(
             serde_json::to_string(&state).unwrap(),
             concat!(
                 r#"{"setupVersion":"0.3.0","installedVersion":null,"mode":"install","#,
                 r#""defaultFolder":"C:\\Programs\\UwUNotes","hasPayload":true,"#,
-                r#""silent":false,"desktopShortcut":true}"#,
+                r#""silent":false,"desktopShortcut":true,"platform":"windows"}"#,
             )
+        );
+        for (platform, name) in [
+            (Platform::Windows, "windows"),
+            (Platform::Macos, "macos"),
+            (Platform::Linux, "linux"),
+        ] {
+            assert_eq!(serde_json::to_value(platform).unwrap(), name);
+        }
+        assert_eq!(
+            serde_json::to_value(Platform::current()).unwrap(),
+            if cfg!(target_os = "macos") {
+                "macos"
+            } else if cfg!(target_os = "linux") {
+                "linux"
+            } else {
+                "windows"
+            }
         );
         for (mode, name) in [
             (Mode::Install, "install"),

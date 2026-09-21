@@ -7,6 +7,9 @@
  * settings file to read a language out of and nothing to load at run time. The
  * system language decides, once, and that is the whole mechanism.
  *
+ * The same page runs on Windows, macOS and Linux. `de` and `en` are worded for
+ * Windows; `textsFor` swaps in the handful of lines that name the system.
+ *
  * What this module does NOT do: pick a tone for failures. The lines under
  * `errors` are plain on purpose. Nyu is allowed to be pleased when an install
  * works; when it does not, the user wants to know what went wrong and what to
@@ -168,6 +171,86 @@ export type Texts = typeof de;
 export const texts: Texts = navigator.language.toLowerCase().startsWith('de') ? de : en;
 
 export const isGerman = texts === de;
+
+/** What `app.rs` reports as `platform` in the setup's state. */
+export type Platform = 'windows' | 'macos' | 'linux';
+
+/** A few lines of `Texts`, one level deep: `steps` may name only one step. */
+type Overrides = {
+  [Key in keyof Texts]?: Texts[Key] extends string ? string : Partial<Texts[Key]>;
+};
+
+/**
+ * The lines that say something about the system, for the systems that are not
+ * Windows. Everything above is written for Windows and stays true everywhere
+ * else except these: where the editor goes, what a shortcut is called, who is
+ * being told about it, and whose error message sits under a failure. Nyu, the
+ * scenes and the flow are the same on all three.
+ */
+const deOn: Record<Exclude<Platform, 'windows'>, Overrides> = {
+  macos: {
+    installBody: 'Ich lege den Editor in deinen eigenen Programme-Ordner — ohne Administrator.',
+    desktopShortcut: 'Alias auf dem Schreibtisch',
+    desktopShortcutHint: 'Launchpad und Spotlight finden UwUNotes ohnehin.',
+    steps: { shortcuts: 'Alias anlegen', registry: 'Bei macOS anmelden' },
+    errorBodies: {
+      permission:
+        'macOS lässt das Schreiben dort nicht zu. Prüf die Rechte deines Programme-Ordners.',
+      other: 'Die Meldung darunter ist die des Systems.',
+    },
+    uninstallBody: 'Ich nehme den Editor wieder von diesem Mac.',
+  },
+  linux: {
+    installBody: 'Ich lege den Editor in deinen Home-Ordner — ohne root.',
+    desktopShortcutHint: 'Einen Eintrag im Anwendungsmenü gibt es ohnehin.',
+    steps: { shortcuts: 'Menüeintrag anlegen', registry: 'Beim Desktop anmelden' },
+    errorBodies: {
+      permission:
+        'Das System lässt das Schreiben dort nicht zu. Prüf die Rechte deines Home-Ordners.',
+      other: 'Die Meldung darunter ist die des Systems.',
+    },
+    uninstallBody: 'Ich nehme den Editor wieder von diesem Rechner.',
+  },
+};
+
+const enOn: Record<Exclude<Platform, 'windows'>, Overrides> = {
+  macos: {
+    installBody: 'I put the editor in your own Applications folder — no administrator needed.',
+    desktopShortcut: 'Alias on the desktop',
+    desktopShortcutHint: 'Launchpad and Spotlight find UwUNotes either way.',
+    steps: { shortcuts: 'Making the alias', registry: 'Telling macOS about it' },
+    errorBodies: {
+      permission:
+        'macOS does not allow writing there. Check the permissions of your Applications folder.',
+      other: "The line below is the system's own.",
+    },
+    uninstallBody: 'I take the editor off this Mac again.',
+  },
+  linux: {
+    installBody: 'I put the editor in your home folder — no root needed.',
+    desktopShortcutHint: 'The applications menu gets an entry either way.',
+    steps: { shortcuts: 'Adding the menu entry', registry: 'Telling the desktop about it' },
+    errorBodies: {
+      permission:
+        'The system does not allow writing there. Check the permissions of your home folder.',
+      other: "The line below is the system's own.",
+    },
+    uninstallBody: 'I take the editor off this computer again.',
+  },
+};
+
+/** `texts`, with the lines that name the system worded for `platform`. */
+export function textsFor(platform: Platform): Texts {
+  if (platform === 'windows') return texts;
+  const overrides = (isGerman ? deOn : enOn)[platform];
+  const merged: Record<string, unknown> = { ...texts };
+  for (const [key, value] of Object.entries(overrides)) {
+    const current = merged[key];
+    merged[key] =
+      typeof value === 'object' && typeof current === 'object' ? { ...current, ...value } : value;
+  }
+  return merged as Texts;
+}
 
 /** `fill('Auf {version} bringen', { version: '0.3.0' })`. A missing key becomes nothing. */
 export function fill(template: string, values: Record<string, string>): string {

@@ -1,8 +1,13 @@
 name: Release
 
+# A tag builds, signs and publishes. A manual run (Actions → Release → Run
+# workflow, from any branch) builds and signs the same way and stops there, so
+# the three builds can be tried before anything is tagged: the artifacts are on
+# the run's page, and the `publish` job is skipped.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,89 +15,122 @@ permissions:
 env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
 
+# The shape of it, and why:
+#
+#   check ──┬─ windows ─┐
+#           ├─ macos ×2 ├─ sign ── publish (tags only)
+#           └─ linux ───┘
+#
+# The builds run `pnpm install` and compile a few hundred crates, and every
+# `build.rs` and npm install script among them runs with whatever that job has.
+# So none of them has anything worth taking: read-only token, no secrets. They
+# hand their unsigned files on as artifacts.
+#
+# `sign` is the only job that ever sees the update-signing key. It installs one
+# package, Tauri's CLI, with its install scripts switched off, into a folder of
+# its own on a runner that has built nothing — no workspace, no node_modules, no
+# Cargo — and signs the files it was handed.
+#
+# `publish` is the only job with a token that can write, and it does not build
+# or install anything either: it attaches what the others made and writes the
+# feed.
 jobs:
-  windows:
-    runs-on: windows-latest
-    permissions:
-      # Creating the release is the only thing here that writes anything.
-      contents: write
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.check.outputs.prerelease }}
     steps:
       # Every `uses:` here is pinned to a commit rather than to a tag or a
-      # branch, with the version in the comment. This job is the only thing in
-      # the repository that produces the installer people download and the only
-      # one holding a token that can write, so an action whose content is
-      # "whatever that branch says today" is the one unpinned input left: both
-      # lockfiles are committed and the install is `--frozen-lockfile`. The
-      # repository refuses an unpinned action outright now; the reason above is
-      # older than the rule.
+      # branch, with the version in the comment. This workflow produces the
+      # installers people download, and one job in it holds a token that can
+      # write, so an action whose content is "whatever that branch says today"
+      # is the one unpinned input left: both lockfiles are committed and the
+      # install is `--frozen-lockfile`. The repository refuses an unpinned
+      # action outright now; the reason above is older than the rule.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # Otherwise checkout leaves the job's write-capable token in
-          # `.git/config`, where every `build.rs` in the dependency graph and
-          # every install script can read it — for the rest of the build, to no
-          # purpose, since nothing after this line uses git and the release
-          # action takes its token from the environment.
+          # Otherwise checkout leaves the job's token in `.git/config`, where
+          # every `build.rs` in the dependency graph and every install script
+          # can read it. Here it is read-only and there is no build, but every
+          # job in this file does the same so that the one that matters cannot
+          # be the one that forgot.
           persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
 
       # Before anything is compiled: an installer that reports a different
       # version than the tag it came from is a support problem forever, and a
-      # missing release note would only be noticed after the twelve-minute
-      # build.
-      - name: Check the tag and read the release notes
-        id: release
-        shell: pwsh
+      # missing release note would only be noticed after the builds.
+      - name: Check the version and the release notes
+        id: check
         env:
           # Through the environment rather than ${{ }} inside the script: a tag
           # name is arbitrary text and has no business being pasted into source.
-          TAG: ${{ github.ref_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          $version = $env:TAG -replace '^v', ''
-          # Both apps, because the setup is what says a version out loud — in
-          # its window, in "Installed apps" and in the file name it is published
-          # under. `pnpm build:setup` refuses to build them apart; this is the
-          # same check at minute zero instead of minute three.
-          foreach ($app in 'desktop', 'setup') {
-            $file = "apps/$app/src-tauri/tauri.conf.json"
-            if (-not (Test-Path $file)) {
-              Write-Output "::error::$file is missing, and the release is built from it."
-              exit 1
+          node --input-type=module <<'EOF'
+          import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+
+          const fail = (message) => {
+            console.log(`::error::${message}`);
+            process.exit(1);
+          };
+          const tagged = process.env.REF.startsWith('refs/tags/v');
+
+          // Both apps, because the setup is what says a version out loud — in
+          // its window, in "Installed apps" and in the file name it is
+          // published under. `pnpm build:setup` refuses to build them apart;
+          // this is the same check at minute zero instead of minute three.
+          const versions = {};
+          for (const app of ['desktop', 'setup']) {
+            const file = `apps/${app}/src-tauri/tauri.conf.json`;
+            if (!existsSync(file)) fail(`${file} is missing, and the release is built from it.`);
+            versions[app] = JSON.parse(readFileSync(file, 'utf8')).version;
+          }
+          if (versions.desktop !== versions.setup) {
+            fail(`The editor says ${versions.desktop}, the setup ${versions.setup}.`);
+          }
+          const version = tagged ? process.env.REF_NAME.replace(/^v/, '') : versions.desktop;
+          if (version !== versions.desktop) {
+            fail(`Tag ${process.env.REF_NAME} means version ${version}, but tauri.conf.json says ${versions.desktop}. Fix one of them and tag again.`);
+          }
+
+          // Only a tag publishes, so only a tag needs its notes; a trial run
+          // from a branch may well come before they are written.
+          const notes = `release-notes/${version}.json`;
+          if (tagged) {
+            if (!existsSync(notes)) fail(`${notes} is missing. See release-notes/README.md.`);
+            const english = JSON.parse(readFileSync(notes, 'utf8')).en;
+            if (typeof english !== 'string' || !english.trim()) {
+              fail(`${notes} has no 'en' text, and that is what the release page shows.`);
             }
-            $configured = (Get-Content $file -Raw | ConvertFrom-Json).version
-            if ($version -ne $configured) {
-              Write-Output "::error::Tag $env:TAG means version $version, but $file says $configured. Fix one of them and tag again."
-              exit 1
-            }
           }
 
-          $notes = "release-notes/$version.json"
-          if (-not (Test-Path $notes)) {
-            Write-Output "::error::$notes is missing. See release-notes/README.md."
-            exit 1
-          }
-          $english = (Get-Content $notes -Raw -Encoding utf8 | ConvertFrom-Json).en
-          if ([string]::IsNullOrWhiteSpace($english)) {
-            Write-Output "::error::$notes has no 'en' text, and that is what the release page shows."
-            exit 1
-          }
+          // A version with a suffix — v0.1.0-beta.1 — is not the finished thing.
+          const prerelease = version.includes('-');
+          appendFileSync(process.env.GITHUB_OUTPUT, `prerelease=${prerelease}\n`);
+          console.log(`UwUNotes ${version}, pre-release: ${prerelease}, publishing: ${tagged}`);
+          EOF
 
-          # As a file, so newlines and umlauts survive the trip into the action.
-          $body = Join-Path $env:RUNNER_TEMP 'release-body.md'
-          Set-Content -Path $body -Value $english -Encoding utf8
-          "body=$body" >> $env:GITHUB_OUTPUT
+  windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-          # A version with a suffix — v0.1.0-beta.1 — is not the finished thing.
-          $prerelease = if ($env:TAG.Contains('-')) { 'true' } else { 'false' }
-          "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
-          Write-Output "UwUNotes $version, pre-release: $prerelease"
-
+      # No `cache: pnpm`. A cache is written by one run and read by the next,
+      # including runs on branches, so a restored store is an input nobody
+      # reviewed. The release builds take the extra minute and install from the
+      # lockfile every time.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: corepack enable
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       # `tauri build` runs this again through beforeBuildCommand. Doing it here
@@ -111,46 +149,20 @@ jobs:
       # --no-bundle and packed into UwUNotes' own installer, which is the file
       # people download and the file an installed copy runs to update itself.
       # The Cargo workspace is the repository root, so that is the root's
-      # target, not one next to src-tauri.
-      #
-      # The signing key reaches this step and no other, because this is the one
-      # that needs it: `pnpm build:setup` signs the finished setup and writes a
-      # .sig next to it. Inside the script the key is taken back out of the
-      # environment before any build starts, so none of the build scripts in the
-      # dependency graph ever see it. It arrives through `env:` and is never
-      # named in a `run:` line — a secret interpolated into a command is a
-      # secret in the log of the first job that fails in an interesting way.
+      # target, not one next to src-tauri. Unsigned: see `sign`.
       - name: Build the setup
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm build:setup
-
-      # A release without a signature is a release nobody can update to, and an
-      # unset secret looks from here exactly like a build that simply did not
-      # sign: a folder with no .sig in it. Worth twelve minutes of runner time
-      # to learn now rather than from a user in three weeks.
-      - name: Check the setup was signed
-        shell: pwsh
-        run: |
-          $signed = @(Get-ChildItem target/release/UwUNotes-Setup-*.exe.sig -ErrorAction SilentlyContinue)
-          if ($signed.Count -ne 1) {
-            Write-Output "::error::Expected one signed setup, found $($signed.Count) .sig files. Check the TAURI_SIGNING_PRIVATE_KEY secrets and scripts/build-setup.mjs."
-            exit 1
-          }
-          Write-Output "Signed: $($signed[0].Name)"
 
       # A second asset, for people who would rather have an MSI — one that a
       # policy can deploy, or that goes on a machine where the per-user install
       # is not what is wanted. It costs one bundle step and no compile: the
       # build above left target/release warm, so this is WiX and little else.
       #
-      # No secrets here, and none needed. `createUpdaterArtifacts` is turned off
-      # for this build alone, because the artifact updates go through is the
-      # signed setup above and nothing reads a signature of the MSI. Left on,
-      # `tauri build` would find the public key in tauri.conf.json, expect to
-      # sign, and refuse to bundle without the private half — which is the whole
-      # point of it not being here.
+      # `createUpdaterArtifacts` is turned off for this build alone, because the
+      # artifact updates go through is the signed setup and nothing reads a
+      # signature of the MSI. Left on, `tauri build` would find the public key
+      # in tauri.conf.json, expect to sign, and refuse to bundle without the
+      # private half — which is the whole point of it not being here.
       - name: Build the MSI
         shell: pwsh
         run: |
@@ -158,52 +170,262 @@ jobs:
           Set-Content -Path $config -Encoding utf8 -Value '{ "bundle": { "createUpdaterArtifacts": false } }'
           pnpm tauri build --bundles msi --config $config
 
-      # The signature above is for the updater. Windows still sees a program
-      # nobody vouched for, so for a person downloading the installer by hand a
-      # checksum stays the only thing to check it against. It proves nothing on
-      # its own — it is published by the same job — but it makes a file that was
-      # swapped afterwards, on a mirror or in a forwarded message, noticeable.
-      # Everything the release attaches is listed, the .sig included, so the
-      # file matches the release page rather than a subset of it.
-      - name: Write the checksums
+      - name: Collect what the release attaches
         shell: pwsh
         run: |
-          $files = Get-ChildItem `
-            target/release/UwUNotes-Setup-*.exe, `
-            target/release/UwUNotes-Setup-*.exe.sig, `
-            target/release/bundle/msi/*.msi
-          $lines = foreach ($file in $files) {
-            $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($file.Name)"
-          }
-          # LF, written by hand. `Set-Content` ends every line with CRLF on
-          # Windows, and `sha256sum -c` — the tool this file exists for, and the
-          # one people on Linux and macOS actually have — reads the carriage
-          # return as part of the file name and reports that the file is
-          # missing. v0.2.0 shipped a checksum file that could not be checked
-          # that way.
-          $text = ($lines -join "`n") + "`n"
-          [System.IO.File]::WriteAllText("$PWD/SHA256SUMS.txt", $text, [System.Text.UTF8Encoding]::new($false))
-          Get-Content SHA256SUMS.txt
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/UwUNotes-Setup-*.exe, target/release/bundle/msi/*.msi dist/
+          Get-ChildItem dist
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: setup-windows
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    needs: check
+    # Both Macs build on the Apple Silicon runner: the Intel one is a
+    # cross-compile, which Apple's toolchain does natively and which queues far
+    # sooner than an Intel runner does.
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            name: arm64
+          - target: x86_64-apple-darwin
+            name: x64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      # UwUNotes-Setup-<version>-macos-<arm64|x64>.dmg: the editor as an app
+      # bundle for that processor, packed into the setup's own app bundle, in
+      # a disk image. Unsigned for the updater here: see `sign`.
+      - name: Build the setup
+        env:
+          TARGET: ${{ matrix.target }}
+        run: pnpm build:setup --target "$TARGET"
+
+      - name: Collect what the release attaches
+        run: |
+          mkdir -p dist
+          cp target/release/UwUNotes-Setup-*-macos-*.dmg dist/
+          ls -l dist
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: setup-macos-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  linux:
+    needs: check
+    # 22.04 rather than latest: a binary links against the glibc it was built
+    # with and runs on that one and newer, so the older the build machine, the
+    # more distributions the download works on.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # What Tauri needs to compile against on Linux: WebKitGTK 4.1 and the
+      # GTK stack underneath it. The same library is what the editor needs at
+      # run time, which docs/install.md tells people.
+      - name: Install the system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+
+      # UwUNotes-Setup-<version>-linux-x86_64.tar.gz: one executable inside,
+      # the setup with the editor packed into it. Unsigned here: see `sign`.
+      - name: Build the setup
+        run: pnpm build:setup
+
+      - name: Collect what the release attaches
+        run: |
+          mkdir -p dist
+          cp target/release/UwUNotes-Setup-*-linux-x86_64.tar.gz dist/
+          ls -l dist
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: setup-linux
+          path: dist/*
+          if-no-files-found: error
+
+  sign:
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      # The lockfile and nothing else: it says which version of Tauri's CLI the
+      # builds used, and that is the one that signs. No workspace, so no
+      # package.json whose scripts could run, and no node_modules.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout: pnpm-lock.yaml
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      # Into a folder of its own, with install scripts off. The CLI needs none:
+      # its native half is an optional dependency, which npm installs either
+      # way, and which the CLI's own package pins to its exact version.
+      - name: Install the signer
+        run: |
+          version=$(grep -m1 -oE "^  '@tauri-apps/cli@[0-9]+\.[0-9]+\.[0-9]+'" pnpm-lock.yaml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          if [ -z "$version" ]; then
+            echo "::error::pnpm-lock.yaml names no @tauri-apps/cli version."
+            exit 1
+          fi
+          npm install --ignore-scripts --no-audit --no-fund --prefix "$RUNNER_TEMP/signer" "@tauri-apps/cli@$version"
+          "$RUNNER_TEMP/signer/node_modules/.bin/tauri" --version
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: setup-*
+          path: dist
+          merge-multiple: true
+
+      # The one step that ever holds the key. It arrives through `env:` and is
+      # never named in a `run:` line — a secret interpolated into a command is a
+      # secret in the log of the first job that fails in an interesting way.
+      #
+      # What is signed is what an installed copy downloads through the feed:
+      # the Windows setup, which it runs, and the Linux archive and the two Mac
+      # images, which it only announces. The MSI is not in the feed.
+      - name: Sign for the updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          shopt -s nullglob
+          files=(dist/UwUNotes-Setup-*.exe dist/UwUNotes-Setup-*.tar.gz dist/UwUNotes-Setup-*.dmg)
+          if [ "${#files[@]}" -ne 4 ]; then
+            echo "::error::Expected four setups to sign, found ${#files[@]}: ${files[*]}"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            "$RUNNER_TEMP/signer/node_modules/.bin/tauri" signer sign "$file"
+          done
+
+      # A release without a signature is a release nobody can update to, and an
+      # unset secret looks from here exactly like a signer that simply did not
+      # sign: a folder with no .sig in it.
+      - name: Check every setup was signed
+        run: |
+          shopt -s nullglob
+          for file in dist/UwUNotes-Setup-*.exe dist/UwUNotes-Setup-*.tar.gz dist/UwUNotes-Setup-*.dmg; do
+            if [ ! -s "$file.sig" ]; then
+              echo "::error::$file has no signature. Check the TAURI_SIGNING_PRIVATE_KEY secrets."
+              exit 1
+            fi
+            echo "Signed: $file"
+          done
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signatures
+          path: dist/*.sig
+          if-no-files-found: error
+
+  publish:
+    needs: [check, sign]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      # Creating the release and pushing the feed are the only things in this
+      # workflow that write anything.
+      contents: write
+    steps:
+      # For scripts/update-feed.mjs and the release notes. Nothing is installed
+      # and nothing is built: the script uses Node's own modules only.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      # The setups from the builds and their signatures from `sign`, side by
+      # side in one folder, which is the shape update-feed.mjs expects.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Read the release notes
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          body="$RUNNER_TEMP/release-body.md"
+          # As a file, so newlines and umlauts survive the trip into the action.
+          node -e 'const fs = require("fs"); const v = process.env.TAG.replace(/^v/, ""); fs.writeFileSync(process.argv[1], JSON.parse(fs.readFileSync(`release-notes/${v}.json`, "utf8")).en)' "$body"
+          echo "body=$body" >> "$GITHUB_OUTPUT"
+
+      # The signature above is for the updater. Windows and macOS still see a
+      # program nobody vouched for, so for a person downloading an installer by
+      # hand a checksum stays the only thing to check it against. It proves
+      # nothing on its own — it is published by the same workflow — but it
+      # makes a file that was swapped afterwards, on a mirror or in a forwarded
+      # message, noticeable. Everything the release attaches is listed, the
+      # .sig files included, so the file matches the release page rather than a
+      # subset of it. sha256sum writes LF, which is what `sha256sum -c` reads;
+      # v0.2.0 shipped a CRLF file that could not be checked that way.
+      - name: Write the checksums
+        run: |
+          (cd dist && sha256sum -- *) > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       # softprops rather than `gh release create`: the body comes from a file,
       # the installers are globbed, the pre-release flag is an input, and an
-      # installer that failed to appear fails the job. With the CLI all four
-      # would be PowerShell plumbing, and PowerShell quoting is exactly the part
-      # that cannot be tested before the tag is pushed.
+      # installer that failed to appear fails the job.
       #
-      # The .sig goes up with the setup it belongs to. The feed carries the same
-      # signature, but a file next to the download is what lets a person check
-      # it by hand against the public key in tauri.conf.json.
+      # The .sig files go up with the setups they belong to. The feed carries
+      # the same signatures, but a file next to the download is what lets a
+      # person check it by hand against the public key in tauri.conf.json.
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          body_path: ${{ steps.release.outputs.body }}
-          prerelease: ${{ steps.release.outputs.prerelease }}
+          body_path: ${{ steps.notes.outputs.body }}
+          prerelease: ${{ needs.check.outputs.prerelease }}
           fail_on_unmatched_files: true
           files: |
-            target/release/UwUNotes-Setup-*.exe
-            target/release/UwUNotes-Setup-*.exe.sig
-            target/release/bundle/msi/*.msi
+            dist/UwUNotes-Setup-*.exe
+            dist/UwUNotes-Setup-*.tar.gz
+            dist/UwUNotes-Setup-*.dmg
+            dist/*.sig
+            dist/*.msi
             SHA256SUMS.txt
 
       # Only now, with the release online and everything attached to it. The
@@ -211,24 +433,22 @@ jobs:
       # not there yet is not a delay, it is a failed update on someone's
       # machine, retried until the next release.
       - name: Build the update feed
-        if: steps.release.outputs.prerelease == 'false'
-        shell: pwsh
+        if: needs.check.outputs.prerelease == 'false'
         env:
           TAG: ${{ github.ref_name }}
           # The repository is public, so this buys nothing but a rate limit of
           # this job's own: unauthenticated, the runner shares one per address.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/update-feed.mjs $env:TAG --out "$env:RUNNER_TEMP/latest.json" --verify-release
+        run: node scripts/update-feed.mjs "$TAG" --dir dist --require-all --verify-release --out "$RUNNER_TEMP/latest.json"
 
       - name: Publish the update feed
-        if: steps.release.outputs.prerelease == 'false'
-        shell: pwsh
+        if: needs.check.outputs.prerelease == 'false'
         env:
           # checkout ran with persist-credentials: false, so no step in this job
           # inherited a token that can write anything — it has to be handed over
-          # on purpose, and this is the step that gets one. That is the point of
-          # the flag. It stays inside a variable: the script below is printed to
-          # the log exactly as it is written here, unexpanded.
+          # on purpose, and this is the step that gets one. It stays inside a
+          # variable: the script below is printed to the log exactly as it is
+          # written here, unexpanded.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           # git declines to commit for nobody.
@@ -237,41 +457,39 @@ jobs:
           GIT_COMMITTER_NAME: UwUNotes Release
           GIT_COMMITTER_EMAIL: release@uwunotes.invalid
         run: |
-          # A failing native command does not stop a pwsh step on its own, and
-          # half of this sequence looks exactly like a published feed.
-          $PSNativeCommandUseErrorActionPreference = $true
-          $dir = Join-Path $env:RUNNER_TEMP 'update-feed'
-          $remote = "https://x-access-token:$($env:GITHUB_TOKEN)@github.com/$($env:GITHUB_REPOSITORY).git"
+          set -euo pipefail
+          dir="$RUNNER_TEMP/update-feed"
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # No hooks, whatever any config on this runner says: the one git
+          # command sequence in this workflow that holds a writing token runs
+          # exactly the git it says and nothing a hook adds.
+          git() { command git -c core.hooksPath=/dev/null "$@"; }
 
           # `updates` carries the feed and nothing else, so it is an orphan
           # branch: the first release starts it from an empty repository
           # instead of from main's history.
-          if (git ls-remote --heads $remote updates) {
-            git clone -q --depth 1 --branch updates $remote $dir
-          } else {
-            Write-Output 'The updates branch does not exist yet; this release starts it.'
-            git init -q -b updates $dir
-            Set-Content -Path (Join-Path $dir 'README.md') -Encoding utf8 -Value @(
-              '# Update feed',
-              '',
-              'Written by .github/workflows/release.yml at the end of every finished release.',
-              'Installed UwUNotes copies read `latest.json` from here; nothing else lives on',
-              'this branch.'
-            )
-          }
+          if [ -n "$(git ls-remote --heads "$remote" updates)" ]; then
+            git clone -q --depth 1 --branch updates "$remote" "$dir"
+          else
+            echo 'The updates branch does not exist yet; this release starts it.'
+            git init -q -b updates "$dir"
+            printf '%s\n' '# Update feed' '' \
+              'Written by .github/workflows/release.yml at the end of every finished release.' \
+              'Installed UwUNotes copies read `latest.json` from here; nothing else lives on' \
+              'this branch.' > "$dir/README.md"
+          fi
 
-          Copy-Item -Path (Join-Path $env:RUNNER_TEMP 'latest.json') -Destination $dir -Force
-          git -C $dir add --all
-          git -C $dir commit -qm "UwUNotes $env:TAG"
-          git -C $dir push -q $remote HEAD:updates
-          Write-Output "Feed: https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/updates/latest.json"
+          cp "$RUNNER_TEMP/latest.json" "$dir/"
+          git -C "$dir" add --all
+          git -C "$dir" commit -qm "UwUNotes $TAG"
+          git -C "$dir" push -q "$remote" HEAD:updates
+          echo "Feed: https://raw.githubusercontent.com/$GITHUB_REPOSITORY/updates/latest.json"
 
       # A pre-release is something people went looking for. The feed is what
       # everyone else follows, so it stays on the last finished version — and
       # says so, because a skipped step with no reason is a thing to look up.
       - name: Say why a pre-release gets no feed
-        if: steps.release.outputs.prerelease == 'true'
-        shell: pwsh
+        if: needs.check.outputs.prerelease == 'true'
         env:
           TAG: ${{ github.ref_name }}
-        run: Write-Output "::notice::$env:TAG is a pre-release, so latest.json keeps pointing at the last finished version."
+        run: echo "::notice::$TAG is a pre-release, so latest.json keeps pointing at the last finished version."

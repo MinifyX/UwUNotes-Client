@@ -57,11 +57,9 @@ jobs:
       - run: pnpm build
 
   rust:
-    # Windows and nowhere else. The desktop crate is a Tauri app: it wants
-    # WebView2, Windows is the only platform UwUNotes ships on today, and a
-    # Linux runner would have to install the whole GTK and webkit2gtk stack to
-    # produce a binary nobody would ever run. The two library crates would
-    # compile anywhere, but they are not worth a job of their own.
+    # The whole workspace, on Windows: that is where it is developed, and where
+    # every test that touches the registry or a shortcut can run at all. The
+    # setup's macOS and Linux halves get the job below.
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -95,3 +93,50 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  setup-unix:
+    # The setup is the one crate with code of its own for macOS and Linux —
+    # where the editor goes, the desktop entry, the app bundle — and none of it
+    # compiles on the Windows job above. So it is linted and tested here, on the
+    # systems it is for; its tests install into a temporary home folder for
+    # real. Just the setup: the editor is the same code everywhere and is built
+    # on both systems by every release.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # WebKitGTK and the GTK stack Tauri compiles against on Linux. macOS
+      # has everything it needs.
+      - name: Install the system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # tauri-build wants the setup's page built before the crate compiles.
+      - run: pnpm --filter @uwunotes/setup build
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - run: cargo clippy -p uwunotes-setup --all-targets -- -D warnings
+      - run: cargo test -p uwunotes-setup

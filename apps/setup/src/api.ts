@@ -20,6 +20,7 @@
 
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import type { Platform } from './texts';
 
 /** Computed from what is installed, not from the command line. */
 export type Mode = 'install' | 'update' | 'uninstall' | 'reinstall' | 'downgrade';
@@ -41,6 +42,11 @@ export interface SetupState {
   silent: boolean;
   /** What was chosen last time, so the checkbox can start where the user left it. */
   desktopShortcut: boolean;
+  /**
+   * The system the setup runs on. A few lines are worded by it (`textsFor`),
+   * and outside Windows the folder is fixed and shown rather than editable.
+   */
+  platform: Platform;
 }
 
 export interface InstallOptions {
@@ -134,7 +140,20 @@ const tauriApi: SetupApi = {
 function previewApi(): SetupApi {
   const parameters = new URLSearchParams(window.location.search);
   const mode = (parameters.get('mode') as Mode | null) ?? 'install';
-  const folder = 'C:\\Users\\Nyu\\AppData\\Local\\Programs\\UwUNotes';
+  // `?platform=macos` or `?platform=linux` shows the wording and the fixed
+  // folder of the other systems.
+  const asked = parameters.get('platform');
+  const platform: Platform = asked === 'macos' || asked === 'linux' ? asked : 'windows';
+  const folder = {
+    windows: 'C:\\Users\\Nyu\\AppData\\Local\\Programs\\UwUNotes',
+    macos: '/Users/nyu/Applications/UwUNotes.app',
+    linux: '/home/nyu/.local/share/uwunotes',
+  }[platform];
+  const exe = {
+    windows: `${folder}\\UwUNotes.exe`,
+    macos: folder,
+    linux: `${folder}/uwunotes`,
+  }[platform];
   const fail = parameters.get('fail');
 
   const pretend = async (onProgress: (progress: Progress) => void) => {
@@ -144,7 +163,7 @@ function previewApi(): SetupApi {
       const step = steps[Math.min(steps.length - 1, Math.floor((percent / 100) * steps.length))];
       onProgress({ step: step ?? 'writing', percent });
     }
-    if (fail) throw { kind: fail, message: `Couldn't write ${folder}\\UwUNotes.exe (os error 32)` };
+    if (fail) throw { kind: fail, message: `Couldn't write ${exe} (os error 32)` };
   };
 
   return {
@@ -156,10 +175,11 @@ function previewApi(): SetupApi {
       hasPayload: !parameters.has('empty'),
       silent: parameters.has('silent'),
       desktopShortcut: true,
+      platform,
     }),
     install: async (_options, onProgress) => {
       await pretend(onProgress);
-      return { folder, exe: `${folder}\\UwUNotes.exe` };
+      return { folder, exe };
     },
     uninstall: async () => {
       await pretend(() => undefined);
