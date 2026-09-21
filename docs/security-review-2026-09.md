@@ -253,6 +253,50 @@ terms as the rest.
 - **What it does not claim.** Windows sees a program nobody vouched for, exactly
   as before: the minisign signature is for the updater, not for SmartScreen.
 
+## Before 0.4.0
+
+A second pass, over the whole tree again and over what 0.4.0 adds: the menu
+row, the comparison, the hash tool, printing, and the setup on macOS and Linux.
+Every fix from the first pass above was still in place. What it found:
+
+- **High — a repository could still run a program.** The check in `git.rs`
+  read `git config --local`, which is `.git/config` alone: it follows no
+  `include.path` and does not list `.git/config.worktree`. A clean filter in an
+  included file passed the check and ran on the next `git status` — every eight
+  seconds for a freshly unzipped project, whose timestamps never match the
+  index. Reproduced with git 2.54. Now the check reads
+  `git config --list --includes --show-scope`, judges the `local` and
+  `worktree` scopes (an included file carries the scope that included it),
+  and refuses any `include`/`includeIf` key outright. A test runs the exploit
+  against a real git.
+- **High — submodules.** A submodule's config lives in
+  `.git/modules/<name>/config`, which nothing checked, and a status of the
+  parent runs a status inside each submodule. Status now passes
+  `--ignore-submodules=all`, and every git call sets
+  `diff.ignoreSubmodules=all`.
+- **Medium — a verdict for the whole run.** A repository judged safe stayed
+  safe until the app closed, whatever happened to its config afterwards. The
+  verdict now holds for five seconds.
+- **Medium — the signing key and dependency build code shared a job.** Taking
+  the key out of `process.env` inside `build-setup.mjs` did not take it out of
+  the shell that started it, and a `build.rs` running as the same user could
+  also have rewritten the signer in `node_modules` or planted a git hook for
+  the feed push. The release is now build jobs with no secrets, a `sign` job
+  that installs nothing from the workspace and signs with a separately
+  installed CLI, and a `publish` job that builds nothing. The release build
+  jobs also stopped restoring the pnpm cache, which the paragraph under
+  "Checked and fine" had claimed they never did.
+- **Low — `cmd` from the temp folder.** The uninstaller's self-delete ran
+  `cmd` by bare name from its copy in `%TEMP%`, where Windows looks first. It
+  uses the absolute path from the system directory now.
+
+The new surface, checked and fine: the printed copy is built with
+`textContent`; the rename refuses separators, `..` and reserved characters
+before a path is ever joined; the hash of a file refuses pipes and devices
+the way reading one does; the menus and the compare bar render file names as
+text. On macOS and Linux the setup installs per user, refuses a target that is
+a symlink pointing elsewhere, and removes only files it wrote.
+
 ## Accepted, for now
 
 - **Microsoft's WebView2 bootstrapper is downloaded and run.** Over https, from
@@ -404,7 +448,7 @@ except the one job that publishes. CI references no secret at all; the release
 job has two, the signing key and the token that writes the feed branch, and each
 reaches exactly the step that needs it through `env:` — both under
 [Since 0.1.0](#since-010). The release build
-restores no cache, so a malicious pull request cannot poison what it compiles,
+restores no cache (since 0.4.0 — see above), so a malicious pull request cannot poison what it compiles,
 and the artifact glob can only match what the build just produced. Dependency
 installs cannot run arbitrary scripts: one package is allowed to build and the
 lockfiles resolve everything from the default registry. DLLs load from System32
