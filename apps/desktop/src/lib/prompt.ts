@@ -14,6 +14,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import { t } from './i18n';
 
 export type PromptChoice = {
   id: string;
@@ -27,6 +28,8 @@ export type PromptRequest = {
   title: string;
   body?: string;
   choices: PromptChoice[];
+  /** A one-line text field above the buttons, for {@link askText}. */
+  input?: { value: string; label: string };
 };
 
 let queue: readonly PromptRequest[] = [];
@@ -67,6 +70,55 @@ export function ask(
     queue = [...queue, { id, title, body, choices }];
     announce();
   });
+}
+
+/**
+ * A question with a text field: a new file name, say.
+ *
+ * Resolves with what was typed when the user confirms, and `null` when they
+ * back out. The value travels through {@link setPromptInput} while they type,
+ * so the dialog component holds no state of its own.
+ */
+export async function askText(
+  title: string,
+  body: string | undefined,
+  options: { value: string; label: string; confirm: string },
+): Promise<string | null> {
+  counter += 1;
+  const id = counter;
+  const answer = await new Promise<string>((resolve) => {
+    resolvers.set(id, resolve);
+    queue = [
+      ...queue,
+      {
+        id,
+        title,
+        body,
+        input: { value: options.value, label: options.label },
+        choices: [
+          { id: 'ok', label: options.confirm, tone: 'primary' },
+          { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+        ],
+      },
+    ];
+    announce();
+  });
+  const value = typed.get(id) ?? options.value;
+  typed.delete(id);
+  return answer === 'ok' ? value : null;
+}
+
+/** What is in the text field of a request, as the user types it. */
+const typed = new Map<number, string>();
+
+export function setPromptInput(id: number, value: string): void {
+  typed.set(id, value);
+  queue = queue.map((request) =>
+    request.id === id && request.input
+      ? { ...request, input: { ...request.input, value } }
+      : request,
+  );
+  announce();
 }
 
 export function answerPrompt(id: number, choice: string): void {

@@ -20,6 +20,7 @@
 
 pub mod encoding;
 pub mod error;
+pub mod hash;
 pub mod listing;
 pub mod read;
 pub mod search;
@@ -32,6 +33,7 @@ pub use encoding::{
     EncodingSource, Eol, ENCODINGS,
 };
 pub use error::{FsError, FsResult};
+pub use hash::{hash_file, hash_text, HashAlgorithm};
 pub use listing::{
     create_dir, create_file, join_path, list_dir, path_info, places, rename_path, DirEntry,
     DirEntryKind, PathInfo, Place, PlaceIcon,

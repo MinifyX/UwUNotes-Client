@@ -25,6 +25,18 @@ const PATHS = {
   folderPlus:
     'M1.5 4a1 1 0 0 1 1-1h3L7 4.5h6.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z M8 6.6v3.6 M6.2 8.4h3.6',
   save: 'M2.5 3.5a1 1 0 0 1 1-1h6.6l2.4 2.4v7.6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z M5 2.5v3.5h4.5V2.5 M4.5 9.5h7v4.5h-7Z',
+  // Two disks, the back one peeking out: "all of them".
+  saveAll:
+    'M4.5 5.5a1 1 0 0 1 1-1h5.4l2.1 2.1v6.9a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1Z M6.8 4.5v2.6h3.6V4.5 M6.5 10.5h4.5v3.5H6.5Z M2.5 11V3a1 1 0 0 1 1-1h6',
+  fileClose:
+    'M4 1.5h5l3.5 3.5V14a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5Z M9 1.5V5h3.5 M6.3 8.3l3.4 3.4 M9.7 8.3l-3.4 3.4',
+  // Two sheets, the front one crossed out.
+  closeAll:
+    'M5.5 3.5h4.8l3.2 3.2v7.3a.5.5 0 0 1-.5.5H5.5a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5Z M2.5 12V2a.5.5 0 0 1 .5-.5h5 M7.6 9.1l3.3 3.3 M10.9 9.1l-3.3 3.3',
+  print:
+    'M4.5 5.5v-4h7v4 M4.5 11.5h-2a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-2 M4.5 9.5h7v5h-7Z M12 7.5h.01',
+  // Two columns with a changed line marked across both.
+  diff: 'M1.5 2.5h5.5v11H1.5z M9 2.5h5.5v11H9z M3 6h2.5 M10.5 6H13 M3 9h2.5 M10.5 9H13',
   search: 'M7 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z M10.6 10.6 14.5 14.5',
   replace: 'M2.5 4.5h8 M8.5 2.5 10.5 4.5 8.5 6.5 M13.5 11.5h-8 M7.5 9.5 5.5 11.5 7.5 13.5',
   splitH: 'M1.5 2.5h13v11h-13z M8 2.5v11',

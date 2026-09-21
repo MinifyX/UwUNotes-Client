@@ -76,8 +76,8 @@ const MIDNIGHT: ThemeValues = {
   '--uwu-code-link': '#a8cdf5',
   '--uwu-code-invalid': '#ff8080',
   '--uwu-code-cursor': '#ff4d8d',
-  '--uwu-code-selection': '#2a2f4a',
-  '--uwu-code-selection-blur': '#1b1f30',
+  '--uwu-code-selection': '#3f4c85',
+  '--uwu-code-selection-blur': '#2a3154',
   '--uwu-code-match': '#1f2438',
   '--uwu-code-match-active': '#3c4468',
   '--uwu-code-active-line': '#0d0f1a',
@@ -115,8 +115,8 @@ const PAPER: ThemeValues = {
   '--uwu-code-link': '#1a5b8f',
   '--uwu-code-invalid': '#c62828',
   '--uwu-code-cursor': '#c2185b',
-  '--uwu-code-selection': '#f5ddc9',
-  '--uwu-code-selection-blur': '#ece5d8',
+  '--uwu-code-selection': '#f0c091',
+  '--uwu-code-selection-blur': '#ead8bf',
   '--uwu-code-match': '#f7e9d6',
   '--uwu-code-match-active': '#eccba1',
   '--uwu-code-active-line': '#f8f3ea',
@@ -162,9 +162,9 @@ const HIGH_CONTRAST: ThemeValues = {
   '--uwu-code-link': '#8ed4ff',
   '--uwu-code-invalid': '#ff7a7a',
   '--uwu-code-cursor': '#ff5c9e',
-  // Dark enough that white text stays at 12:1 on top of it, which is what a
+  // Dark enough that white text stays above 9:1 on top of it, which is what a
   // selection has to be: a highlight you cannot read through is a redaction.
-  '--uwu-code-selection': '#6b0d38',
+  '--uwu-code-selection': '#8a1149',
   '--uwu-code-selection-blur': '#33202a',
   '--uwu-code-match': '#2e2e34',
   '--uwu-code-match-active': '#7d1046',

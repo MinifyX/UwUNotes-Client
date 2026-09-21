@@ -9,6 +9,11 @@ rust-version.workspace = true
 
 [dependencies]
 chardetng.workspace = true
+# Tools → Hash. The RustCrypto digests: pure Rust, no C, one trait over all six.
+digest = { version = "0.10", features = ["alloc"] }
+md5 = { package = "md-5", version = "0.10" }
+sha1 = "0.10"
+sha2 = "0.10"
 encoding_rs.workspace = true
 grep-matcher.workspace = true
 grep-regex.workspace = true

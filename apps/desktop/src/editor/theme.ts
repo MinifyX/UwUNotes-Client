@@ -142,8 +142,17 @@ export const uwuChrome: Extension = EditorView.theme(
       backgroundColor: 'var(--uwu-code-match-active)',
     },
 
+    // Half see-through: the active line is painted on the line itself, which
+    // sits *above* CodeMirror's selection layer. Opaque, it hid the selection
+    // on exactly the line the caret is on — the last line of a Ctrl+A.
     '.cm-activeLine': {
-      backgroundColor: 'var(--uwu-code-active-line)',
+      backgroundColor: 'color-mix(in srgb, var(--uwu-code-active-line) 50%, transparent)',
+    },
+    // The selection, drawn to be seen: a hairline of the caret colour around
+    // each selected run on top of the fill, so a selection still reads as one
+    // on a theme whose selection colour is close to its active line.
+    '&.cm-focused .cm-selectionBackground': {
+      boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--uwu-code-cursor) 45%, transparent)',
     },
 
     '.cm-gutters': {

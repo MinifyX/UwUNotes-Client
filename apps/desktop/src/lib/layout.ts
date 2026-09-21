@@ -35,6 +35,36 @@ export type LayoutNode =
 export const MIN_RATIO = 0.12;
 export const MAX_RATIO = 0.88;
 
+/**
+ * Two files side by side, or three — and no more.
+ *
+ * Past three, every pane on a laptop screen is narrower than a line of code,
+ * and the tree stops being a layout anyone can read. Splitting a fourth time
+ * is refused rather than squeezed.
+ */
+export const MAX_PANES = 3;
+
+/**
+ * `ids` as columns of equal width, left to right.
+ *
+ * Built as a chain — the first column, then a split of everything after it —
+ * with each ratio set so every column ends up the same width: a third and then
+ * a half for three, a half for two.
+ */
+export function columnsLayout(ids: readonly PaneId[]): LayoutNode | null {
+  const [first, ...rest] = ids;
+  if (first === undefined) return null;
+  const tail = columnsLayout(rest);
+  if (!tail) return singlePane(first);
+  return {
+    kind: 'split',
+    direction: 'horizontal',
+    ratio: 1 / ids.length,
+    first: singlePane(first),
+    second: tail,
+  };
+}
+
 let paneCounter = 0;
 
 export function newPaneId(): string {

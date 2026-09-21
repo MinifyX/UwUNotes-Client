@@ -4,6 +4,7 @@
  */
 
 import app from './app.json';
+import chrome from './chrome.json';
 import editor from './editor.json';
 import files from './files.json';
 import macros from './macros.json';
@@ -13,6 +14,7 @@ import updates from './updates.json';
 
 export const EN: Readonly<Record<string, string>> = {
   ...app,
+  ...chrome,
   ...files,
   ...editor,
   ...search,

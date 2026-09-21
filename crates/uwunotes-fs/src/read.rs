@@ -178,12 +178,12 @@ pub fn read_file(path: &Path, forced: Option<&str>) -> FsResult<LoadedFile> {
 
 /// Whether an open handle is a file on a disk rather than a pipe or a device.
 #[cfg(windows)]
-fn is_regular_file(file: &fs::File) -> bool {
+pub(crate) fn is_regular_file(file: &fs::File) -> bool {
     crate::windows_api::is_disk_file(file)
 }
 
 #[cfg(not(windows))]
-fn is_regular_file(file: &fs::File) -> bool {
+pub(crate) fn is_regular_file(file: &fs::File) -> bool {
     // Unlike Windows, `is_file` here is already false for a FIFO or a character
     // device, which is the same question `GetFileType` answers over there.
     file.metadata()

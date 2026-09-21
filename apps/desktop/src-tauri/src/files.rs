@@ -118,3 +118,20 @@ pub(crate) fn path_info(path: String) -> PathInfo {
 pub(crate) fn join_path(base: String, name: String) -> String {
     uwunotes_fs::join_path(Path::new(&base), &name)
 }
+
+/// Tools → Hash, for a piece of text: the selection, the whole document, or
+/// whatever was typed into the dialog.
+#[tauri::command(async)]
+pub(crate) fn hash_text(text: String, algorithm: uwunotes_fs::HashAlgorithm) -> String {
+    uwunotes_fs::hash_text(&text, algorithm)
+}
+
+/// Tools → Hash, for a file's bytes as they are on disk — the value a download
+/// page publishes next to the file.
+#[tauri::command(async)]
+pub(crate) fn hash_file(
+    path: String,
+    algorithm: uwunotes_fs::HashAlgorithm,
+) -> CommandResult<String> {
+    uwunotes_fs::hash_file(Path::new(&path), algorithm)
+}

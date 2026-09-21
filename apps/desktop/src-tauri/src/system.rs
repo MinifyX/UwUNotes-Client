@@ -142,3 +142,15 @@ mod tests {
         }
     }
 }
+
+/// File → Print. Through the webview rather than `window.print()` in the page,
+/// because only one of the three webviews answers that call: WebView2 does,
+/// WKWebView on macOS ignores it and needs the native print operation that
+/// `print()` here starts. The page has already put a print-only copy of the
+/// document in place, so what the dialog shows is the text and not the window.
+#[tauri::command]
+pub(crate) fn print_page(window: tauri::WebviewWindow) -> CommandResult<()> {
+    window
+        .print()
+        .map_err(|error| uwunotes_fs::FsError::other(None, error.to_string()))
+}

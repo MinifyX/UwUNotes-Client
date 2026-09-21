@@ -37,8 +37,8 @@
      brand pink is unmissable while typing — the whole reason the app looks
      like part of the suite from across the room. */
   --uwu-code-cursor: #e11d74;
-  --uwu-code-selection: #ffd0e2;
-  --uwu-code-selection-blur: #f2e8ee;
+  --uwu-code-selection: #ffa8cb;
+  --uwu-code-selection-blur: #f5d6e4;
   --uwu-code-match: #ffe4ef;
   --uwu-code-match-active: #ffb0cd;
   --uwu-code-active-line: #fdf6f9;
@@ -70,8 +70,8 @@
   --uwu-code-invalid: #ff8080;
 
   --uwu-code-cursor: #ff4d8d;
-  --uwu-code-selection: #4d2338;
-  --uwu-code-selection-blur: #2c2430;
+  --uwu-code-selection: #7a2150;
+  --uwu-code-selection-blur: #45283a;
   --uwu-code-match: #3a1a2a;
   --uwu-code-match-active: #7a2f4f;
   --uwu-code-active-line: #171320;

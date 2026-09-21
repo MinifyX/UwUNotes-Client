@@ -248,16 +248,16 @@ input[type='radio'] {
 .app {
   height: 100%;
   display: grid;
-  grid-template-rows: 38px minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas:
-    'titlebar'
+    'header'
     'body'
     'update'
     'statusbar';
 }
 
 .titlebar {
-  grid-area: titlebar;
+  height: 36px;
   display: flex;
   align-items: stretch;
   gap: 2px;
@@ -971,10 +971,10 @@ input[type='radio'] {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
-    'splits search'
-    'find search';
+    'compare search'
+    'splits search';
   background: var(--uwu-canvas);
 }
 
@@ -3829,4 +3829,543 @@ input[type='radio'] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ── The three header rows ─────────────────────────────── */
+
+/*
+ * Brand row, menu row, icon row — see `components/TitleBar.tsx`. One grid
+ * area for all three, so the window grid above keeps its four simple rows.
+ */
+.appheader {
+  grid-area: header;
+  display: grid;
+  background: var(--uwu-surface);
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.appheader .titlebar {
+  border-bottom: 0;
+}
+
+.appheader .titlebar-wordmark {
+  font-size: 14px;
+}
+
+.appheader .titlebar-spacer {
+  flex: 1;
+}
+
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 28px;
+  padding: 0 6px;
+}
+
+.menubar-item {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--uwu-ink);
+  font-weight: 500;
+}
+
+.menubar-item:hover:not(:disabled),
+.menubar-item[data-open] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+/* The drop-down lists and their submenus: the context menu's look, because a
+   menu is a menu wherever it opens from. */
+.menulist {
+  position: fixed;
+  z-index: 45;
+  display: grid;
+  align-content: start;
+  min-width: 230px;
+  max-width: 380px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 12px;
+  background: var(--uwu-surface);
+  box-shadow: 0 18px 44px -18px var(--app-shade);
+  animation: contextmenu-in 110ms ease both;
+}
+
+.menulist:focus-visible {
+  outline: none;
+}
+
+.menulist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menulist-item[data-active] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.menulist-item[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.menulist-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.menulist-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menulist-shortcut {
+  flex: none;
+  margin-left: 18px;
+  color: var(--uwu-muted);
+  font-family: var(--uwu-font);
+  font-size: 11.5px;
+}
+
+.menulist-more {
+  color: var(--uwu-muted);
+}
+
+.menulist-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--uwu-hairline);
+}
+
+.menulist-empty {
+  padding: 6px 10px;
+  color: var(--uwu-muted);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 8px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.toolbar-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.toolbar-button[aria-pressed='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--uwu-hairline);
+}
+
+/* ── Compare bar ───────────────────────────────────────── */
+
+.comparebar {
+  grid-area: compare;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 10px;
+  background: var(--uwu-surface);
+  border-bottom: 1px solid var(--uwu-hairline);
+  font-size: 12.5px;
+}
+
+.comparebar-icon {
+  color: var(--uwu-muted);
+}
+
+.comparebar-files {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.comparebar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* The same red and green as the lines they name. */
+.comparebar-name-a {
+  color: var(--uwu-code-deleted);
+}
+
+.comparebar-name-b {
+  color: var(--uwu-code-added);
+}
+
+.comparebar-status {
+  color: var(--uwu-muted);
+  white-space: nowrap;
+}
+
+.comparebar-spacer {
+  flex: 1;
+}
+
+.comparebar-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+.comparebar-sync {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.comparebar-close {
+  padding: 4px 11px;
+}
+
+/* ── Search window ─────────────────────────────────────── */
+
+/*
+ * Floats in the top-right corner of the editors instead of taking a row: the
+ * text under it stays where it was, and the window is small enough to keep
+ * out of the way of what it found.
+ */
+.app-editors > .findbar {
+  grid-area: auto;
+  position: absolute;
+  z-index: 30;
+  top: 44px;
+  right: 22px;
+  width: min(380px, calc(100% - 44px));
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px -18px var(--app-shade);
+}
+
+.findbar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.findbar-tabs {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+}
+
+.findbar-tab {
+  padding: 4px 10px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-weight: 600;
+}
+
+.findbar-tab[aria-selected='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.findbar-label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+.app-editors > .findbar .findbar-input {
+  padding: 6px 9px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+  color: var(--uwu-ink);
+  font-family: var(--uwu-mono);
+}
+
+.app-editors > .findbar .findbar-input:focus {
+  border-color: var(--uwu-pink);
+  outline: none;
+}
+
+.findbar-status {
+  min-height: 16px;
+}
+
+.app-editors > .findbar .findbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: 0;
+}
+
+.app-editors > .findbar .findbar-primary {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.findbar-advanced-toggle {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--uwu-muted);
+  font-weight: 500;
+}
+
+.findbar-advanced-toggle:hover:not(:disabled) {
+  background: transparent;
+  color: var(--uwu-ink);
+}
+
+.findbar-advanced-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--uwu-pink);
+}
+
+.findbar-advanced {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--uwu-canvas);
+}
+
+.findbar-advanced label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Hash tool ─────────────────────────────────────────── */
+
+.hashtool {
+  display: grid;
+  gap: 12px;
+}
+
+.hashtool-algorithms,
+.hashtool-sources,
+.hashtool-fill {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hashtool-algorithm,
+.hashtool-source {
+  padding: 5px 11px;
+}
+
+.hashtool-algorithm[aria-checked='true'],
+.hashtool-source[aria-selected='true'] {
+  background: var(--uwu-pink-tint);
+  border-color: var(--uwu-pink);
+  color: var(--uwu-pink-ink);
+}
+
+.hashtool-note {
+  font-size: 12px;
+  color: var(--uwu-code-modified);
+}
+
+.hashtool-text {
+  min-height: 110px;
+  resize: vertical;
+  font-family: var(--uwu-mono);
+}
+
+.hashtool-pick {
+  justify-self: start;
+}
+
+.hashtool-empty {
+  color: var(--uwu-muted);
+}
+
+.hashtool-files {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.hashtool-file-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+.hashtool-error {
+  color: var(--uwu-alarm);
+  font-size: 12px;
+}
+
+.hashtool-digest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--uwu-border);
+  border-radius: 10px;
+  background: var(--uwu-canvas);
+}
+
+.hashtool-digest[data-state='match'] {
+  border-color: var(--uwu-code-added);
+}
+
+.hashtool-digest[data-state='differ'] {
+  border-color: var(--uwu-code-deleted);
+}
+
+.hashtool-digest-label {
+  flex: none;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* A checksum is meant to be copied out: selectable, and broken anywhere
+   rather than pushing the dialog wider. */
+.hashtool-digest-value {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.hashtool-verdict {
+  flex: none;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.hashtool-digest[data-state='match'] .hashtool-verdict {
+  color: var(--uwu-code-added);
+}
+
+.hashtool-digest[data-state='differ'] .hashtool-verdict {
+  color: var(--uwu-code-deleted);
+}
+
+.hashtool-expected {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+.hashtool-expected input {
+  font-family: var(--uwu-mono);
+}
+
+.prompt-input {
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ── Printing ──────────────────────────────────────────── */
+
+/*
+ * `lib/print.ts` puts a plain copy of the document in `.print-root`. On
+ * screen it does not exist; on paper it is the only thing there is.
+ *
+ * The one place in this file with literal colours, on purpose: paper is white
+ * whatever the theme is, and a dark theme's near-white ink printed on it
+ * would be an empty page.
+ */
+.print-root {
+  display: none;
+}
+
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: white;
+    color: black;
+  }
+
+  #root {
+    display: none;
+  }
+
+  .print-root {
+    display: block;
+  }
+
+  .print-header {
+    margin-bottom: 10pt;
+    padding-bottom: 4pt;
+    border-bottom: 0.5pt solid gray;
+    font-family: var(--uwu-font);
+    font-size: 9pt;
+    color: dimgray;
+  }
+
+  .print-body {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: black;
+    font-family: var(--uwu-mono);
+    font-size: 9.5pt;
+    line-height: 1.4;
+  }
 }

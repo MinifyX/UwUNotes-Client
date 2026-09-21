@@ -32,6 +32,11 @@ export function viewFor(pane: PaneId): EditorView | undefined {
   return views.get(pane);
 }
 
+/** Every mounted editor, for things that change how all of them draw. */
+export function allViews(): EditorView[] {
+  return [...views.values()];
+}
+
 export function activeView(): EditorView | undefined {
   return views.get(getWorkspace().activePane);
 }

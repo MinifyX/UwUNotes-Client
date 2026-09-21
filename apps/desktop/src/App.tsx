@@ -15,7 +15,9 @@
  */
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useSidebarOpen } from './lib/chrome';
+import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
 import { documentsVersion, subscribeDocuments } from './lib/documents';
 import { closeAllSafely, openPaths, startFileWatchers } from './lib/files';
@@ -26,6 +28,8 @@ import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
 import { AboutDialog } from './components/AboutDialog';
+import { CompareBar } from './components/CompareBar';
+import { HashDialog } from './components/HashDialog';
 import { CommandPalette } from './components/CommandPalette';
 import { FindBar } from './components/FindBar';
 import { GoToLine } from './components/GoToLine';
@@ -42,38 +46,13 @@ import { PromptHost } from './components/PromptHost';
 import { Nyu } from './components/nyu/Nyu';
 import { pickGreeting } from './components/nyu/greetings';
 
-/** Whether the sidebar was showing last time. Per machine, not per session file. */
-const SIDEBAR_KEY = 'uwunotes.sidebar';
-
-function loadSidebarOpen(): boolean {
-  try {
-    return window.localStorage.getItem(SIDEBAR_KEY) !== 'closed';
-  } catch {
-    // Storage can be unavailable in a locked-down webview; showing it is the
-    // friendlier default for someone who has never seen the window before.
-    return true;
-  }
-}
-
 export function App() {
   useLanguage();
   const [ready, setReady] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
+  const sidebarOpen = useSidebarOpen();
   const { dialog } = useUiState();
   const workspace = useWorkspace();
   const version = useSyncExternalStore(subscribeDocuments, documentsVersion);
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((open) => {
-      const next = !open;
-      try {
-        window.localStorage.setItem(SIDEBAR_KEY, next ? 'open' : 'closed');
-      } catch {
-        // The preference is lost on restart; the window is still correct now.
-      }
-      return next;
-    });
-  }, []);
 
   // The tabs come back before anything is drawn, so the first real paint is the
   // window the user left rather than an empty one that fills in afterwards.
@@ -94,24 +73,7 @@ export function App() {
   useEffect(() => startFileWatchers(), []);
   useEffect(() => startGitWatch(), []);
   useEffect(() => startUpdateCheck(), []);
-
-  /**
-   * Ctrl+B, for the sidebar.
-   *
-   * Here rather than in `lib/shortcuts.ts`, because the state it toggles lives
-   * here: a binding in the shared table would have to reach back into this
-   * component through a global, which is a lot of machinery for one boolean.
-   */
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
-      if (event.code !== 'KeyB') return;
-      event.preventDefault();
-      toggleSidebar();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [toggleSidebar]);
+  useEffect(() => installWheelZoom(), []);
 
   // `version` and `workspace` are not read, only depended on: between them they
   // cover every change the title is built from — the active tab, the file name,
@@ -179,11 +141,12 @@ export function App() {
 
   return (
     <div className="app" data-sidebar={sidebarOpen ? 'open' : 'closed'}>
-      <TitleBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
+      <TitleBar />
 
       <div className="app-body">
         {sidebarOpen ? <Sidebar /> : null}
         <div className="app-editors">
+          <CompareBar />
           <SplitContainer />
           {/* A bar and a panel, never a dialog: both of these are about the text
               behind them, and a modal over that text hides the answer. `find`
@@ -209,6 +172,7 @@ export function App() {
       {dialog === 'macros' ? <MacroDialog /> : null}
       {dialog === 'settings' ? <SettingsDialog /> : null}
       {dialog === 'about' ? <AboutDialog /> : null}
+      {dialog === 'hash' ? <HashDialog /> : null}
     </div>
   );
 }

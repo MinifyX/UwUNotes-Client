@@ -43,6 +43,7 @@ const BINDINGS: readonly Binding[] = [
   { code: 'KeyW', shift: false, command: 'file.close' },
   { code: 'KeyW', shift: true, command: 'file.closeAll' },
   { code: 'KeyT', shift: true, command: 'file.reopenClosed' },
+  { code: 'KeyP', shift: false, command: 'file.print' },
 
   { code: 'Tab', shift: false, command: 'tab.next' },
   { code: 'Tab', shift: true, command: 'tab.previous' },
@@ -58,6 +59,8 @@ const BINDINGS: readonly Binding[] = [
   { code: 'KeyD', shift: true, command: 'view.splitDown' },
   { code: 'KeyQ', shift: true, command: 'view.closePane' },
   { code: 'KeyM', shift: true, command: 'view.moveTabToOtherPane' },
+  { code: 'KeyB', shift: false, command: 'view.toggleSidebar' },
+  { code: 'KeyC', shift: true, command: 'view.compare' },
 
   { code: 'KeyF', shift: false, command: 'find.find' },
   { code: 'KeyF', shift: true, command: 'find.inFiles' },
@@ -94,6 +97,7 @@ const LABELS: Record<string, readonly string[]> = {
   'file.close': [CTRL, 'W'],
   'file.closeAll': [CTRL, SHIFT, 'W'],
   'file.reopenClosed': [CTRL, SHIFT, 'T'],
+  'file.print': [CTRL, 'P'],
   'tab.next': [CTRL, 'Tab'],
   'tab.previous': [CTRL, SHIFT, 'Tab'],
   'view.splitRight': [CTRL, SHIFT, 'E'],
@@ -101,6 +105,12 @@ const LABELS: Record<string, readonly string[]> = {
   'view.closePane': [CTRL, SHIFT, 'Q'],
   'view.nextPane': ['F6'],
   'view.moveTabToOtherPane': [CTRL, SHIFT, 'M'],
+  'view.toggleSidebar': [CTRL, 'B'],
+  'view.columns2': [CTRL, SHIFT, '2'],
+  'view.columns3': [CTRL, SHIFT, '3'],
+  'view.compare': [CTRL, SHIFT, 'C'],
+  'view.nextDifference': ['F8'],
+  'view.previousDifference': [SHIFT, 'F8'],
   'view.zoomIn': [CTRL, '+'],
   'view.zoomOut': [CTRL, '-'],
   'view.zoomReset': [CTRL, '0'],
@@ -245,7 +255,21 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
     return () => cyclePane(back);
   }
 
+  // F8 walks the differences of a comparison, like WinMerge's Alt+Down but
+  // without the Alt that AltGr would turn into a brace.
+  if (event.code === 'F8' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    const command = event.shiftKey ? 'view.previousDifference' : 'view.nextDifference';
+    return () => runCommand(command);
+  }
+
   if (!event.ctrlKey || event.altKey || event.metaKey) return null;
+
+  // Ctrl+Shift+2 and Ctrl+Shift+3: two or three files side by side. By code,
+  // so the key printed 2 works whatever Shift turns it into on this layout.
+  if (event.shiftKey && (event.code === 'Digit2' || event.code === 'Digit3')) {
+    const command = event.code === 'Digit2' ? 'view.columns2' : 'view.columns3';
+    return () => runCommand(command);
+  }
 
   // Zoom by printed character: whichever key makes a plus is the one the user
   // will reach for, and on QWERTZ that is not where `Equal` is.

@@ -131,6 +131,19 @@ export const pathInfo = (path: string) => invoke<PathInfo>('path_info', { path }
 /** Joins with the platform's separator, so the page never guesses the slash. */
 export const joinPath = (base: string, name: string) => invoke<string>('join_path', { base, name });
 
+/* ── Tools ─────────────────────────────────────────────── */
+
+/** Tools → Hash. The wire names match `HashAlgorithm` in `uwunotes-fs`. */
+export type HashAlgorithm = 'md5' | 'sha1' | 'sha224' | 'sha256' | 'sha384' | 'sha512';
+
+/** Lower-case hex of the text's UTF-8 bytes. */
+export const hashText = (text: string, algorithm: HashAlgorithm) =>
+  invoke<string>('hash_text', { text, algorithm });
+
+/** Lower-case hex of the file's bytes, exactly as they are on disk. */
+export const hashFile = (path: string, algorithm: HashAlgorithm) =>
+  invoke<string>('hash_file', { path, algorithm });
+
 /* ── Dialogs ───────────────────────────────────────────── */
 
 export const pickFiles = () => invoke<string[]>('pick_files');
@@ -319,6 +332,9 @@ export type AppInfo = { version: string; platform: string; configDir: string };
 export const appInfo = () => invoke<AppInfo>('app_info');
 
 export const openExternal = (url: string) => invoke<void>('open_external', { url });
+
+/** Opens the system's print dialog for what the page currently shows for print. */
+export const printPage = () => invoke<void>('print_page');
 
 export const revealInFileManager = (path: string) =>
   invoke<void>('reveal_in_file_manager', { path });

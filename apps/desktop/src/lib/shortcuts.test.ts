@@ -151,7 +151,7 @@ describe('the default action', () => {
   it('is left alone for everything else', () => {
     // An editor that swallows the keys it has no use for is an editor that
     // breaks typing, so this is the more important half of the pair.
-    expect(press({ code: 'KeyB', key: 'b', ctrl: true }).defaultPrevented).toBe(false);
+    expect(press({ code: 'KeyJ', key: 'j', ctrl: true }).defaultPrevented).toBe(false);
     expect(press({ code: 'KeyK', key: 'k', ctrl: true, shift: true }).defaultPrevented).toBe(false);
     expect(press({ code: 'KeyA', key: 'a' }).defaultPrevented).toBe(false);
     expect(press({ code: 'Space', key: ' ' }).defaultPrevented).toBe(false);

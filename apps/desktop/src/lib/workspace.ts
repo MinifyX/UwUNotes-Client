@@ -18,6 +18,8 @@ import { useSyncExternalStore } from 'react';
 import type { DocId } from './documents';
 import { closeDoc, getMeta } from './documents';
 import {
+  columnsLayout,
+  MAX_PANES,
   newPaneId,
   nextPane,
   paneIds,
@@ -237,10 +239,11 @@ function dropPane(workspace: Workspace, pane: PaneId): Workspace {
  * With only one tab open the document moves across, leaving an empty pane
  * behind rather than duplicating the editor.
  */
-export function splitActivePane(direction: SplitDirection, moveActiveTab = true) {
+export function splitActivePane(direction: SplitDirection, moveActiveTab = true): boolean {
   const source = current.activePane;
   const pane = current.panes[source];
-  if (!pane) return;
+  if (!pane) return false;
+  if (!canSplit()) return false;
   const created = newPaneId();
   const layout = splitPane(current.layout, source, direction, created);
   const moving = moveActiveTab ? pane.active : null;
@@ -256,6 +259,64 @@ export function splitActivePane(direction: SplitDirection, moveActiveTab = true)
     },
     activePane: created,
   });
+  return true;
+}
+
+/** Whether another pane fits. See `MAX_PANES` in `lib/layout.ts`. */
+export function canSplit(): boolean {
+  return paneIds(current.layout).length < MAX_PANES;
+}
+
+/**
+ * One, two or three files side by side, in equal columns.
+ *
+ * The panes that exist are kept, in reading order, and laid out again as
+ * columns — so a vertical split becomes a horizontal one, which is what
+ * "side by side" asks for. Panes past `count` are folded into the last
+ * column that stays, tabs and all. A column that has to be created takes the
+ * tab after the active one from the busiest pane, so two columns usually means
+ * two different files at once; when there is no spare tab it stays empty and
+ * says how to fill it.
+ */
+export function arrangeColumns(count: number) {
+  const wanted = Math.max(1, Math.min(MAX_PANES, Math.round(count)));
+  let ids = paneIds(current.layout);
+  const panes: Record<PaneId, Pane> = {};
+  for (const id of ids) panes[id] = { ...current.panes[id]! };
+  let activePane = current.activePane;
+
+  // Too many: everything past the last kept column moves into it.
+  while (ids.length > wanted) {
+    const gone = ids[ids.length - 1]!;
+    const keep = ids[wanted - 1]!;
+    ids = ids.slice(0, -1);
+    const from = panes[gone]!;
+    const into = panes[keep]!;
+    panes[keep] = { tabs: [...into.tabs, ...from.tabs], active: into.active ?? from.active };
+    delete panes[gone];
+    if (activePane === gone) activePane = keep;
+  }
+
+  // Too few: new columns, each borrowing a spare tab where there is one.
+  while (ids.length < wanted) {
+    const created = newPaneId();
+    const donor = [...ids].sort((a, b) => panes[b]!.tabs.length - panes[a]!.tabs.length)[0];
+    let moving: DocId | null = null;
+    if (donor && panes[donor]!.tabs.length > 1) {
+      const pane = panes[donor]!;
+      const at = pane.active ? pane.tabs.indexOf(pane.active) : -1;
+      moving = pane.tabs[(at + 1) % pane.tabs.length] ?? null;
+      if (moving === pane.active) moving = null;
+      if (moving) panes[donor] = { ...pane, tabs: pane.tabs.filter((id) => id !== moving) };
+    }
+    panes[created] = { tabs: moving ? [moving] : [], active: moving };
+    ids = [...ids, created];
+  }
+
+  const layout = columnsLayout(ids);
+  if (!layout) return;
+  if (!panes[activePane]) activePane = ids[0]!;
+  commit({ ...current, layout, panes, activePane });
 }
 
 /** Closes a pane, moving whatever was open in it into the pane that remains. */

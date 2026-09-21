@@ -15,7 +15,13 @@
  * call site in the app writes as the one that backs out.
  */
 
-import { answerPrompt, dismissPrompt, usePrompt, type PromptChoice } from '../lib/prompt';
+import {
+  answerPrompt,
+  dismissPrompt,
+  setPromptInput,
+  usePrompt,
+  type PromptChoice,
+} from '../lib/prompt';
 import { useLanguage } from '../lib/i18n';
 import { Modal } from './Modal';
 
@@ -49,7 +55,7 @@ export function PromptHost() {
               type="button"
               className="prompt-choice"
               data-tone={choice.tone ?? 'primary'}
-              data-autofocus={choice.id === safe?.id ? true : undefined}
+              data-autofocus={!request.input && choice.id === safe?.id ? true : undefined}
               onClick={() => answerPrompt(request.id, choice.id)}
             >
               {choice.label}
@@ -59,6 +65,23 @@ export function PromptHost() {
       }
     >
       {request.body ? <p className="prompt-body">{request.body}</p> : null}
+      {request.input ? (
+        <input
+          className="prompt-input"
+          type="text"
+          value={request.input.value}
+          aria-label={request.input.label}
+          spellCheck={false}
+          autoComplete="off"
+          data-autofocus
+          onChange={(event) => setPromptInput(request.id, event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            answerPrompt(request.id, request.choices[0]?.id ?? '');
+          }}
+        />
+      ) : null}
     </Modal>
   );
 }

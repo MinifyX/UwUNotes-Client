@@ -28,14 +28,16 @@ import {
   openFileDialog,
   openFolderDialog,
   reopenClosedTab,
+  renameDoc,
   reopenWithEncoding,
   saveAll,
+  saveCopyAs,
   saveDoc,
   setDocEncoding,
   setDocEol,
 } from './files';
 import { t } from './i18n';
-import { nextPane, paneCount } from './layout';
+import { MAX_PANES, nextPane, paneCount } from './layout';
 import {
   hasLastRecording,
   isRecording,
@@ -49,18 +51,19 @@ import {
   stopRecording,
 } from './macros';
 import { ask } from './prompt';
-import {
-  DEFAULT_SETTINGS,
-  FONT_SIZE_MAX,
-  FONT_SIZE_MIN,
-  getSettings,
-  updateSettings,
-} from './settings';
+import { getSettings, updateSettings } from './settings';
 import { macroShortcutText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, focusActiveView } from './views';
+import { toggleSidebar } from './chrome';
+import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
+import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
+import { printDoc } from './print';
+import { getZoom, resetZoom, stepZoom, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from './zoom';
 import {
   activeDocId,
+  arrangeColumns,
+  canSplit,
   closePane,
   cyclePane,
   cycleTab,
@@ -91,7 +94,15 @@ export type Command = {
  * three Escape presses and no idea which one is listening.
  */
 export type DialogName =
-  'palette' | 'find' | 'replace' | 'projectSearch' | 'gotoLine' | 'macros' | 'settings' | 'about';
+  | 'palette'
+  | 'find'
+  | 'replace'
+  | 'projectSearch'
+  | 'gotoLine'
+  | 'macros'
+  | 'settings'
+  | 'about'
+  | 'hash';
 
 export type UiState = { readonly dialog: DialogName | null };
 
@@ -145,6 +156,7 @@ export function allCommands(): Command[] {
     ...eolCommands(),
     ...languageCommands(),
     ...macroCommands(),
+    ...toolCommands(),
     ...extensionCommands(),
     ...appCommands(),
   ];
@@ -260,11 +272,42 @@ function fileCommands(): Command[] {
       },
     },
     {
+      id: 'file.saveCopyAs',
+      title: () => t('Kopie speichern unter…'),
+      group,
+      enabled: hasDoc,
+      run: async () => {
+        const id = activeDocId();
+        if (id) await saveCopyAs(id);
+      },
+    },
+    {
       id: 'file.saveAll',
       title: () => t('Alles speichern'),
       group,
       enabled: () => allDocs().some((doc) => doc.meta.dirty),
       run: saveAll,
+    },
+    {
+      id: 'file.rename',
+      title: () => t('Umbenennen…'),
+      group,
+      enabled: hasDoc,
+      run: async () => {
+        const id = activeDocId();
+        if (id) await renameDoc(id);
+      },
+    },
+    {
+      id: 'file.print',
+      title: () => t('Drucken…'),
+      group,
+      shortcut: shortcutLabel('file.print'),
+      enabled: hasDoc,
+      run: async () => {
+        const id = activeDocId();
+        if (id) await printDoc(id);
+      },
     },
     {
       id: 'file.close',
@@ -389,14 +432,74 @@ function viewCommands(): Command[] {
       title: () => t('Nach rechts teilen'),
       group,
       shortcut: shortcutLabel('view.splitRight'),
-      run: () => splitActivePane('horizontal'),
+      enabled: canSplit,
+      run: () => void splitActivePane('horizontal'),
     },
     {
       id: 'view.splitDown',
       title: () => t('Nach unten teilen'),
       group,
       shortcut: shortcutLabel('view.splitDown'),
-      run: () => splitActivePane('vertical'),
+      enabled: canSplit,
+      run: () => void splitActivePane('vertical'),
+    },
+    {
+      id: 'view.columns1',
+      title: () => t('Ein Bereich'),
+      group,
+      enabled: split,
+      run: () => arrangeColumns(1),
+    },
+    {
+      id: 'view.columns2',
+      title: () => t('Zwei Tabs nebeneinander'),
+      group,
+      shortcut: shortcutLabel('view.columns2'),
+      run: () => arrangeColumns(2),
+    },
+    {
+      id: 'view.columns3',
+      title: () => t('Drei Tabs nebeneinander'),
+      group,
+      shortcut: shortcutLabel('view.columns3'),
+      run: () => arrangeColumns(MAX_PANES),
+    },
+    {
+      id: 'view.compare',
+      title: () => (getCompare().active ? t('Vergleich beenden') : t('Zwei Dateien vergleichen')),
+      group,
+      shortcut: shortcutLabel('view.compare'),
+      run: toggleCompare,
+    },
+    {
+      id: 'view.compareSyncScroll',
+      title: () => t('Synchron scrollen'),
+      group,
+      enabled: () => getCompare().active,
+      run: () => setSyncScroll(!getCompare().syncScroll),
+    },
+    {
+      id: 'view.nextDifference',
+      title: () => t('Nächster Unterschied'),
+      group,
+      shortcut: shortcutLabel('view.nextDifference'),
+      enabled: () => (getCompare().differences ?? 0) > 0,
+      run: () => gotoDifference(),
+    },
+    {
+      id: 'view.previousDifference',
+      title: () => t('Vorheriger Unterschied'),
+      group,
+      shortcut: shortcutLabel('view.previousDifference'),
+      enabled: () => (getCompare().differences ?? 0) > 0,
+      run: () => gotoDifference(true),
+    },
+    {
+      id: 'view.toggleSidebar',
+      title: () => t('Seitenleiste'),
+      group,
+      shortcut: shortcutLabel('view.toggleSidebar'),
+      run: toggleSidebar,
     },
     {
       id: 'view.closePane',
@@ -451,28 +554,31 @@ function viewCommands(): Command[] {
       group,
       run: () => updateSettings({ showWhitespace: !getSettings().showWhitespace }),
     },
+    // The zoom is a view of the text, not the font size setting: see
+    // `lib/zoom.ts`. Ctrl+wheel does the same, in finer steps.
     {
       id: 'view.zoomIn',
-      title: () => t('Schrift vergrößern'),
+      title: () => t('Vergrößern'),
       group,
       shortcut: shortcutLabel('view.zoomIn'),
-      enabled: () => getSettings().fontSize < FONT_SIZE_MAX,
-      run: () => updateSettings({ fontSize: getSettings().fontSize + 1 }),
+      enabled: () => getZoom() < ZOOM_MAX,
+      run: () => stepZoom(1),
     },
     {
       id: 'view.zoomOut',
-      title: () => t('Schrift verkleinern'),
+      title: () => t('Verkleinern'),
       group,
       shortcut: shortcutLabel('view.zoomOut'),
-      enabled: () => getSettings().fontSize > FONT_SIZE_MIN,
-      run: () => updateSettings({ fontSize: getSettings().fontSize - 1 }),
+      enabled: () => getZoom() > ZOOM_MIN,
+      run: () => stepZoom(-1),
     },
     {
       id: 'view.zoomReset',
-      title: () => t('Schriftgröße zurücksetzen'),
+      title: () => t('Zoom zurücksetzen (100 %)'),
       group,
       shortcut: shortcutLabel('view.zoomReset'),
-      run: () => updateSettings({ fontSize: DEFAULT_SETTINGS.fontSize }),
+      enabled: () => getZoom() !== ZOOM_DEFAULT,
+      run: resetZoom,
     },
   ];
 }
@@ -652,6 +758,57 @@ function macroCommands(): Command[] {
       shortcut: macro.shortcut ? macroShortcutText(macro.shortcut) : undefined,
       run: () => playMacro(macro.id),
     });
+  }
+  return commands;
+}
+
+/**
+ * Tools → Hash: per algorithm, the dialog for text, the dialog for files, and
+ * the selection straight into the clipboard — Notepad++'s three MD5 entries,
+ * for every algorithm rather than just the one.
+ */
+function toolCommands(): Command[] {
+  const group = () => t('Werkzeuge');
+  const commands: Command[] = [
+    {
+      id: 'tools.hash',
+      title: () => t('Prüfsumme erzeugen…'),
+      group,
+      run: () => {
+        requestHash('sha256', 'text');
+        openDialog('hash');
+      },
+    },
+  ];
+  for (const algorithm of HASH_ALGORITHMS) {
+    commands.push(
+      {
+        id: `tools.hash.${algorithm.id}.text`,
+        title: () => t('{algorithm} erzeugen…', { algorithm: algorithm.name }),
+        group,
+        run: () => {
+          requestHash(algorithm.id, 'text');
+          openDialog('hash');
+        },
+      },
+      {
+        id: `tools.hash.${algorithm.id}.files`,
+        title: () => t('{algorithm} von Dateien erzeugen…', { algorithm: algorithm.name }),
+        group,
+        run: () => {
+          requestHash(algorithm.id, 'files');
+          openDialog('hash');
+        },
+      },
+      {
+        id: `tools.hash.${algorithm.id}.selection`,
+        title: () =>
+          t('{algorithm} der Auswahl in die Zwischenablage', { algorithm: algorithm.name }),
+        group,
+        enabled: () => activeView() !== undefined,
+        run: () => hashSelectionToClipboard(algorithm.id),
+      },
+    );
   }
   return commands;
 }

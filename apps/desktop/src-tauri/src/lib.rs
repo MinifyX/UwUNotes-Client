@@ -102,6 +102,8 @@ pub fn run() {
             files::trash_path,
             files::path_info,
             files::join_path,
+            files::hash_text,
+            files::hash_file,
             dialogs::pick_files,
             dialogs::pick_save_path,
             dialogs::pick_folder,
@@ -118,6 +120,7 @@ pub fn run() {
             system::app_info,
             system::open_external,
             system::reveal_in_file_manager,
+            system::print_page,
             updates::check_for_update,
             updates::install_update,
         ])

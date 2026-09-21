@@ -52,6 +52,7 @@ import { allDocs, getDoc, setBaseExtensions, setDocState, type DocId } from '../
 import { getSettings, subscribeSettings, type Settings } from '../lib/settings';
 import { viewFor } from '../lib/views';
 import { getWorkspace } from '../lib/workspace';
+import { compareExtension } from './compare';
 import { indentGuides, printMargin, whitespaceMarkers } from './decorations';
 import { registerBuiltinPlugins } from './extensions/builtin';
 import { enabledPluginIds, pluginExtensions, subscribePlugins } from './extensions/registry';
@@ -92,6 +93,8 @@ export function baseExtensions(): Extension {
     indentOnInput(),
     highlightSpecialChars(),
     editorKeymap,
+    // Empty until two files are compared; see `lib/compare.ts`.
+    compareExtension,
     languageCompartment.of([]),
     settingsCompartment.of(settingsExtensions(getSettings())),
   ];
@@ -284,7 +287,10 @@ function typography(settings: Settings): Extension {
 function buildTypography(settings: Settings): Extension {
   return EditorView.theme({
     '&': {
-      fontSize: `${settings.fontSize}px`,
+      // `--editor-zoom` is the Ctrl+wheel magnifier from `lib/zoom.ts`: a
+      // view of the text, not a setting, so it multiplies in here instead of
+      // changing the number above.
+      fontSize: `calc(${settings.fontSize}px * var(--editor-zoom, 1))`,
     },
     '.cm-scroller': {
       fontFamily: fontStack(settings.fontFamily),

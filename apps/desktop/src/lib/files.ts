@@ -18,11 +18,13 @@ import {
   asApiError,
   dropDraft,
   fileStatus,
+  joinPath,
   pathInfo,
   pickFiles,
   pickFolder,
   pickSavePath,
   readTextFile,
+  renamePath,
   writeTextFile,
   type ApiError,
   type EncodingLabel,
@@ -47,7 +49,7 @@ import {
 } from './documents';
 import { t } from './i18n';
 import type { PaneId } from './layout';
-import { ask } from './prompt';
+import { ask, askText } from './prompt';
 import { getSettings, subscribeSettings, type Settings } from './settings';
 import { playError, playSaved } from './sound';
 import { toast } from './toast';
@@ -365,6 +367,122 @@ export async function saveAll(): Promise<void> {
   } else {
     playError();
     toast('error', t('Nicht gespeichert: {names}', { names: failed.join(', ') }));
+  }
+}
+
+/**
+ * "Save a copy as…": writes the text somewhere else and leaves the tab exactly
+ * as it was — same path, same dirty dot, same undo history. The copy is a
+ * snapshot, not a new home for the document; that is what "Save as" is for.
+ */
+export async function saveCopyAs(id: DocId): Promise<boolean> {
+  const meta = getMeta(id);
+  const doc = getDoc(id);
+  if (!meta || !doc) return false;
+  const path = await pickPathFor(meta);
+  if (!path) return false;
+  // The editor's text as it stands; the save fixups are for the document's
+  // own file, and a copy that silently differs from the screen would surprise.
+  const text = doc.state.doc.toString();
+  let encoding = meta.encoding;
+  let allowUnmappable = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await writeTextFile({
+        path,
+        text,
+        encoding,
+        bom: meta.bom,
+        eol: meta.eol,
+        // The save dialog already asked about overwriting.
+        expectedStamp: null,
+        allowUnmappable,
+      });
+      playSaved();
+      toast('success', t('Kopie gespeichert: {name}', { name: await fileNameOf(path) }));
+      return true;
+    } catch (error) {
+      if (asApiError(error).kind !== 'unmappable' || attempt > 0) {
+        reportFileError(error, path);
+        return false;
+      }
+      const answer = await ask(
+        t('Zeichen passen nicht zur Kodierung'),
+        t(
+          '{name} wird als {encoding} gespeichert, und diese Kodierung kann nicht alle Zeichen im Text darstellen. Als UTF-8 bleibt alles erhalten; sonst werden die fehlenden Zeichen als „&#8594;“ geschrieben.',
+          { name: meta.name, encoding: encodingName(encoding) },
+        ),
+        [
+          { id: 'utf8', label: t('Als UTF-8 speichern'), tone: 'primary' },
+          { id: 'anyway', label: t('Trotzdem speichern'), tone: 'danger' },
+          { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+        ],
+      );
+      if (answer === 'utf8') encoding = 'UTF-8';
+      else if (answer === 'anyway') allowUnmappable = true;
+      else return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Characters no file name may hold on at least one of the systems this runs
+ * on, plus the separators — a "name" with a slash in it is a path, and a
+ * rename must never become a move into some other folder.
+ */
+const BAD_NAME = /[\\/:*?"<>|\p{Cc}]/u;
+
+/** Whether `name` is usable as a plain file name in the same folder. */
+export function isPlainFileName(name: string): boolean {
+  const clean = name.trim();
+  return clean.length > 0 && clean !== '.' && clean !== '..' && !BAD_NAME.test(clean);
+}
+
+/**
+ * Renames the file behind a tab, on disk, and the tab with it.
+ *
+ * A buffer that was never saved has no file to rename, so it is offered "Save
+ * as" instead — which is what giving it a name means for it. Unsaved edits
+ * stay unsaved: the rename moves the file that is on disk and nothing else.
+ */
+export async function renameDoc(id: DocId): Promise<boolean> {
+  const meta = getMeta(id);
+  if (!meta) return false;
+  if (!meta.path) return saveDoc(id, true);
+
+  const name = await askText(t('Datei umbenennen'), meta.path, {
+    value: meta.name,
+    label: t('Neuer Name'),
+    confirm: t('Umbenennen'),
+  });
+  if (name === null) return false;
+  const clean = name.trim();
+  if (clean === meta.name) return false;
+  if (!isPlainFileName(clean)) {
+    toast('error', t('„{name}“ ist kein gültiger Dateiname.', { name: clean }));
+    playError();
+    return false;
+  }
+
+  const from = meta.path;
+  const parent = await parentOf(from);
+  if (!parent) {
+    toast('error', t('Der Ordner von {name} ist nicht erreichbar.', { name: meta.name }));
+    return false;
+  }
+  try {
+    const to = await joinPath(parent, clean);
+    await renamePath(from, to);
+    // Still the same document — only the name on the tab and the path the
+    // next save goes to have changed.
+    patchMeta(id, { path: to, name: clean });
+    rememberFile(to);
+    await applyDocLanguage(id);
+    return true;
+  } catch (error) {
+    reportFileError(error, from);
+    return false;
   }
 }
 
