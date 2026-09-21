@@ -1,11 +1,23 @@
 {
-  "version": "0.3.1",
-  "notes": "A small fix to uninstalling ✧\n\n- A silent uninstall from the command line (`uninstall.exe --uninstall /S`) reported success immediately while opening a window nobody was waiting at — and the program stayed installed. It now runs through and reports honestly whether it worked\n- This only affected the scripted route. Uninstalling through Windows' own list of installed apps gives you a window and asks, as it always did; that path was never affected\n\nEverything else is as in 0.3.0. Worth updating mainly if you roll UwUNotes out across several machines.",
-  "pub_date": "2026-09-19T14:34:27Z",
+  "version": "0.4.0",
+  "notes": "A new header, compare two files, and UwUNotes now comes for macOS and Linux too ✧\n\n- The top of the window has three rows now: Nyu and the name, a menu row (File, Search, View, Encoding, Language, Settings, Tools) and a row with the buttons you reach for most\n- Two or three files side by side (Ctrl+Shift+2 / 3)\n- Compare two files (Ctrl+Shift+C): what is missing shows red on the left, what was added green on the right, the changed characters stronger still. Both sides scroll together, F8 jumps to the next difference\n- Ctrl + mouse wheel zooms the text as a view only. The font size in Settings stays as it is\n- Selected text (after Ctrl+A, say) is much easier to see\n- File menu: recent files, save a copy as, rename, print\n- Search is a small window. Match case, whole words and regular expressions are behind \"Advanced\"\n- The Language menu is sorted A to Z, and there is an Encoding menu\n- Tools: MD5, SHA-1, SHA-256, SHA-512 and more, for text, for files, or straight from the selection into the clipboard\n\nSecurity: a project folder with a crafted git configuration could still start a program when opened, despite the existing check, hidden in an included config file or in a submodule. That is fixed. The release build also signs the update in a separate step now, one that runs no third-party build code.\n\nInstallers: Windows as before. New are macOS (separate DMGs for Apple silicon and Intel) and Linux (a tar.gz with the setup inside). All of them use the same setup with Nyu. None of them is signed by Apple or Microsoft, so the first start shows a warning. What to do then is in docs/install.md.",
+  "pub_date": "2026-09-21T10:01:12Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm9pV2t5OWZUV1hoTk5IcWNtaGh1VWlKRncyYzJnV0FZOUFwU2EwdEp3NytvMnF0eGVmSlhIY1ZtTDBtQ296NjF5UVAxeEtWZ0lkTi9RRDFabXI3bGc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5ODI4MjY1CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC4zLjEuZXhlClBORjRrMG50R0E0bHlqcWpzQ3p1RC80VHRCcERlRjZJZCsyNUR1QUhwM2VNSnl4YVQ1VWEybTVTS1V3Tk5kUlduVVEzeEIySXJKZXBvcGpCRGI2VEFRPT0K",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.3.1/UwUNotes-Setup-0.3.1.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmpsT1BvdkhWSm9rMDhBbFUyLzZVdVI2UnQ5L1g4WnJvemMzbFpxVTVjaE52U1VRZnE4UVJqdmxMSVV0dWprbGh4WWh6U2lYN3BwWUJrcCt6SFpzeHdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5OTg0ODU2CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC40LjAuZXhlCnQraDArOGFCOHlUWUhEZHVnWHpad0t6VWdTRzRMZDR1bm81UG04QTN1S01BakZHTWtVTHZmZzRpRDdLK3VkcWZUNGRSUXhNK0hWZWhNNnVJUVUvaURRPT0K",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.4.0/UwUNotes-Setup-0.4.0.exe"
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm80elFKZkNtaEdDZDk0bmh0SEZuWWVmMG56YkdvaG9VTzc4ZFVoMDAzSmxySEphNXBTbTJ5eGxqZXRzdjQ1UHZlaFBLUVpNWFZLbWlwNGR2eDlrSXdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5OTg0ODU2CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC40LjAtbGludXgteDg2XzY0LnRhci5negplNTU0b3JLVFpnQXozS3hRL2R3MkpOd0J5YVNuampVZzBrVVgzVzJjNHV3WkpmTVFWdTJ6MXd2YVZqWDZ2QmJqbEtYcEg2U0M3Z09rREk2TUgxUWhDUT09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.4.0/UwUNotes-Setup-0.4.0-linux-x86_64.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnRybU5HV3p0a1pWMFB4Z1ZuY0ordnRBaTh6dDI4eTB2T1lOMVRWU0RvSzRsMHdnc0FRaFlGM3dlKzZhSGJwT0FPZHZpeFN2UTVJd3BZQTgrcm5YY0FNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5OTg0ODU2CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC40LjAtbWFjb3MtYXJtNjQuZG1nCi9QeXNYdWJPQytNei9tVDFHOGNWNlQ2elJvcWtDeVJENzJCYUIxYjcza1pqSzMyMDRwek5vd1NieEFiTDI2OVlyZjZoaHNjRE02QXZPOTI4WEh1M0RRPT0K",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.4.0/UwUNotes-Setup-0.4.0-macos-arm64.dmg"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnNWV1NHeWltZWFvMVpOeDl5Wmk0VE11ZEM0N3FvNmdoS0M4ckZNQmRDK29TNjR5QkZjREQrcDdoWXFzc3JjQldqZDNjaFd0d1NTUWdPYnpPSWFBZUFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5OTg0ODU2CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC40LjAtbWFjb3MteDY0LmRtZwo5bFV1VE9JMWt0b1U5V1dzdGY0NG9mOVp4R2xEMGRMUzdibWREUzNKU1ZkZWhmanJldTlGU1NMUXRncngyNkpSZlVsa1cvcnRtdkNab29VWWpqL1ZBUT09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.4.0/UwUNotes-Setup-0.4.0-macos-x64.dmg"
     }
   }
 }
