@@ -1,6 +1,6 @@
 [package]
 name = "uwunotes-setup"
-description = "UwUNotes' own installer, updater and uninstaller for Windows"
+description = "UwUNotes' own installer, updater and uninstaller for Windows, macOS and Linux"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,6 +8,8 @@ repository.workspace = true
 rust-version.workspace = true
 
 [build-dependencies]
+# A folder payload (the macOS app bundle) is tarred before it is packed.
+tar.workspace = true
 tauri-build = { version = "2", features = [] }
 # The editor is packed into the executable at build time; see build.rs.
 zstd.workspace = true
@@ -17,15 +19,23 @@ zstd.workspace = true
 # go backwards.
 semver.workspace = true
 serde.workspace = true
+# The small record of what was installed on macOS and Linux, which have no
+# registry to keep it in.
+serde_json.workspace = true
 tauri = { version = "2", features = [] }
 zstd.workspace = true
 
-# Everything this program does is Windows: shortcuts, the registry entry Windows
-# lists under "Installed apps", and the processes it must not overwrite.
+# Shortcuts, the registry entry Windows lists under "Installed apps", and the
+# processes it must not overwrite.
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true
 winreg.workspace = true
 
+# Unpacking the macOS app bundle. The unpacker is shared Unix code, so Linux
+# compiles it too without calling it; it is in the tree through the editor's
+# updater either way.
+[target.'cfg(unix)'.dependencies]
+tar.workspace = true
+
 [dev-dependencies]
-serde_json.workspace = true
 tempfile.workspace = true

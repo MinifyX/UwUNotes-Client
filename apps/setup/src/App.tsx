@@ -41,7 +41,14 @@ import {
   WorkingScene,
 } from './scenes';
 import { chirp } from './sound';
-import { fill, texts as t } from './texts';
+import { fill, texts, textsFor, type Texts } from './texts';
+
+/**
+ * The title bar and the empty first frame come before the state says which
+ * system this is, and none of their words name one. Every screen after that
+ * uses `textsFor(state.platform)` instead.
+ */
+const t = texts;
 
 type Screen = 'loading' | 'ready' | 'working' | 'done' | 'failed';
 type Job = 'install' | 'uninstall';
@@ -144,7 +151,7 @@ function Stage({ scene, title, body }: { scene: ReactNode; title: string; body?:
  * something unreadable is installed, and `app.rs` calls that a reinstall — so
  * the two lines that name it are never the ones with nothing to name.
  */
-function headline(state: SetupState): { title: string; body: string } {
+function headline(state: SetupState, t: Texts): { title: string; body: string } {
   const version = state.setupVersion;
   const installed = state.installedVersion ?? '';
   switch (state.mode) {
@@ -167,7 +174,7 @@ function headline(state: SetupState): { title: string; body: string } {
   }
 }
 
-function actionLabel(state: SetupState): string {
+function actionLabel(state: SetupState, t: Texts): string {
   switch (state.mode) {
     case 'update':
       return t.actionUpdate;
@@ -301,7 +308,15 @@ export function App() {
 
   if (!state || screen === 'loading') return shell(null);
 
+  // Worded for the system the setup runs on: a Start menu on Windows, an alias
+  // and Launchpad on a Mac, a menu entry on Linux. Shadows the module-level `t`
+  // for every screen below.
+  const t = textsFor(state.platform);
   const uninstalling = state.mode === 'uninstall';
+  // Everywhere but Windows UwUNotes always goes to the same place — the menu
+  // entry and the uninstaller know it by that path — so the folder is shown
+  // rather than offered.
+  const folderFixed = uninstalling || state.platform !== 'windows';
   const options: InstallOptions = {
     folder: folder.trim(),
     desktopShortcut,
@@ -313,7 +328,7 @@ export function App() {
     void run(uninstalling ? 'uninstall' : 'install', options, keepSettings, false);
 
   if (screen === 'ready') {
-    const { title, body } = headline(state);
+    const { title, body } = headline(state, t);
     return shell(
       <>
         <Stage
@@ -324,7 +339,7 @@ export function App() {
         <div className="card setup-fade">
           <label className="field">
             <span className="field-label">{t.folder}</span>
-            {uninstalling ? (
+            {folderFixed ? (
               <span className="field-static" title={state.defaultFolder}>
                 {state.defaultFolder}
               </span>
@@ -377,7 +392,7 @@ export function App() {
             disabled={!state.hasPayload || (!uninstalling && options.folder === '')}
             onClick={start}
           >
-            {actionLabel(state)}
+            {actionLabel(state, t)}
           </button>
         </div>
         <p className="footer">

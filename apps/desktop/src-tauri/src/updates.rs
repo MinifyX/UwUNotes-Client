@@ -39,6 +39,27 @@
 //! installing means — where UwUNotes lives, what is replaced, whether the
 //! packed version is newer than the installed one. That is the setup's, and it
 //! is the setup that refuses to go backwards.
+//!
+//! **Installing is Windows' alone.** The feed also lists the Linux archive
+//! (`linux-x86_64`) and the macOS disk images (`darwin-aarch64`,
+//! `darwin-x86_64`), because the plugin answers "no such platform" to a copy
+//! whose platform the feed does not name — and those copies should hear about
+//! a new version as much as any other. But what they would download is a
+//! `.tar.gz` or a `.dmg`, not a program to start with `--update`, so there:
+//!
+//! - [`check_for_update`] answers exactly as on Windows, with
+//!   `installable: false` in the [`UpdateCheck::Available`] it sends — the
+//!   page's cue to show the version and a link to the releases page instead of
+//!   "Install and restart";
+//! - [`install_update`] downloads nothing and returns an `FsError` of kind
+//!   `other` whose message names [`RELEASES`], for a page that calls it anyway.
+//!
+//! The download-and-hand-over machinery below stays compiled on every system
+//! (its tests run everywhere), which is what the `dead_code` allowance at the
+//! top of this module is for.
+
+// On macOS and Linux nothing calls the handover half of this file; see above.
+#![cfg_attr(not(windows), allow(dead_code))]
 
 use std::fs::File;
 use std::io::Read as _;
@@ -67,6 +88,13 @@ const PROGRESS_STEP: u64 = 512 * 1024;
 /// Where a downloaded setup waits, under the app's own local data folder.
 const UPDATES_FOLDER: &str = "updates";
 
+/// Where an update comes from on a system where the editor cannot install it
+/// itself.
+pub(crate) const RELEASES: &str = "https://github.com/MinifyX/UwUNotes-Client/releases/latest";
+
+/// Whether [`install_update`] can do anything on this system.
+const INSTALLABLE: bool = cfg!(windows);
+
 /// The update the last check found, waiting for [`install_update`].
 ///
 /// An async mutex rather than a `std` one, because both commands hold it across
@@ -94,6 +122,10 @@ pub(crate) enum UpdateCheck {
         /// The release notes out of the feed. Text written elsewhere, so the
         /// page renders it as text and never as markup.
         notes: Option<String>,
+        /// Whether "Install and restart" can work here: `true` on Windows,
+        /// `false` on macOS and Linux, where the update is a download from
+        /// [`RELEASES`] instead.
+        installable: bool,
     },
     Failed {
         message: String,
@@ -130,6 +162,7 @@ pub(crate) async fn check_for_update(
             let answer = UpdateCheck::Available {
                 version: update.version.clone(),
                 notes: update.body.clone(),
+                installable: INSTALLABLE,
             };
             *found = Some(update);
             Ok(answer)
@@ -151,6 +184,14 @@ pub(crate) async fn install_update(
     state: State<'_, Updates>,
     on_progress: Channel<DownloadProgress>,
 ) -> CommandResult<()> {
+    if !INSTALLABLE {
+        return Err(FsError::other(
+            None,
+            format!(
+                "Updates on this system are installed by hand: download the new version from {RELEASES}."
+            ),
+        ));
+    }
     let found = state.found.lock().await;
     let Some(update) = found.as_ref() else {
         return Err(FsError::other(
@@ -420,8 +461,9 @@ mod tests {
             json(&UpdateCheck::Available {
                 version: "0.2.0".into(),
                 notes: None,
+                installable: true,
             }),
-            r#"{"status":"available","version":"0.2.0","notes":null}"#
+            r#"{"status":"available","version":"0.2.0","notes":null,"installable":true}"#
         );
         assert_eq!(
             json(&UpdateCheck::Failed {
@@ -429,6 +471,14 @@ mod tests {
             }),
             r#"{"status":"failed","message":"no"}"#
         );
+    }
+
+    /// Only Windows runs the downloaded setup; everywhere else the page is told
+    /// to send people to the releases page.
+    #[test]
+    fn only_windows_installs_updates_itself() {
+        assert_eq!(INSTALLABLE, cfg!(windows));
+        assert!(RELEASES.starts_with("https://github.com/MinifyX/UwUNotes-Client/"));
     }
 
     /// A real `tauri signer sign` signature, over these eighteen bytes, from a

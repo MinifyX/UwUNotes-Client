@@ -4893,6 +4893,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "tar",
  "tauri",
  "tauri-build",
  "tempfile",

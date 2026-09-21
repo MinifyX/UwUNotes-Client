@@ -1,15 +1,26 @@
-//! Putting UwUNotes on a Windows machine, taking it off again, and clearing
-//! away what the stock installer left behind.
+//! Putting UwUNotes on a machine, taking it off again — the half of that which
+//! is the same on every system.
 //!
-//! Everything is per user and needs no administrator: the editor goes to
-//! `%LOCALAPPDATA%\Programs\UwUNotes`, the shortcuts into the Start menu (and
-//! onto the desktop when asked), and the entry Windows lists under "Installed
-//! apps" into `HKEY_CURRENT_USER`. The editor itself is packed into this
-//! executable by `build.rs`; nothing is downloaded while installing.
+//! Everything is per user and needs no administrator, on every system: on
+//! Windows the editor goes to `%LOCALAPPDATA%\Programs\UwUNotes`, on macOS to
+//! `~/Applications/UwUNotes.app`, on Linux to `~/.local/share/uwunotes`. The
+//! editor itself is packed into this executable by `build.rs`; nothing is
+//! downloaded while installing.
 //!
-//! `UWUNOTES_SETUP_SANDBOX=<folder>` moves all of that — files, shortcuts and
-//! registry — under one folder and one key of its own. That is what makes the
-//! tests below possible: they install, update and uninstall for real, on the
+//! This file is what does not care which system it is on: the errors the page
+//! branches on, the progress bar, the packed editor and how it comes back out,
+//! and the rule that an update never goes backwards. Where things go and what a
+//! system needs written to know about them is one module per system beside
+//! this one — [`windows`] for the registry and the Start menu, `macos` for the
+//! app bundle, `linux` for the XDG folders and the desktop entry — and each of
+//! them offers the same handful of names: [`Layout`], [`install()`],
+//! [`uninstall()`], [`wait_for_app_to_close`] and [`launch`]. `app.rs` only
+//! ever talks to those, so the page and the command line behave the same
+//! everywhere.
+//!
+//! `UWUNOTES_SETUP_SANDBOX=<folder>` moves all of it — files, shortcuts,
+//! registry, desktop entries — under one folder of its own. That is what makes
+//! the tests possible: they install, update and uninstall for real, on the
 //! machine running them, without a real installation anywhere near them.
 //!
 //! What this module deliberately does not do: end the running editor. An
@@ -19,46 +30,43 @@
 //! itself started — by then the app has already written its session and closed
 //! itself, and [`wait_for_app_to_close`] only waits for the process to go.
 //!
-//! It also leaves `%APPDATA%\app.uwunotes.desktop` alone, every time but the
-//! one uninstall that is explicitly told not to: the session, the drafts and
-//! the settings live there, and none of them are this setup's to throw away.
+//! It also leaves the editor's data folder alone, every time but the one
+//! uninstall that is explicitly told not to: the session, the drafts and the
+//! settings live there, and none of them are this setup's to throw away.
 
-use std::io::{self, Read as _, Write as _};
+use std::io::{self, Read, Write as _};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
-use winreg::RegKey;
 
-use crate::system;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(unix)]
+mod unix;
+#[cfg(windows)]
+mod windows;
 
-pub const APP_EXE: &str = "UwUNotes.exe";
-pub const UNINSTALL_EXE: &str = "uninstall.exe";
-/// The app's bundle identifier, which is also the name of its data folder and
-/// the id Windows groups its taskbar button under.
-pub const APP_ID: &str = "app.uwunotes.desktop";
-const SHORTCUT: &str = "UwUNotes.lnk";
-const PRODUCT: &str = "UwUNotes";
-const PUBLISHER: &str = "UwUNotes";
-const HOMEPAGE: &str = "https://github.com/MinifyX/UwUNotes-Client";
-const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\UwUNotes";
-/// Everything this setup and the stock installer before it remember about the
-/// installation. Removing this one key removes both.
-const PRODUCT_KEY: &str = r"Software\UwUNotes";
-const SETUP_KEY: &str = r"Software\UwUNotes\Setup";
-/// What Tauri's stock NSIS installer called the editor in 0.1.0 and 0.2.0, and
-/// where it kept the folder it had installed into. Both are still on the
-/// machines of everyone who installed UwUNotes before this setup existed.
-const LEGACY_EXE: &str = "uwunotes-desktop.exe";
-const LEGACY_PRODUCT_KEY: &str = r"Software\UwUNotes\UwUNotes";
-/// Half-written files carry these names until they are complete, so an install
-/// that stops in the middle never leaves a broken `UwUNotes.exe` behind.
-const INCOMING_APP: &str = "UwUNotes.exe.new";
-const INCOMING_UNINSTALL: &str = "uninstall.exe.new";
+// `self::` because `windows` is also the name of a crate, and a bare `windows`
+// here would be ambiguous between the two.
+#[cfg(target_os = "linux")]
+use self::linux as platform;
+#[cfg(target_os = "macos")]
+use self::macos as platform;
+#[cfg(windows)]
+use self::windows as platform;
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+compile_error!("UwUNotes Setup knows Windows, macOS and Linux, and nothing else yet.");
+
+pub use self::platform::{install, launch, uninstall, wait_for_app_to_close, Layout};
 
 static PAYLOAD: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/payload.zst"));
 const PAYLOAD_SIZE: &str = env!("UWUNOTES_SETUP_PAYLOAD_SIZE");
+/// `file` for one executable packed as it is, `tree` for a folder packed as a
+/// tar archive — the macOS app bundle. See `build.rs`.
+const PAYLOAD_KIND: &str = env!("UWUNOTES_SETUP_PAYLOAD_KIND");
 
 /// Whether this build has an editor in it. A setup built without one — a
 /// `cargo check`, a run of the tests, someone working on the page — can do
@@ -116,11 +124,29 @@ impl SetupError {
 /// The numbers are Windows' own: 5 `ERROR_ACCESS_DENIED`, 32
 /// `ERROR_SHARING_VIOLATION`, 33 `ERROR_LOCK_VIOLATION`, 39
 /// `ERROR_HANDLE_DISK_FULL`, 112 `ERROR_DISK_FULL`.
+#[cfg(windows)]
 fn classify(error: &io::Error) -> Kind {
     match error.raw_os_error() {
         Some(32 | 33) => Kind::InUse,
         Some(39 | 112) => Kind::DiskFull,
         Some(5) => Kind::Permission,
+        _ if error.kind() == io::ErrorKind::PermissionDenied => Kind::Permission,
+        _ => Kind::Other,
+    }
+}
+
+/// The same question on Linux and macOS, which agree on every number that
+/// matters here: 1 `EPERM`, 13 `EACCES`, 26 `ETXTBSY` (a running program's
+/// file opened for writing), 28 `ENOSPC`, 30 `EROFS` and 69 / 122 `EDQUOT`
+/// (macOS and Linux spell the quota error with different numbers).
+#[cfg(unix)]
+fn classify(error: &io::Error) -> Kind {
+    let quota = if cfg!(target_os = "macos") { 69 } else { 122 };
+    match error.raw_os_error() {
+        Some(26) => Kind::InUse,
+        Some(28) => Kind::DiskFull,
+        Some(code) if code == quota => Kind::DiskFull,
+        Some(1 | 13 | 30) => Kind::Permission,
         _ if error.kind() == io::ErrorKind::PermissionDenied => Kind::Permission,
         _ => Kind::Other,
     }
@@ -155,6 +181,10 @@ pub struct Progress {
     pub percent: f64,
 }
 
+/// The steps, by what they are on Windows. The names are the page's contract
+/// and stay the same everywhere; what `shortcuts` and `registry` mean on the
+/// other systems — a menu entry, an alias, the record of what was installed —
+/// is the page's to word, and `texts.ts` does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Step {
@@ -181,7 +211,11 @@ struct Reporter<'a> {
     last: f64,
 }
 
-impl Reporter<'_> {
+impl<'a> Reporter<'a> {
+    fn new(sink: &'a mut dyn FnMut(Progress)) -> Self {
+        Self { sink, last: -1.0 }
+    }
+
     fn at(&mut self, step: Step, within: f64) {
         let mut percent = 0.0;
         for (candidate, weight) in WEIGHTS {
@@ -204,16 +238,18 @@ impl Reporter<'_> {
     }
 }
 
-/// The editor this setup carries, and the file that becomes `uninstall.exe`.
+/// The editor this setup carries, and the file that becomes the uninstaller.
 ///
 /// A parameter rather than a constant so the tests can install something small
 /// and quick. [`Package::packed`] is what every real run uses.
 pub struct Package<'a> {
     payload: &'a [u8],
-    /// Unpacked size, which is the denominator of the progress bar.
+    /// Unpacked size, which is the denominator of the progress bar. For a
+    /// folder it is the size of the tar stream, not of the files in it: that is
+    /// the number that can be counted while unpacking, and checked afterwards.
     size: u64,
-    /// The running setup. It is copied into the install folder, where it is the
-    /// uninstaller: same program, started with `--uninstall`.
+    /// The running setup. It is copied next to the installation, where it is
+    /// the uninstaller: same program, started with `--uninstall`.
     setup: PathBuf,
 }
 
@@ -224,6 +260,19 @@ impl Package<'static> {
                 Kind::NoPayload,
                 "This setup was built without UwUNotes inside (a development build).",
             ));
+        }
+        // A build that packed the wrong shape — an exe into the macOS setup, an
+        // app bundle into the Windows one — is a build-script mistake, and it
+        // is better said here than as "damaged" halfway through unpacking.
+        let expected = if cfg!(target_os = "macos") {
+            "tree"
+        } else {
+            "file"
+        };
+        if PAYLOAD_KIND != expected {
+            return Err(SetupError::other(format!(
+                "This setup carries a {PAYLOAD_KIND} where this system needs a {expected}; it was built for another system."
+            )));
         }
         Ok(Self {
             payload: PAYLOAD,
@@ -241,185 +290,10 @@ pub struct Existing {
     /// `None` when there is an installation whose version cannot be read. An
     /// update refuses that case rather than guessing — see [`check_not_older`].
     pub version: Option<String>,
-    /// Put there by the stock NSIS installer rather than by this setup.
+    /// Put there by the stock NSIS installer rather than by this setup. Only
+    /// ever `true` on Windows: no other system had a stock installer before.
+    #[cfg_attr(not(windows), allow(dead_code))]
     pub legacy: bool,
-}
-
-/// Where everything belongs on this machine, or inside the sandbox.
-pub struct Layout {
-    pub default_folder: PathBuf,
-    pub start_menu: PathBuf,
-    pub desktop: PathBuf,
-    /// `%APPDATA%\app.uwunotes.desktop` — the session, the drafts, the settings.
-    pub app_data: PathBuf,
-    /// `%LOCALAPPDATA%\app.uwunotes.desktop` — the editor's WebView cache.
-    pub local_data: PathBuf,
-    /// Where the stock installer put UwUNotes: `%LOCALAPPDATA%\UwUNotes`.
-    pub legacy_folder: PathBuf,
-    registry_prefix: String,
-    pub sandbox: bool,
-}
-
-impl Layout {
-    pub fn detect() -> Self {
-        match std::env::var_os("UWUNOTES_SETUP_SANDBOX").filter(|folder| !folder.is_empty()) {
-            Some(folder) => Self::sandbox(Path::new(&folder)),
-            None => {
-                let folders = system::folders();
-                Self {
-                    default_folder: folders.user_programs.join(PRODUCT),
-                    start_menu: folders.start_menu,
-                    desktop: folders.desktop,
-                    app_data: folders.roaming.join(APP_ID),
-                    local_data: folders.local.join(APP_ID),
-                    legacy_folder: folders.local.join(PRODUCT),
-                    registry_prefix: String::new(),
-                    sandbox: false,
-                }
-            }
-        }
-    }
-
-    /// The same layout, moved into one folder and one registry key that belong
-    /// to nobody. Nothing outside `root` and that key is touched.
-    pub fn sandbox(root: &Path) -> Self {
-        Self {
-            default_folder: root.join(r"Programs\UwUNotes"),
-            start_menu: root.join("StartMenu"),
-            desktop: root.join("Desktop"),
-            app_data: root.join("Roaming").join(APP_ID),
-            local_data: root.join("Local").join(APP_ID),
-            legacy_folder: root.join(r"Local\UwUNotes"),
-            registry_prefix: format!(
-                r"Software\UwUNotes-Setup-Sandbox\{}\",
-                root.file_name()
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_default()
-            ),
-            sandbox: true,
-        }
-    }
-
-    fn key(&self, path: &str) -> String {
-        format!("{}{path}", self.registry_prefix)
-    }
-
-    fn open(&self, path: &str) -> Option<RegKey> {
-        RegKey::predef(HKEY_CURRENT_USER)
-            .open_subkey_with_flags(self.key(path), KEY_READ)
-            .ok()
-    }
-
-    fn create(&self, path: &str) -> Result<RegKey, String> {
-        RegKey::predef(HKEY_CURRENT_USER)
-            .create_subkey(self.key(path))
-            .map(|(key, _)| key)
-            .map_err(|error| format!("Couldn't write to the registry ({path}): {error}"))
-    }
-
-    fn remove_tree(&self, path: &str) {
-        let _ = RegKey::predef(HKEY_CURRENT_USER).delete_subkey_all(self.key(path));
-    }
-
-    /// What is installed right now, if anything: this setup's own installation
-    /// first, then the one the stock installer may have left.
-    pub fn existing(&self) -> Option<Existing> {
-        if let Some(key) = self.open(SETUP_KEY) {
-            if let Ok(folder) = key.get_value::<String, _>("InstallDir") {
-                if Path::new(&folder).join(APP_EXE).exists() {
-                    return Some(Existing {
-                        folder: PathBuf::from(folder),
-                        version: key.get_value("Version").ok(),
-                        legacy: false,
-                    });
-                }
-            }
-        }
-
-        // The stock installer writes the same uninstall key this setup does, so
-        // what makes an installation "legacy" is the executable name next to
-        // it, not the key. `InstallLocation` is stored with quotes around it.
-        let entry = self.open(UNINSTALL_KEY);
-        let folder = entry
-            .as_ref()
-            .and_then(|key| key.get_value::<String, _>("InstallLocation").ok())
-            .map(|folder| PathBuf::from(folder.trim_matches('"')))
-            .filter(|folder| folder.join(LEGACY_EXE).exists())
-            .or_else(|| {
-                self.legacy_folder
-                    .join(LEGACY_EXE)
-                    .exists()
-                    .then(|| self.legacy_folder.clone())
-            })?;
-        Some(Existing {
-            folder,
-            version: entry.and_then(|key| key.get_value("DisplayVersion").ok()),
-            legacy: true,
-        })
-    }
-
-    /// Where an install would go: over the existing one, or into the default
-    /// folder. A legacy installation is not offered as a folder — it moves to
-    /// `Programs`, where the rest of the UwU programs live.
-    pub fn default_folder(&self) -> PathBuf {
-        self.existing()
-            .filter(|existing| !existing.legacy)
-            .map_or_else(|| self.default_folder.clone(), |existing| existing.folder)
-    }
-
-    /// Whether the last install put a shortcut on the desktop. A silent update
-    /// has no page to ask, and must not quietly take away a shortcut the user
-    /// asked for or add one they declined.
-    pub fn wanted_desktop_shortcut(&self) -> bool {
-        self.open(SETUP_KEY)
-            .and_then(|key| key.get_value::<u32, _>("DesktopShortcut").ok())
-            .map_or_else(|| self.desktop.join(SHORTCUT).exists(), |value| value != 0)
-    }
-}
-
-/// Every process running one of the executables an install would replace.
-fn running_copies(layout: &Layout, folder: &Path) -> Vec<PathBuf> {
-    // The sandbox describes a machine that does not exist; asking the real one
-    // which programs are running would be answering a different question.
-    if layout.sandbox {
-        return Vec::new();
-    }
-    let mut candidates = vec![
-        folder.join(APP_EXE),
-        folder.join(LEGACY_EXE),
-        layout.legacy_folder.join(LEGACY_EXE),
-    ];
-    if let Some(existing) = layout.existing() {
-        candidates.push(existing.folder.join(APP_EXE));
-        candidates.push(existing.folder.join(LEGACY_EXE));
-    }
-    candidates.sort();
-    candidates.dedup();
-    candidates
-        .into_iter()
-        .filter(|exe| !system::processes_of(exe).is_empty())
-        .collect()
-}
-
-/// Whether a copy of UwUNotes that this install would overwrite is open.
-pub fn app_running(layout: &Layout, folder: &Path) -> bool {
-    !running_copies(layout, folder).is_empty()
-}
-
-/// Waits for the editor to be gone. Used by the update the app itself started:
-/// the app has closed itself by then, but Windows keeps the file locked for a
-/// moment afterwards. Returns whether it worked.
-pub fn wait_for_app_to_close(layout: &Layout, folder: &Path, timeout: Duration) -> bool {
-    let deadline = Instant::now() + timeout;
-    loop {
-        if !app_running(layout, folder) {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(Duration::from_millis(200));
-    }
 }
 
 /// An update must never replace a newer UwUNotes with an older one. The
@@ -465,50 +339,74 @@ pub fn check_not_older(installed: Option<&str>, packed: &str) -> Result<(), Setu
     }
 }
 
-/// Writes a file beside its destination first and swaps it in afterwards, so
-/// the editor is never half a file. Windows keeps an executable locked for a
-/// moment after the program ends, hence the retries.
-fn replace_file(from: &Path, to: &Path) -> Result<(), SetupError> {
-    let mut attempt = 0;
-    loop {
-        match std::fs::rename(from, to) {
-            Ok(()) => return Ok(()),
-            Err(_) if attempt < 19 => std::thread::sleep(Duration::from_millis(250)),
-            Err(error) => {
-                let _ = std::fs::remove_file(from);
-                // The only thing that keeps this setup from replacing a file it
-                // has just written, in a folder it can write to, is another
-                // program holding the target open. Access denied, sharing
-                // violation and lock violation all mean the same thing here,
-                // and all three are fixed by closing UwUNotes.
-                let kind = match error.raw_os_error() {
-                    Some(5 | 32 | 33) => Kind::InUse,
-                    _ => classify(&error),
-                };
-                return Err(SetupError::new(
-                    kind,
-                    format!("Couldn't replace {}: {error}", to.display()),
-                ));
-            }
+/// A half-written file's new name. On Unix a stale one is removed first and the
+/// new one created exclusively, so a symlink somebody left under that name is
+/// replaced rather than written through; the mode is the one the finished file
+/// is meant to have, not whatever the umask makes of 0666.
+fn create_incoming(path: &Path, #[allow(unused_variables)] mode: u32) -> io::Result<std::fs::File> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        match std::fs::remove_file(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
         }
-        attempt += 1;
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(mode)
+            .open(path)
+    }
+    #[cfg(windows)]
+    {
+        std::fs::File::create(path)
     }
 }
 
-/// Unpacks the editor to `target`, reporting how far it has got.
+/// Counts what passes through, and tells the bar about it.
+struct Counted<'r, 'a, R> {
+    inner: R,
+    read: u64,
+    total: u64,
+    report: &'r mut Reporter<'a>,
+}
+
+impl<R: Read> Read for Counted<'_, '_, R> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        let read = self.inner.read(buffer)?;
+        self.read += read as u64;
+        self.report
+            .at(Step::Writing, self.read as f64 / self.total.max(1) as f64);
+        Ok(read)
+    }
+}
+
+fn damaged(error: impl std::fmt::Display) -> SetupError {
+    SetupError::other(format!("The packed editor is damaged: {error}"))
+}
+
+fn incomplete() -> SetupError {
+    SetupError::other("The packed editor is incomplete; the setup file is damaged.")
+}
+
+/// Unpacks the editor to `target`, reporting how far it has got. For the
+/// payloads that are one executable: Windows and Linux.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 fn extract(package: &Package, target: &Path, report: &mut Reporter) -> Result<(), SetupError> {
-    let total = package.size.max(1);
-    let mut decoder = zstd::Decoder::new(package.payload)
-        .map_err(|error| SetupError::other(format!("The packed editor is damaged: {error}")))?;
-    let mut file = std::fs::File::create(target).map_err(|error| {
+    let decoder = zstd::Decoder::new(package.payload).map_err(damaged)?;
+    let mut source = Counted {
+        inner: decoder,
+        read: 0,
+        total: package.size,
+        report,
+    };
+    let mut file = create_incoming(target, 0o755).map_err(|error| {
         SetupError::from_io(&error, format!("Couldn't write {}", target.display()))
     })?;
     let mut buffer = vec![0u8; 256 * 1024];
-    let mut written = 0u64;
     loop {
-        let read = decoder
-            .read(&mut buffer)
-            .map_err(|error| SetupError::other(format!("The packed editor is damaged: {error}")))?;
+        let read = source.read(&mut buffer).map_err(damaged)?;
         if read == 0 {
             break;
         }
@@ -516,456 +414,62 @@ fn extract(package: &Package, target: &Path, report: &mut Reporter) -> Result<()
         file.write_all(chunk).map_err(|error| {
             SetupError::from_io(&error, format!("Couldn't write {}", target.display()))
         })?;
-        written += read as u64;
-        report.at(Step::Writing, written as f64 / total as f64);
     }
     file.sync_all().map_err(|error| {
         SetupError::from_io(&error, format!("Couldn't write {}", target.display()))
     })?;
-    if written != package.size {
-        return Err(SetupError::other(
-            "The packed editor is incomplete; the setup file is damaged.",
-        ));
+    if source.read != package.size {
+        return Err(incomplete());
     }
     Ok(())
 }
 
-fn quoted(path: &Path) -> String {
-    format!("\"{}\"", path.display())
-}
-
-/// What Windows shows as "Size" in the list of installed apps, in KB. Rounded
-/// up, because an installation that is there takes up more than nothing.
-fn folder_size_kb(folder: &Path) -> u32 {
-    let bytes: u64 = std::fs::read_dir(folder)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter_map(|entry| entry.metadata().ok())
-        .filter(|meta| meta.is_file())
-        .map(|meta| meta.len())
-        .sum();
-    bytes.div_ceil(1024).min(u64::from(u32::MAX)) as u32
-}
-
-/// Removes the files and registry entries of the stock installer. The editor's
-/// data folder is not touched: the session and the drafts survive the move.
-fn remove_legacy(layout: &Layout, new_folder: &Path) -> Result<(), SetupError> {
-    let Some(existing) = layout.existing().filter(|existing| existing.legacy) else {
-        return Ok(());
-    };
-    if existing.folder != new_folder {
-        for file in [LEGACY_EXE, UNINSTALL_EXE] {
-            let _ = std::fs::remove_file(existing.folder.join(file));
-        }
-        // Only when it is empty: a folder somebody put their own files in is
-        // not this setup's to delete.
-        let _ = std::fs::remove_dir(&existing.folder);
-    } else {
-        let _ = std::fs::remove_file(existing.folder.join(LEGACY_EXE));
-    }
-    layout.remove_tree(LEGACY_PRODUCT_KEY);
-    Ok(())
-}
-
-/// Installs, updates or repairs — the same work every time, because a setup
-/// that does something different depending on what it found is a setup with
-/// paths nobody ever runs.
-pub fn install(
-    layout: &Layout,
-    package: &Package,
-    options: &Options,
-    version: &str,
-    report: &mut dyn FnMut(Progress),
-) -> Result<Installed, SetupError> {
-    let mut report = Reporter {
-        sink: report,
-        last: -1.0,
-    };
-    let folder = PathBuf::from(options.folder.trim());
-    if !folder.is_absolute() {
-        return Err(SetupError::other(
-            "Please give the full path of a folder, starting with a drive letter.",
-        ));
-    }
-    if folder.parent().is_none() {
-        return Err(SetupError::other(
-            "UwUNotes needs a folder of its own, not the root of a drive.",
-        ));
-    }
-
-    report.at(Step::Preparing, 0.0);
-    // Checked before anything is written, and waited on briefly because a user
-    // who just closed the editor should not have to press the button twice.
-    if !wait_for_app_to_close(layout, &folder, Duration::from_secs(2)) {
-        return Err(SetupError::new(
-            Kind::InUse,
-            "UwUNotes is still open. Close it and start the setup again.",
-        ));
-    }
-    std::fs::create_dir_all(&folder).map_err(|error| {
-        SetupError::from_io(&error, format!("Couldn't create {}", folder.display()))
-    })?;
-    remove_legacy(layout, &folder)?;
-    report.at(Step::Preparing, 1.0);
-
-    let app = folder.join(APP_EXE);
-    let incoming = folder.join(INCOMING_APP);
-    extract(package, &incoming, &mut report)?;
-    replace_file(&incoming, &app)?;
-
-    // The uninstaller is this very program, with a different name and
-    // `--uninstall` on its command line. One executable, so the uninstaller can
-    // never be a version behind what installed it.
-    let uninstaller = folder.join(UNINSTALL_EXE);
-    if package.setup != uninstaller {
-        let incoming = folder.join(INCOMING_UNINSTALL);
-        std::fs::copy(&package.setup, &incoming).map_err(|error| {
-            SetupError::from_io(&error, format!("Couldn't write {}", incoming.display()))
-        })?;
-        replace_file(&incoming, &uninstaller)?;
-    }
-
-    report.at(Step::Shortcuts, 0.0);
-    let shortcut = system::Shortcut {
-        target: &app,
-        description: "UwUNotes",
-        app_id: APP_ID,
-    };
-    system::create_shortcut(&layout.start_menu.join(SHORTCUT), &shortcut)
-        .map_err(SetupError::other)?;
-    let on_desktop = layout.desktop.join(SHORTCUT);
-    if options.desktop_shortcut {
-        system::create_shortcut(&on_desktop, &shortcut).map_err(SetupError::other)?;
-    } else {
-        let _ = std::fs::remove_file(&on_desktop);
-    }
-    report.at(Step::Shortcuts, 1.0);
-
-    report.at(Step::Registry, 0.0);
-    register(layout, &folder, options, version).map_err(SetupError::other)?;
-    report.at(Step::Registry, 1.0);
-    report.at(Step::Done, 1.0);
-
-    if options.launch_when_done && !layout.sandbox {
-        system::spawn_detached(&app, &[]).map_err(SetupError::other)?;
-    }
-    Ok(Installed {
-        folder: folder.display().to_string(),
-        exe: app.display().to_string(),
-    })
-}
-
-/// The entry under "Installed apps", and what this setup needs to remember for
-/// the next time it runs.
-fn register(
-    layout: &Layout,
-    folder: &Path,
-    options: &Options,
-    version: &str,
-) -> Result<(), String> {
-    let app = folder.join(APP_EXE);
-    let uninstaller = folder.join(UNINSTALL_EXE);
-    let write = |key: &RegKey, name: &str, value: &str| {
-        key.set_value(name, &value)
-            .map_err(|error| format!("Couldn't write to the registry ({name}): {error}"))
-    };
-    let write_number = |key: &RegKey, name: &str, value: u32| {
-        key.set_value(name, &value)
-            .map_err(|error| format!("Couldn't write to the registry ({name}): {error}"))
-    };
-
-    // The stock installer wrote values this setup does not (`MainBinaryName`,
-    // among others), and a leftover one would outlive the program it describes.
-    layout.remove_tree(UNINSTALL_KEY);
-    let entry = layout.create(UNINSTALL_KEY)?;
-    write(&entry, "DisplayName", PRODUCT)?;
-    write(&entry, "DisplayVersion", version)?;
-    write(&entry, "Publisher", PUBLISHER)?;
-    write(&entry, "DisplayIcon", &format!("{},0", app.display()))?;
-    write(&entry, "InstallLocation", &folder.display().to_string())?;
-    write(
-        &entry,
-        "UninstallString",
-        &format!("{} --uninstall", quoted(&uninstaller)),
-    )?;
-    write(&entry, "URLInfoAbout", HOMEPAGE)?;
-    write(&entry, "HelpLink", HOMEPAGE)?;
-    write_number(&entry, "EstimatedSize", folder_size_kb(folder))?;
-    // There is nothing to modify and nothing to repair but running the setup
-    // again, so Windows should not offer either button.
-    write_number(&entry, "NoModify", 1)?;
-    write_number(&entry, "NoRepair", 1)?;
-
-    let setup = layout.create(SETUP_KEY)?;
-    write(&setup, "InstallDir", &folder.display().to_string())?;
-    write(&setup, "Version", version)?;
-    write_number(&setup, "DesktopShortcut", options.desktop_shortcut.into())?;
-    Ok(())
-}
-
-/// Removes what the setup wrote, and nothing else.
+/// Unpacks a packed folder into `into`, which must exist and be empty. For the
+/// macOS app bundle, which is a folder with an executable in it and has to
+/// come out with the executable bit still on.
 ///
-/// `keep_settings` is the one thing the user is asked: the editor's data folder
-/// holds the session and the unsaved drafts, and deleting those by default
-/// would make "uninstall to reinstall" a way to lose text.
-pub fn uninstall(
-    layout: &Layout,
-    folder: &Path,
-    keep_settings: bool,
-    report: &mut dyn FnMut(Progress),
-) -> Result<(), SetupError> {
-    let mut report = Reporter {
-        sink: report,
-        last: -1.0,
+/// The archive is this setup's own, built by `build.rs` and carried inside the
+/// signed executable, so this is not a general-purpose unpacker for strangers'
+/// archives — but the `tar` crate refuses entries that would land outside
+/// `into` all the same, and nothing here asks it not to.
+#[cfg(unix)]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn extract_tree(package: &Package, into: &Path, report: &mut Reporter) -> Result<(), SetupError> {
+    let decoder = zstd::Decoder::new(package.payload).map_err(damaged)?;
+    let source = Counted {
+        inner: decoder,
+        read: 0,
+        total: package.size,
+        report,
     };
-    report.at(Step::Preparing, 0.0);
-    if !wait_for_app_to_close(layout, folder, Duration::from_secs(2)) {
-        return Err(SetupError::new(
-            Kind::InUse,
-            "UwUNotes is still open. Close it and start the uninstaller again.",
-        ));
+    let mut archive = tar::Archive::new(source);
+    archive.set_preserve_permissions(true);
+    // `build.rs` packs with deterministic headers, whose timestamps are one
+    // fixed date in 2006. A bundle that claims to be that old is one Launch
+    // Services has no reason to look at again, so the files get today's.
+    archive.set_preserve_mtime(false);
+    archive.set_unpack_xattrs(false);
+    archive.set_overwrite(false);
+    archive.unpack(into).map_err(|error| {
+        SetupError::from_io(
+            &error,
+            format!("Couldn't unpack UwUNotes into {}", into.display()),
+        )
+    })?;
+    // The archive ends with padding the unpacker has no reason to read; it is
+    // part of what `build.rs` counted, so it is read here to make the sizes
+    // comparable.
+    let mut rest = archive.into_inner();
+    io::copy(&mut rest, &mut io::sink()).map_err(damaged)?;
+    if rest.read != package.size {
+        return Err(incomplete());
     }
-    report.at(Step::Preparing, 1.0);
-
-    report.at(Step::Shortcuts, 0.0);
-    let _ = std::fs::remove_file(layout.start_menu.join(SHORTCUT));
-    let _ = std::fs::remove_file(layout.desktop.join(SHORTCUT));
-    report.at(Step::Shortcuts, 1.0);
-
-    report.at(Step::Registry, 0.0);
-    layout.remove_tree(UNINSTALL_KEY);
-    layout.remove_tree(PRODUCT_KEY);
-    report.at(Step::Registry, 1.0);
-
-    report.at(Step::Writing, 0.0);
-    for file in [
-        APP_EXE,
-        LEGACY_EXE,
-        UNINSTALL_EXE,
-        INCOMING_APP,
-        INCOMING_UNINSTALL,
-    ] {
-        let path = folder.join(file);
-        if !path.exists() {
-            continue;
-        }
-        if let Err(error) = std::fs::remove_file(&path) {
-            // Everything else is a leftover worth ignoring; the editor itself
-            // staying behind means the uninstall did not happen.
-            if file == APP_EXE {
-                return Err(SetupError::from_io(
-                    &error,
-                    format!("Couldn't remove {}", path.display()),
-                ));
-            }
-        }
-    }
-    // Only if it is empty. Anything the user put next to the editor stays, and
-    // so does the folder holding it.
-    let _ = std::fs::remove_dir(folder);
-    report.at(Step::Writing, 1.0);
-
-    if !keep_settings {
-        for data in [&layout.app_data, &layout.local_data] {
-            if data.exists() {
-                std::fs::remove_dir_all(data).map_err(|error| {
-                    SetupError::from_io(&error, format!("Couldn't delete {}", data.display()))
-                })?;
-            }
-        }
-    }
-    report.at(Step::Done, 1.0);
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// A whole machine in a temporary folder: install paths, shortcut folders
-    /// and a registry key of its own, all removed again when the test ends.
-    struct Machine {
-        _root: tempfile::TempDir,
-        layout: Layout,
-        /// Stands in for the running setup, so a test does not copy the test
-        /// binary around to check that the uninstaller is written.
-        setup: PathBuf,
-        editor: Vec<u8>,
-        packed: Vec<u8>,
-    }
-
-    impl Machine {
-        fn new() -> Self {
-            let root = tempfile::tempdir().expect("a temporary folder");
-            let layout = Layout::sandbox(root.path());
-            let setup = root.path().join("UwUNotes-Setup.exe");
-            std::fs::write(&setup, b"the setup itself").expect("writing the setup stand-in");
-            // Deliberately not starting with "MZ". Windows reads the target of
-            // a shortcut while it saves one, and refuses with a bare E_FAIL
-            // when the file claims to be an executable and then is not — which
-            // costs an afternoon to find in a test that has nothing to do with
-            // executables.
-            let editor = b"the editor, pretending to be eight megabytes".to_vec();
-            let packed = zstd::encode_all(editor.as_slice(), 3).expect("packing the editor");
-            Self {
-                _root: root,
-                layout,
-                setup,
-                editor,
-                packed,
-            }
-        }
-
-        fn package(&self) -> Package<'_> {
-            Package {
-                payload: &self.packed,
-                size: self.editor.len() as u64,
-                setup: self.setup.clone(),
-            }
-        }
-
-        fn options(&self, desktop_shortcut: bool) -> Options {
-            Options {
-                folder: self.layout.default_folder().display().to_string(),
-                desktop_shortcut,
-                launch_when_done: false,
-            }
-        }
-
-        /// Installs, and hands back every progress message it sent.
-        fn install(&self, options: &Options, version: &str) -> Result<Vec<Progress>, SetupError> {
-            let mut steps = Vec::new();
-            install(
-                &self.layout,
-                &self.package(),
-                options,
-                version,
-                &mut |progress| steps.push(progress),
-            )?;
-            Ok(steps)
-        }
-
-        fn uninstall(&self, folder: &Path, keep_settings: bool) -> Result<(), SetupError> {
-            uninstall(&self.layout, folder, keep_settings, &mut |_| {})
-        }
-    }
-
-    impl Drop for Machine {
-        fn drop(&mut self) {
-            let key = self.layout.registry_prefix.trim_end_matches('\\');
-            let _ = RegKey::predef(HKEY_CURRENT_USER).delete_subkey_all(key);
-        }
-    }
-
-    #[test]
-    fn a_clean_install_writes_the_editor_its_shortcuts_and_the_uninstall_entry() {
-        let machine = Machine::new();
-        let layout = &machine.layout;
-        let folder = layout.default_folder();
-        assert!(layout.existing().is_none(), "nothing is installed yet");
-
-        let steps = machine
-            .install(&machine.options(true), "0.3.0")
-            .expect("the install");
-
-        assert_eq!(
-            std::fs::read(folder.join(APP_EXE)).unwrap(),
-            machine.editor,
-            "the editor is unpacked byte for byte"
-        );
-        assert_eq!(
-            std::fs::read(folder.join(UNINSTALL_EXE)).unwrap(),
-            b"the setup itself",
-            "the setup becomes the uninstaller"
-        );
-        assert!(!folder.join(INCOMING_APP).exists(), "nothing half-written");
-        assert!(layout.start_menu.join(SHORTCUT).exists());
-        assert!(layout.desktop.join(SHORTCUT).exists());
-
-        let entry = layout.open(UNINSTALL_KEY).expect("the uninstall entry");
-        assert_eq!(
-            entry.get_value::<String, _>("DisplayName").unwrap(),
-            PRODUCT
-        );
-        assert_eq!(
-            entry.get_value::<String, _>("DisplayVersion").unwrap(),
-            "0.3.0"
-        );
-        assert_eq!(
-            entry.get_value::<String, _>("Publisher").unwrap(),
-            PUBLISHER
-        );
-        assert_eq!(
-            entry.get_value::<String, _>("InstallLocation").unwrap(),
-            folder.display().to_string()
-        );
-        assert!(entry
-            .get_value::<String, _>("UninstallString")
-            .unwrap()
-            .ends_with(r#"\uninstall.exe" --uninstall"#));
-        assert!(entry
-            .get_value::<String, _>("DisplayIcon")
-            .unwrap()
-            .ends_with(r"\UwUNotes.exe,0"));
-        assert!(
-            entry.get_value::<u32, _>("EstimatedSize").unwrap() > 0,
-            "Windows shows a size in the list of installed apps"
-        );
-
-        let existing = layout.existing().expect("it is installed now");
-        assert_eq!(existing.version.as_deref(), Some("0.3.0"));
-        assert!(!existing.legacy);
-        assert_eq!(existing.folder, folder);
-        assert!(layout.wanted_desktop_shortcut());
-
-        let percents: Vec<f64> = steps.iter().map(|step| step.percent).collect();
-        assert!(
-            percents.windows(2).all(|pair| pair[1] >= pair[0]),
-            "the bar only ever moves forward: {percents:?}"
-        );
-        assert_eq!(steps.last().map(|step| step.step), Some(Step::Done));
-        assert_eq!(steps.last().map(|step| step.percent), Some(100.0));
-    }
-
-    #[test]
-    fn an_update_replaces_the_editor_and_keeps_the_choices_that_were_made() {
-        let machine = Machine::new();
-        let layout = &machine.layout;
-        let folder = layout.default_folder();
-        machine
-            .install(&machine.options(false), "0.2.0")
-            .expect("the first install");
-        assert!(
-            !layout.desktop.join(SHORTCUT).exists(),
-            "no desktop shortcut was asked for"
-        );
-
-        // What a silent update does: same folder, same answers as last time.
-        let options = Options {
-            folder: layout.default_folder().display().to_string(),
-            desktop_shortcut: layout.wanted_desktop_shortcut(),
-            launch_when_done: false,
-        };
-        check_not_older(
-            layout.existing().and_then(|e| e.version).as_deref(),
-            "0.3.0",
-        )
-        .expect("0.3.0 is newer than 0.2.0");
-        machine.install(&options, "0.3.0").expect("the update");
-
-        assert_eq!(layout.default_folder(), folder, "it stays where it was");
-        assert_eq!(std::fs::read(folder.join(APP_EXE)).unwrap(), machine.editor);
-        assert_eq!(
-            layout.existing().and_then(|e| e.version).as_deref(),
-            Some("0.3.0")
-        );
-        assert!(
-            !layout.desktop.join(SHORTCUT).exists(),
-            "an update does not add a shortcut the user declined"
-        );
-        assert!(layout.start_menu.join(SHORTCUT).exists());
-    }
 
     #[test]
     fn an_update_to_an_older_version_is_refused() {
@@ -1002,137 +506,20 @@ mod tests {
     }
 
     #[test]
-    fn uninstalling_removes_what_the_setup_wrote_and_keeps_what_it_did_not() {
-        let machine = Machine::new();
-        let layout = &machine.layout;
-        let folder = layout.default_folder();
-        machine
-            .install(&machine.options(true), "0.3.0")
-            .expect("the install");
-
-        // The user's own things: their session, and a file they put next to the
-        // editor themselves.
-        std::fs::create_dir_all(&layout.app_data).unwrap();
-        std::fs::write(layout.app_data.join("session.json"), b"open tabs").unwrap();
-        std::fs::write(folder.join("notes.txt"), b"mine").unwrap();
-
-        machine.uninstall(&folder, true).expect("the uninstall");
-
-        assert!(!folder.join(APP_EXE).exists());
-        assert!(!folder.join(UNINSTALL_EXE).exists());
-        assert!(!layout.start_menu.join(SHORTCUT).exists());
-        assert!(!layout.desktop.join(SHORTCUT).exists());
-        assert!(layout.open(UNINSTALL_KEY).is_none());
-        assert!(layout.open(SETUP_KEY).is_none());
-        assert!(layout.existing().is_none());
-        assert!(
-            folder.join("notes.txt").exists(),
-            "a file the setup did not write stays, and so does its folder"
-        );
-        assert!(
-            layout.app_data.join("session.json").exists(),
-            "the session and the drafts are kept unless the user says otherwise"
-        );
-
-        machine
-            .uninstall(&folder, false)
-            .expect("the second uninstall");
-        assert!(
-            !layout.app_data.exists(),
-            "and are deleted when the user does say otherwise"
-        );
+    fn the_bar_only_ever_moves_forward_and_ends_at_a_hundred() {
+        let mut seen = Vec::new();
+        let mut sink = |progress: Progress| seen.push(progress.percent);
+        let mut report = Reporter::new(&mut sink);
+        report.at(Step::Preparing, 0.0);
+        report.at(Step::Writing, 0.5);
+        report.at(Step::Writing, 0.2);
+        report.at(Step::Registry, 1.0);
+        report.at(Step::Done, 1.0);
+        assert!(seen.windows(2).all(|pair| pair[1] >= pair[0]), "{seen:?}");
+        assert_eq!(seen.last(), Some(&100.0));
     }
 
-    #[test]
-    fn the_installation_of_the_stock_installer_is_found_and_taken_away() {
-        let machine = Machine::new();
-        let layout = &machine.layout;
-        std::fs::create_dir_all(&layout.legacy_folder).unwrap();
-        std::fs::write(layout.legacy_folder.join(LEGACY_EXE), b"0.2.0").unwrap();
-        std::fs::write(layout.legacy_folder.join(UNINSTALL_EXE), b"nsis").unwrap();
-        let entry = layout.create(UNINSTALL_KEY).unwrap();
-        entry
-            .set_value("InstallLocation", &quoted(&layout.legacy_folder))
-            .unwrap();
-        entry.set_value("DisplayVersion", &"0.2.0").unwrap();
-        entry
-            .set_value("MainBinaryName", &LEGACY_EXE.to_owned())
-            .unwrap();
-        layout
-            .create(LEGACY_PRODUCT_KEY)
-            .unwrap()
-            .set_value("", &layout.legacy_folder.display().to_string())
-            .unwrap();
-
-        let existing = layout.existing().expect("the stock installation");
-        assert!(existing.legacy);
-        assert_eq!(existing.folder, layout.legacy_folder);
-        assert_eq!(existing.version.as_deref(), Some("0.2.0"));
-        assert_eq!(
-            layout.default_folder(),
-            layout.default_folder,
-            "it moves to Programs rather than staying where NSIS put it"
-        );
-
-        machine
-            .install(&machine.options(false), "0.3.0")
-            .expect("the update over the stock installation");
-
-        assert!(!layout.legacy_folder.exists(), "the old folder is gone");
-        assert!(layout.open(LEGACY_PRODUCT_KEY).is_none());
-        let existing = layout.existing().expect("the new installation");
-        assert!(!existing.legacy);
-        assert_eq!(existing.folder, layout.default_folder);
-        assert!(
-            layout
-                .open(UNINSTALL_KEY)
-                .unwrap()
-                .get_value::<String, _>("MainBinaryName")
-                .is_err(),
-            "the values the stock installer wrote are gone with it"
-        );
-    }
-
-    #[test]
-    fn a_setup_without_an_editor_inside_says_so_instead_of_installing_nothing() {
-        let machine = Machine::new();
-        let empty = Package {
-            payload: &[],
-            size: 0,
-            setup: machine.setup.clone(),
-        };
-        let error = install(
-            &machine.layout,
-            &empty,
-            &machine.options(false),
-            "0.3.0",
-            &mut |_| {},
-        )
-        .expect_err("nothing to install");
-        assert_eq!(error.kind, Kind::Other);
-        assert!(
-            !machine.layout.default_folder().join(APP_EXE).exists(),
-            "and leaves no half an editor behind"
-        );
-        assert_eq!(has_payload(), !PAYLOAD.is_empty());
-    }
-
-    #[test]
-    fn a_folder_that_is_not_one_is_refused_before_anything_is_written() {
-        let machine = Machine::new();
-        for folder in ["", "   ", "UwUNotes", r"..\UwUNotes", r"C:\"] {
-            let options = Options {
-                folder: folder.to_owned(),
-                desktop_shortcut: false,
-                launch_when_done: false,
-            };
-            let error = machine
-                .install(&options, "0.3.0")
-                .expect_err(&format!("{folder:?} is not a full path"));
-            assert_eq!(error.kind, Kind::Other);
-        }
-    }
-
+    #[cfg(windows)]
     #[test]
     fn errors_from_windows_become_the_kinds_the_page_branches_on() {
         let kind = |code| classify(&io::Error::from_raw_os_error(code));
@@ -1146,6 +533,18 @@ mod tests {
             classify(&io::Error::new(io::ErrorKind::PermissionDenied, "no")),
             Kind::Permission
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn errors_from_unix_become_the_kinds_the_page_branches_on() {
+        let kind = |code| classify(&io::Error::from_raw_os_error(code));
+        assert_eq!(kind(26), Kind::InUse, "ETXTBSY");
+        assert_eq!(kind(28), Kind::DiskFull, "ENOSPC");
+        assert_eq!(kind(13), Kind::Permission, "EACCES");
+        assert_eq!(kind(1), Kind::Permission, "EPERM");
+        assert_eq!(kind(30), Kind::Permission, "EROFS");
+        assert_eq!(kind(2), Kind::Other, "ENOENT");
     }
 
     #[test]
@@ -1192,5 +591,13 @@ mod tests {
         ] {
             assert_eq!(serde_json::to_value(step).unwrap(), name);
         }
+    }
+
+    #[test]
+    fn the_payload_is_labelled_with_a_shape_the_setup_knows() {
+        // Empty in every build the tests run in, and then the kind is still
+        // written down; the check in `Package::packed` must not refuse a real
+        // payload because of how an empty one is labelled.
+        assert!(matches!(PAYLOAD_KIND, "file" | "tree"), "{PAYLOAD_KIND}");
     }
 }

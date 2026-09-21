@@ -13,21 +13,36 @@ From 0.2.0 on, an installed UwUNotes says so when there is a newer version.
 
 ## What you need
 
-- **Windows 10 or 11, 64-bit.** That is the only platform I develop on and the
-  only one I test. macOS and Linux are a Tauri build target away in theory and
-  untried in practice; Windows on ARM has never been started.
-- **Microsoft Edge WebView2.** Windows 11 always has it, Windows 10 usually.
-  If it is missing, the setup offers to fetch it.
+- **Windows 10 or 11, 64-bit.** That is the platform I develop on and the one I
+  test most. Windows on ARM has never been started.
+  **Microsoft Edge WebView2** comes with it: Windows 11 always has it, Windows
+  10 usually. If it is missing, the setup offers to fetch it.
+- **macOS**, on Apple Silicon or Intel — see [macOS](#macos). Built by every
+  release, tried far less than Windows.
+- **Linux, x86_64**, with **WebKitGTK 4.1** installed — see [Linux](#linux).
+  Built by every release, tried far less than Windows.
 
-UwUNotes speaks German and English, following Windows.
+The setup is the same window with Nyu in it on all three. What differs is where
+it puts the editor and what a shortcut is, and both sections below say so.
+
+UwUNotes speaks German and English, following the system.
 **Settings → Appearance → Language** switches.
 
 ## 1. From a release
 
 Releases are on the
 [releases page](https://github.com/MinifyX/UwUNotes-Client/releases). Take the
-newest one at the top and download `UwUNotes-Setup-<version>.exe` under
-**Assets**. That is UwUNotes' own setup, it is the only file you need, and it is
+newest one at the top and download, under **Assets**, the one file for your
+system:
+
+| System                 | File                                           |
+| ---------------------- | ---------------------------------------------- |
+| Windows                | `UwUNotes-Setup-<version>.exe`                 |
+| Mac with Apple Silicon | `UwUNotes-Setup-<version>-macos-arm64.dmg`     |
+| Mac with an Intel chip | `UwUNotes-Setup-<version>-macos-x64.dmg`       |
+| Linux (x86_64)         | `UwUNotes-Setup-<version>-linux-x86_64.tar.gz` |
+
+Each is UwUNotes' own setup, and it is the only file you need. The Windows one is
 also the file an installed copy fetches when it updates itself.
 
 The `.msi` next to it is the same editor in Tauri's stock bundle, for a machine
@@ -35,12 +50,14 @@ where an MSI is what gets deployed. It has none of the screens described below,
 and the updater never uses it.
 
 `SHA256SUMS.txt` lists all of them, if you want to check that what you have is
-what was built: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in PowerShell, and
-compare. It is published by the same job that built the file, so it cannot tell
-you the build was honest — only that nothing happened to the file since.
+what was built: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in PowerShell, or
+`shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on a Mac and
+`sha256sum -c SHA256SUMS.txt --ignore-missing` on Linux, next to the download.
+It is published by the same workflow that built the file, so it cannot tell you
+the build was honest — only that nothing happened to the file since.
 
-The `.sig` beside the setup is not for you. It is what an installed UwUNotes
-checks before it installs an update, and it is explained under
+The `.sig` files beside the setups are not for you. They are what an installed
+UwUNotes checks before it installs an update, and they are explained under
 [Updates](#updates).
 
 Your browser may say the file is "not commonly downloaded" — which is true, and
@@ -100,6 +117,118 @@ open" and waits for you to decide rather than deciding for you. The one
 exception is the editor updating itself, where it has already written everything
 to disk and closed itself before the setup starts.
 
+## macOS
+
+**Which disk image.** Apple menu → **About This Mac**. A chip called **Apple
+M1**, **M2**, **M3** or later means `…-macos-arm64.dmg`; a processor called
+**Intel** means `…-macos-x64.dmg`. The Intel one does run on Apple Silicon
+through Rosetta, just slower and for no reason.
+
+**The first start.** Open the disk image and double-click **UwUNotes Setup**.
+macOS will most likely refuse with "cannot be opened because the developer
+cannot be verified" or "Apple could not verify…". That is Gatekeeper, and it is
+the Mac's version of the SmartScreen box above: the setup is not signed with an
+Apple Developer ID or notarised by Apple, which costs a yearly fee this project
+does not pay. Nothing is wrong with the file for that reason. Either way works:
+
+- **Control-click** (or right-click) **UwUNotes Setup** → **Open** → **Open**.
+  On macOS 15 and later that button is gone from the first dialog: try to open
+  it once, then **System Settings → Privacy & Security**, scroll down to
+  "UwUNotes Setup was blocked", **Open Anyway**.
+- Or, in Terminal, take the quarantine mark off the copy you downloaded and
+  open it normally:
+  `xattr -dr com.apple.quarantine "/Volumes/UwUNotes Setup/UwUNotes Setup.app"`
+  (or on the `.dmg` itself before you open it).
+
+You are asked once, for the setup. The editor it installs is written by the
+setup rather than downloaded, so macOS asks nothing more about it.
+
+**What it does.** The same window as on Windows, and the same one question —
+the folder is not asked, because a Mac app belongs in an Applications folder:
+
+- `~/Applications/UwUNotes.app` — the Applications folder of your own user,
+  which is made if it is not there. No administrator password. Launchpad,
+  Spotlight and Finder all find it there.
+- **Alias on the desktop**, if ticked.
+- `~/Library/Application Support/app.uwunotes.setup/`: which version was
+  installed, and a copy of the setup as `uninstall`.
+
+UwUNotes has to be quit (⌘Q, not just the window closed) for the setup to
+replace it.
+
+**Removing it.** Drag `UwUNotes.app` to the Bin, like any Mac app — that leaves
+your session and settings behind. Or run the uninstaller, which asks the usual
+question about them:
+
+```bash
+"$HOME/Library/Application Support/app.uwunotes.setup/uninstall" --uninstall
+```
+
+**Updates.** An installed copy tells you about a newer version like everywhere
+else, but does not install it itself: download the new disk image and run the
+setup over the old installation. Session, settings and drafts stay.
+
+## Linux
+
+**What it needs.** x86_64, and WebKitGTK 4.1 — the browser engine the editor
+draws in, which a program cannot sensibly bring along itself. Without it the
+setup does not start at all, and says in a terminal which library is missing.
+
+| Distribution         | Package                                   |
+| -------------------- | ----------------------------------------- |
+| Debian, Ubuntu, Mint | `sudo apt install libwebkit2gtk-4.1-0`    |
+| Fedora               | `sudo dnf install webkit2gtk4.1`          |
+| Arch, Manjaro        | `sudo pacman -S webkit2gtk-4.1`           |
+| openSUSE             | `sudo zypper install libwebkit2gtk-4_1-0` |
+
+Ubuntu 22.04, Debian 12, Fedora 36 and anything newer have it; older ones do
+not.
+
+**Running the setup.** Unpack the archive and start the one file inside —
+from a file manager by double-click where it allows that, or in a terminal:
+
+```bash
+tar -xzf UwUNotes-Setup-0.3.1-linux-x86_64.tar.gz
+./UwUNotes-Setup-0.3.1
+```
+
+The archive is there because it keeps the file executable on the way through a
+browser; a bare download would arrive without that. No `sudo`, and please do not
+add one: everything goes into your own home folder, and a setup run as root
+would put it into root's.
+
+**What it does.** The same window and the same question as everywhere. The
+folder is shown, not asked:
+
+- `~/.local/share/uwunotes/uwunotes` — the editor (`$XDG_DATA_HOME` if you set
+  one), and `uninstall` beside it, which is the setup again.
+- `~/.local/share/applications/app.uwunotes.desktop` — the entry in your
+  applications menu, which also offers UwUNotes for text files under
+  **Open With**.
+- The icon, under `~/.local/share/icons/hicolor/`.
+- `~/.local/bin/uwunotes`, a link to the editor, so `uwunotes` works in a
+  terminal where `~/.local/bin` is on the `PATH` — unless something else of
+  yours already has that name, which is then left alone.
+- A launcher on the desktop, if ticked and if your desktop has a desktop folder.
+
+Everything is written whole or not at all, with plain permissions (0755 for the
+programs, 0644 for the rest), and the setup refuses to write through a link it
+did not make itself.
+
+**Removing it.** Right-click UwUNotes in the applications menu or the dock →
+**Uninstall UwUNotes**, or:
+
+```bash
+~/.local/share/uwunotes/uninstall --uninstall
+```
+
+It asks the usual question, and removes exactly the files listed above — each
+only while it is still what the setup put there.
+
+**Updates.** An installed copy tells you about a newer version like everywhere
+else, but does not install it itself: download the new archive and run the
+setup again. Session, settings and drafts stay.
+
 ## 4. Building it yourself
 
 This is how you get the current state of the repository rather than whatever a
@@ -129,8 +258,11 @@ For something you can keep:
 pnpm build:setup
 ```
 
-That builds the editor, packs it into the setup, and leaves
-`target/release/UwUNotes-Setup-<version>.exe` in the repository root. Without the
+That builds the editor, packs it into the setup, and leaves the setup for the
+system you are on in `target/release` in the repository root:
+`UwUNotes-Setup-<version>.exe`, `…-macos-arm64.dmg` (or `-x64` with
+`pnpm build:setup --target x86_64-apple-darwin`), or `…-linux-x86_64.tar.gz`.
+On Linux, install the `-dev` packages Tauri's prerequisites list first. Without the
 project's signing key in the environment it says so and writes no `.sig`, which
 changes nothing about installing it — that signature is only what an _installed_
 copy checks before it updates itself. Windows greets your own build exactly as
@@ -158,7 +290,13 @@ of this existed, so nothing in it can tell you anything. Download the setup by
 hand one more time and run it over your installation; from that one on the
 editor does the looking.
 
-**Install and restart** downloads the setup, checks it, and hands over: the
+On a Mac and on Linux the strip says the same but has no **Install and
+restart**: what those systems download is a disk image or an archive, not a
+program the editor can run. The new version is a download from the releases
+page and a run of its setup, as described under [macOS](#macos) and
+[Linux](#linux).
+
+On Windows, **Install and restart** downloads the setup, checks it, and hands over: the
 editor writes the session and every unsaved buffer to disk, starts the setup
 with its own process id to wait for, and closes. The setup waits for Windows to
 let go of the file, replaces it and starts the editor again. No window appears
@@ -213,6 +351,10 @@ the session, the settings and the macros stay where they are either way.
 | Unsaved text, one file per buffer           | `%APPDATA%\app.uwunotes.desktop\drafts\`                                  |
 | Settings, your own themes, saved macros     | The webview's local storage, under `%LOCALAPPDATA%\app.uwunotes.desktop\` |
 
+On a Mac the same folder is `~/Library/Application Support/app.uwunotes.desktop`
+(the settings under `~/Library/WebKit/app.uwunotes.desktop`); on Linux it is
+`~/.local/share/app.uwunotes.desktop`.
+
 The drafts folder is why closing the app with unsaved text costs nothing: it is
 written while you type and read back at the next start. It is also plain text
 sitting in your profile, so treat it the way you would treat the files it is a
@@ -228,6 +370,9 @@ update check is the one thing that leaves the machine, and it asks for a file
 rather than telling anybody anything.
 
 ## Uninstalling
+
+On a Mac and on Linux, see [macOS](#macos) and [Linux](#linux); the question
+and what it keeps are the same.
 
 **Windows Settings → Apps → Installed apps → UwUNotes → Uninstall**, or
 `uninstall.exe` in the install folder. It is the same program either way, and it
@@ -278,24 +423,40 @@ Ab 0.2.0 meldet sich ein installiertes UwUNotes, wenn es etwas Neueres gibt.
 
 ## Was du brauchst
 
-- **Windows 10 oder 11, 64 Bit.** Das ist die einzige Plattform, auf der ich
-  entwickle, und die einzige, die ich teste. macOS und Linux sind theoretisch
-  ein Tauri-Build-Target weit weg und praktisch unerprobt; Windows auf ARM habe
-  ich nie gestartet.
-- **Microsoft Edge WebView2.** Windows 11 hat es immer, Windows 10 meistens.
-  Fehlt es, bietet das Setup an, es zu holen.
+- **Windows 10 oder 11, 64 Bit.** Das ist die Plattform, auf der ich entwickle
+  und am meisten teste. Windows auf ARM habe ich nie gestartet.
+  **Microsoft Edge WebView2** gehört dazu: Windows 11 hat es immer, Windows 10
+  meistens. Fehlt es, bietet das Setup an, es zu holen.
+- **macOS**, mit Apple Silicon oder Intel — siehe [macOS](#macos-1). Jedes
+  Release baut es, ausprobiert ist es weit weniger als Windows.
+- **Linux, x86_64**, mit installiertem **WebKitGTK 4.1** — siehe
+  [Linux](#linux-1). Jedes Release baut es, ausprobiert ist es weit weniger als
+  Windows.
 
-UwUNotes spricht Deutsch und Englisch, je nach Windows.
+Das Setup ist auf allen dreien dasselbe Fenster mit Nyu darin. Anders ist nur,
+wohin es den Editor legt und was eine Verknüpfung ist; beides steht in den
+Abschnitten unten.
+
+UwUNotes spricht Deutsch und Englisch, je nach System.
 **Einstellungen → Erscheinungsbild → Sprache** schaltet um.
 
 ## 1. Aus einem Release
 
 Releases stehen auf der
 [Releases-Seite](https://github.com/MinifyX/UwUNotes-Client/releases). Nimm das
-neueste ganz oben und lade unter **Assets** `UwUNotes-Setup-<version>.exe`
-herunter. Das ist UwUNotes' eigenes Setup, die einzige Datei, die du brauchst —
-und genau die, die eine installierte Kopie auch selbst holt, wenn sie sich
-aktualisiert.
+neueste ganz oben und lade unter **Assets** die eine Datei für dein System
+herunter:
+
+| System                  | Datei                                          |
+| ----------------------- | ---------------------------------------------- |
+| Windows                 | `UwUNotes-Setup-<version>.exe`                 |
+| Mac mit Apple Silicon   | `UwUNotes-Setup-<version>-macos-arm64.dmg`     |
+| Mac mit Intel-Prozessor | `UwUNotes-Setup-<version>-macos-x64.dmg`       |
+| Linux (x86_64)          | `UwUNotes-Setup-<version>-linux-x86_64.tar.gz` |
+
+Jede davon ist UwUNotes' eigenes Setup und die einzige Datei, die du brauchst.
+Die für Windows ist außerdem genau die, die eine installierte Kopie selbst holt,
+wenn sie sich aktualisiert.
 
 Die `.msi` daneben ist derselbe Editor in Tauris Standard-Paket, für Rechner, auf
 denen eine MSI verteilt wird. Sie hat keinen der unten beschriebenen Schritte,
@@ -303,12 +464,14 @@ und der Updater benutzt sie nie.
 
 `SHA256SUMS.txt` listet alle davon, falls du prüfen möchtest, ob du auch wirklich
 die gebaute Datei hast: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in der
-PowerShell, dann vergleichen. Die Datei kommt aus demselben Lauf, der auch das
-Setup gebaut hat — sie kann dir also nicht sagen, dass der Build ehrlich war,
+PowerShell, dann vergleichen — oder neben dem Download
+`shasum -a 256 -c SHA256SUMS.txt --ignore-missing` auf dem Mac und
+`sha256sum -c SHA256SUMS.txt --ignore-missing` unter Linux. Die Datei kommt
+aus demselben Workflow, der auch das Setup gebaut hat — sie kann dir also nicht sagen, dass der Build ehrlich war,
 nur dass der Datei seitdem nichts passiert ist.
 
-Die `.sig` neben dem Setup ist nicht für dich. Sie ist das, was ein
-installiertes UwUNotes prüft, bevor es ein Update installiert, und steht unter
+Die `.sig`-Dateien neben den Setups sind nicht für dich. Sie sind das, was ein
+installiertes UwUNotes prüft, bevor es ein Update installiert, und stehen unter
 [Updates](#updates-1).
 
 Dein Browser meldet vielleicht, die Datei werde „nicht häufig heruntergeladen“ —
@@ -373,6 +536,122 @@ abzunehmen. Die einzige Ausnahme ist der Editor, der sich selbst aktualisiert �
 da hat er längst alles auf die Platte geschrieben und sich geschlossen, bevor das
 Setup startet.
 
+## macOS
+
+**Welches Image.** Apple-Menü → **Über diesen Mac**. Steht dort ein Chip namens
+**Apple M1**, **M2**, **M3** oder neuer, ist es `…-macos-arm64.dmg`; steht dort
+ein Prozessor von **Intel**, ist es `…-macos-x64.dmg`. Das Intel-Image läuft
+über Rosetta auch auf Apple Silicon, nur langsamer und ohne Grund.
+
+**Der erste Start.** Öffne das Image und doppelklicke **UwUNotes Setup**. macOS
+lehnt das sehr wahrscheinlich ab: „kann nicht geöffnet werden, da der Entwickler
+nicht verifiziert werden kann“ oder „Apple konnte nicht überprüfen …“. Das ist
+Gatekeeper, die Mac-Ausgabe des SmartScreen-Fensters von oben: Das Setup ist
+nicht mit einer Apple-Developer-ID signiert und nicht von Apple notarisiert, und
+das kostet eine Jahresgebühr, die dieses Projekt nicht zahlt. An der Datei ist
+deshalb nichts falsch. Beide Wege gehen:
+
+- **Ctrl-Klick** (oder Rechtsklick) auf **UwUNotes Setup** → **Öffnen** →
+  **Öffnen**. Ab macOS 15 fehlt dieser Knopf im ersten Dialog: einmal zu öffnen
+  versuchen, dann **Systemeinstellungen → Datenschutz & Sicherheit**, nach
+  unten zu „UwUNotes Setup wurde blockiert“, **Dennoch öffnen**.
+- Oder im Terminal die Quarantäne-Markierung von deiner Kopie nehmen und normal
+  öffnen:
+  `xattr -dr com.apple.quarantine "/Volumes/UwUNotes Setup/UwUNotes Setup.app"`
+  (oder vorher auf das `.dmg` selbst).
+
+Gefragt wird einmal, für das Setup. Den Editor schreibt das Setup selbst, er wird
+nicht heruntergeladen, also fragt macOS dazu nichts mehr.
+
+**Was es tut.** Dasselbe Fenster wie unter Windows und dieselbe eine Frage —
+nach dem Ordner wird nicht gefragt, eine Mac-App gehört in einen
+Programme-Ordner:
+
+- `~/Applications/UwUNotes.app` — der Programme-Ordner deines eigenen Benutzers,
+  der angelegt wird, wenn es ihn noch nicht gibt. Kein Administrator-Passwort.
+  Launchpad, Spotlight und Finder finden es dort.
+- **Alias auf dem Schreibtisch**, wenn angehakt.
+- `~/Library/Application Support/app.uwunotes.setup/`: welche Version
+  installiert wurde, und eine Kopie des Setups als `uninstall`.
+
+UwUNotes muss beendet sein (⌘Q, nicht nur das Fenster zu), damit das Setup es
+ersetzen kann.
+
+**Entfernen.** `UwUNotes.app` in den Papierkorb ziehen, wie jede Mac-App — dann
+bleiben Sitzung und Einstellungen liegen. Oder das Deinstallationsprogramm
+starten, das die übliche Frage dazu stellt:
+
+```bash
+"$HOME/Library/Application Support/app.uwunotes.setup/uninstall" --uninstall
+```
+
+**Updates.** Eine installierte Kopie meldet eine neuere Version wie überall,
+installiert sie aber nicht selbst: Lad das neue Image herunter und lass das
+Setup über die alte Installation laufen. Sitzung, Einstellungen und Entwürfe
+bleiben.
+
+## Linux
+
+**Was es braucht.** x86_64 und WebKitGTK 4.1 — die Browser-Engine, in der der
+Editor zeichnet und die ein Programm nicht sinnvoll selbst mitbringen kann.
+Fehlt sie, startet das Setup gar nicht und sagt im Terminal, welche Bibliothek
+fehlt.
+
+| Distribution         | Paket                                     |
+| -------------------- | ----------------------------------------- |
+| Debian, Ubuntu, Mint | `sudo apt install libwebkit2gtk-4.1-0`    |
+| Fedora               | `sudo dnf install webkit2gtk4.1`          |
+| Arch, Manjaro        | `sudo pacman -S webkit2gtk-4.1`           |
+| openSUSE             | `sudo zypper install libwebkit2gtk-4_1-0` |
+
+Ubuntu 22.04, Debian 12, Fedora 36 und alles Neuere haben es, Älteres nicht.
+
+**Das Setup starten.** Das Archiv entpacken und die eine Datei darin starten —
+im Dateimanager per Doppelklick, wo er das erlaubt, oder im Terminal:
+
+```bash
+tar -xzf UwUNotes-Setup-0.3.1-linux-x86_64.tar.gz
+./UwUNotes-Setup-0.3.1
+```
+
+Das Archiv gibt es, weil es die Datei auf dem Weg durch den Browser ausführbar
+hält; ein nackter Download käme ohne das an. Kein `sudo`, und bitte auch keins
+davorsetzen: Alles landet in deinem eigenen Home-Ordner, und ein Setup als root
+legte es in den von root.
+
+**Was es tut.** Dasselbe Fenster und dieselbe Frage wie überall. Der Ordner wird
+angezeigt, nicht gefragt:
+
+- `~/.local/share/uwunotes/uwunotes` — der Editor (`$XDG_DATA_HOME`, wenn du
+  eins gesetzt hast), und `uninstall` daneben, das wieder das Setup ist.
+- `~/.local/share/applications/app.uwunotes.desktop` — der Eintrag im
+  Anwendungsmenü, der UwUNotes auch unter **Öffnen mit** für Textdateien
+  anbietet.
+- Das Symbol unter `~/.local/share/icons/hicolor/`.
+- `~/.local/bin/uwunotes`, ein Link auf den Editor, damit `uwunotes` im
+  Terminal geht, wo `~/.local/bin` im `PATH` liegt — außer etwas Eigenes von dir
+  heißt schon so, dann bleibt das unangetastet.
+- Ein Starter auf dem Schreibtisch, wenn angehakt und wenn dein Desktop einen
+  Schreibtisch-Ordner hat.
+
+Alles wird ganz oder gar nicht geschrieben, mit schlichten Rechten (0755 für die
+Programme, 0644 für den Rest), und durch einen Link, den es nicht selbst
+angelegt hat, schreibt das Setup nicht.
+
+**Entfernen.** Rechtsklick auf UwUNotes im Anwendungsmenü oder im Dock →
+**UwUNotes entfernen**, oder:
+
+```bash
+~/.local/share/uwunotes/uninstall --uninstall
+```
+
+Es stellt die übliche Frage und entfernt genau die Dateien von oben — jede nur,
+solange sie noch das ist, was das Setup dort hingelegt hat.
+
+**Updates.** Eine installierte Kopie meldet eine neuere Version wie überall,
+installiert sie aber nicht selbst: Lad das neue Archiv herunter und starte das
+Setup noch einmal. Sitzung, Einstellungen und Entwürfe bleiben.
+
 ## 4. Selbst bauen
 
 Das ist der Weg zum aktuellen Stand des Repositories statt zu dem, was ein
@@ -402,8 +681,11 @@ Für etwas zum Behalten:
 pnpm build:setup
 ```
 
-Das baut den Editor, packt ihn ins Setup und legt
-`target/release/UwUNotes-Setup-<version>.exe` ins Wurzelverzeichnis. Ohne den
+Das baut den Editor, packt ihn ins Setup und legt das Setup für dein System nach
+`target/release` im Wurzelverzeichnis: `UwUNotes-Setup-<version>.exe`,
+`…-macos-arm64.dmg` (oder `-x64` mit
+`pnpm build:setup --target x86_64-apple-darwin`) oder `…-linux-x86_64.tar.gz`.
+Unter Linux vorher die `-dev`-Pakete aus Tauris Voraussetzungen installieren. Ohne den
 Signaturschlüssel des Projekts in der Umgebung sagt es das und schreibt keine
 `.sig` — am Installieren ändert das nichts, denn diese Signatur prüft nur eine
 _installierte_ Kopie, bevor sie sich selbst aktualisiert. Windows begrüßt deinen
@@ -431,7 +713,13 @@ worden, bevor es das alles gab, also kann dir nichts darin etwas sagen. Lad das
 Setup einmal von Hand herunter und installier es über die vorhandene Version; ab
 dieser Installation schaut der Editor selbst nach.
 
-**Installieren und neu starten** lädt das Setup herunter, prüft es und übergibt:
+Auf dem Mac und unter Linux sagt der Streifen dasselbe, hat aber kein
+**Installieren und neu starten**: Was diese Systeme herunterladen, ist ein
+Image oder ein Archiv, kein Programm, das der Editor starten kann. Die neue
+Version ist dort ein Download von der Releases-Seite und ein Lauf ihres Setups,
+wie unter [macOS](#macos-1) und [Linux](#linux-1) beschrieben.
+
+Unter Windows lädt **Installieren und neu starten** das Setup herunter, prüft es und übergibt:
 Der Editor schreibt Sitzung und jeden ungespeicherten Puffer auf die Platte,
 startet das Setup mit seiner eigenen Prozess-ID zum Warten und schließt sich. Das
 Setup wartet, bis Windows die Datei freigibt, ersetzt sie und startet den Editor
@@ -487,6 +775,10 @@ Sitzung, Einstellungen und Makros bleiben in beiden Fällen, wo sie sind.
 | Ungespeicherter Text, eine Datei pro Puffer       | `%APPDATA%\app.uwunotes.desktop\drafts\`                                    |
 | Einstellungen, eigene Themes, gespeicherte Makros | Der Local Storage der Webview, unter `%LOCALAPPDATA%\app.uwunotes.desktop\` |
 
+Auf dem Mac ist derselbe Ordner `~/Library/Application Support/app.uwunotes.desktop`
+(die Einstellungen unter `~/Library/WebKit/app.uwunotes.desktop`), unter Linux
+`~/.local/share/app.uwunotes.desktop`.
+
 Der `drafts`-Ordner ist der Grund, warum das Schließen mit ungespeichertem Text
 nichts kostet: Er wird beim Tippen geschrieben und beim nächsten Start wieder
 gelesen. Er ist aber auch einfacher Text in deinem Profil — behandle ihn so, wie
@@ -502,6 +794,9 @@ Telemetrie. Die Updatesuche ist das Einzige, was den Rechner verlässt, und sie
 fragt nach einer Datei, statt jemandem etwas zu erzählen.
 
 ## Deinstallieren
+
+Für Mac und Linux siehe [macOS](#macos-1) und [Linux](#linux-1); die Frage und
+was sie behält, sind dieselben.
 
 **Windows-Einstellungen → Apps → Installierte Apps → UwUNotes →
 Deinstallieren**, oder `uninstall.exe` im Installationsordner. Beides ist
