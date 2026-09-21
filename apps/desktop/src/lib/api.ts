@@ -353,6 +353,11 @@ export type UpdateCheck =
   | {
       status: 'available';
       version: string;
+      /**
+       * Whether this copy can install it itself. Only on Windows, where the
+       * signed setup replaces the app; elsewhere the hint links the releases page.
+       */
+      installable: boolean;
       /** The release notes from the feed. Text from elsewhere: never markup. */
       notes: string | null;
     }

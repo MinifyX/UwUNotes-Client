@@ -14,11 +14,15 @@
  */
 
 import { useState } from 'react';
+import { openExternal } from '../lib/api';
 import { t, useLanguage } from '../lib/i18n';
 import { useSettings } from '../lib/settings';
 import { dismissUpdate, installUpdateNow, useUpdateState, type UpdateState } from '../lib/updates';
 import { Icon } from './Icon';
 import { Nyu } from './nyu/Nyu';
+
+/** Where a copy that cannot update itself sends people for the new version. */
+const RELEASES_URL = 'https://github.com/MinifyX/UwUNotes-Client/releases/latest';
 
 export function UpdateHint() {
   useLanguage();
@@ -88,13 +92,25 @@ export function UpdateHint() {
             <button type="button" onClick={dismissUpdate}>
               {t('Später')}
             </button>
-            <button
-              type="button"
-              className="update-hint-install"
-              onClick={() => void installUpdateNow()}
-            >
-              {t('Installieren und neu starten')}
-            </button>
+            {state.installable ? (
+              <button
+                type="button"
+                className="update-hint-install"
+                onClick={() => void installUpdateNow()}
+              >
+                {t('Installieren und neu starten')}
+              </button>
+            ) : (
+              // macOS and Linux: the setup there is a DMG or an archive the
+              // user opens by hand, so the hint takes them to it instead.
+              <button
+                type="button"
+                className="update-hint-install"
+                onClick={() => void openExternal(RELEASES_URL).catch(() => undefined)}
+              >
+                {t('Zur Download-Seite')}
+              </button>
+            )}
           </>
         ) : null}
 

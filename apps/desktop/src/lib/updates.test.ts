@@ -110,6 +110,7 @@ describe('an update on offer', () => {
   it('carries its version and notes into the bar', async () => {
     checkForUpdate.mockResolvedValue({
       status: 'available',
+      installable: true,
       version: '0.2.0',
       notes: 'Ein Updater.',
     });
@@ -126,7 +127,12 @@ describe('an update on offer', () => {
   });
 
   it('writes the session before it hands anything to the installer', async () => {
-    checkForUpdate.mockResolvedValue({ status: 'available', version: '0.2.0', notes: null });
+    checkForUpdate.mockResolvedValue({
+      status: 'available',
+      version: '0.2.0',
+      installable: true,
+      notes: null,
+    });
     // Windows never comes back from this call, so anything that has to survive
     // the restart has to be on disk before it is made.
     installUpdate.mockImplementation(async () => {
@@ -143,7 +149,12 @@ describe('an update on offer', () => {
   });
 
   it('leaves the progress unknown while the size is', async () => {
-    checkForUpdate.mockResolvedValue({ status: 'available', version: '0.2.0', notes: null });
+    checkForUpdate.mockResolvedValue({
+      status: 'available',
+      version: '0.2.0',
+      installable: true,
+      notes: null,
+    });
     const seen: (number | null)[] = [];
     installUpdate.mockImplementation(async (onProgress) => {
       onProgress({ received: 4_096, total: null });
@@ -161,7 +172,12 @@ describe('an update on offer', () => {
   });
 
   it('stays on screen while it is downloading, and goes away afterwards', async () => {
-    checkForUpdate.mockResolvedValue({ status: 'available', version: '0.2.0', notes: null });
+    checkForUpdate.mockResolvedValue({
+      status: 'available',
+      version: '0.2.0',
+      installable: true,
+      notes: null,
+    });
     installUpdate.mockImplementation(async () => {
       // "Später" during a download would hide a bar that is about to restart
       // the app.
@@ -179,7 +195,12 @@ describe('an update on offer', () => {
   });
 
   it('says so in German when the install fails', async () => {
-    checkForUpdate.mockResolvedValue({ status: 'available', version: '0.2.0', notes: null });
+    checkForUpdate.mockResolvedValue({
+      status: 'available',
+      version: '0.2.0',
+      installable: true,
+      notes: null,
+    });
     installUpdate.mockRejectedValue({ kind: 'other', message: 'signature', path: null });
     const updates = await freshUpdates();
 

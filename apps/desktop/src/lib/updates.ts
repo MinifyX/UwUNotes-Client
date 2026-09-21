@@ -44,7 +44,7 @@ const FIRST_CHECK_AFTER_MS = 15_000;
 export type UpdateState =
   | { phase: 'idle' }
   | { phase: 'checking' }
-  | { phase: 'available'; version: string; notes: string | null }
+  | { phase: 'available'; version: string; notes: string | null; installable: boolean }
   | {
       phase: 'downloading';
       version: string;
@@ -108,7 +108,13 @@ async function check(asked: boolean): Promise<void> {
   }
 
   if (answer.status === 'available') {
-    set({ phase: 'available', version: answer.version, notes: answer.notes });
+    set({
+      phase: 'available',
+      version: answer.version,
+      notes: answer.notes,
+      // Older Rust sides said nothing and could always install.
+      installable: answer.installable !== false,
+    });
     return;
   }
 
