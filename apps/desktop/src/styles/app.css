@@ -1915,6 +1915,9 @@ input[type='radio'] {
   inset: 0;
   z-index: 30;
   display: grid;
+  /* A track of the backdrop's own height, so `max-height: 100%` on the
+     palette means the window and not the list; see `.modal-backdrop`. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   justify-items: center;
   align-items: start;
   padding: 72px 24px 24px;
@@ -2086,6 +2089,12 @@ input[type='radio'] {
   inset: 0;
   z-index: 30;
   display: grid;
+  /* One track of exactly the backdrop's size, not an implicit `auto` one. An
+     auto track grows to the dialog's *content*, and the dialog's
+     `height: min(640px, 100%)` then resolves against that: with a long
+     settings page the track was thousands of pixels tall and the centred
+     dialog sat below the bottom of the window, unreachable (0.4.0). */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   padding: 28px;
   background: var(--app-scrim);

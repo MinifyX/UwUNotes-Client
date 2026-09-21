@@ -1,0 +1,4 @@
+{
+  "de": "Die Einstellungen sind wieder erreichbar\n\n- In 0.4.0 öffnete sich der Einstellungsdialog unterhalb des Fensterrands und ließ sich nicht ins Bild holen. Jetzt sitzt er wieder in der Mitte, und sein Inhalt scrollt im Dialog\n- Dasselbe für die Befehlspalette, die mit den vielen neuen Befehlen sonst unten aus dem Fenster laufen konnte",
+  "en": "The settings are reachable again\n\n- In 0.4.0 the settings dialog opened below the edge of the window and could not be brought into view. It sits in the middle again, and its contents scroll inside the dialog\n- The same for the command palette, which with all the new commands could otherwise run off the bottom of the window"
+}
