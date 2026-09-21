@@ -88,10 +88,10 @@ today.
   Settings → Tone → Neutral. Warnings and errors are never playful, in either
   tone.
 
-> **Status: 0.2.0 is the release you can download, and the installer in the tree
-> is already the next one.** What is on the
+> **Status: 0.4.0 is the release you can download, for Windows, macOS and
+> Linux.** What is on the
 > [releases page](https://github.com/MinifyX/UwUNotes-Client/releases) has a
-> checksum beside it and is unsigned as far as Windows is concerned — what that
+> checksum beside it and is signed by neither Microsoft nor Apple — what that
 > means is in [docs/install.md](docs/install.md). What runs is everything in the
 > list above, plus what has landed since:
 >
@@ -118,20 +118,25 @@ today.
 >   downloads has to carry the project's signature or it is not run. 0.1.0 has
 >   none of this and will never offer you 0.2.0 — that one is a download by
 >   hand.
-> - **An installer of its own, with Nyu in it.** In the tree, not in a release
->   yet: `UwUNotes-Setup-<version>.exe` replaces Tauri's stock one. It installs
->   under your user account without asking for an administrator, carries the
->   editor inside itself rather than downloading anything, is also the
->   uninstaller, and refuses an update that would take you backwards. An
->   installation made by the old installer is picked up and moved across.
+> - **An installer of its own, with Nyu in it.** Since 0.3.0 on Windows, since
+>   0.4.0 on macOS (a DMG each for Apple silicon and Intel) and Linux (an
+>   archive with the setup in it). It installs under your user account without
+>   asking for an administrator, carries the editor inside itself, is also the
+>   uninstaller, and refuses an update that would take you backwards.
+> - **A menu row, side by side, and a diff.** New in 0.4.0. Datei, Suchen,
+>   Ansicht, Codierung, Sprache, Einstellungen and Werkzeuge along the top, an
+>   icon row under them, two or three files next to each other, and two of them
+>   compared line by line with the scrolling kept together. Ctrl+wheel zooms the
+>   view, and Tools makes MD5 and SHA checksums of text or files.
 >
 > The [roadmap](docs/roadmap.md) is what is left, and it still has no dates on
 > purpose.
 
 ## Install
 
-The setup is on the
-[releases page](https://github.com/MinifyX/UwUNotes-Client/releases). It puts
+The setups are on the
+[releases page](https://github.com/MinifyX/UwUNotes-Client/releases): an .exe for
+Windows, a DMG per Mac chip, and a tar.gz for Linux. On Windows it puts
 the editor in `%LOCALAPPDATA%\Programs\UwUNotes` without asking for an
 administrator, and it takes itself off again through Windows' own list of
 installed apps. It is not signed, so Windows will put a box in front of it —
