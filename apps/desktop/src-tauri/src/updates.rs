@@ -9,13 +9,18 @@
 //! page could set, or a path that runs bytes [`Update::download`] has not
 //! checked, would turn a text editor into a way of handing somebody a program.
 //!
-//! What the plugin no longer does is install. The artifact is
-//! `UwUNotes-Setup-<version>.exe` — UwUNotes' own setup, the same file people
-//! download by hand — and installing it means running it, with `--update
-//! --wait-pid <this process>`, and then quitting so it can replace an exe
-//! nobody has open any more. The plugin stays for the two steps that must not
-//! be hand-rolled: asking the feed, and checking what came back against the
-//! public key compiled into this binary.
+//! On Windows the plugin does not install. The artifact is UwUNotes' own
+//! setup — the same file people download by hand, published as
+//! `UwUNotes-windows-<x64|arm64>-setup.exe` and signed as
+//! `UwUNotes-Setup-<version>.exe` (x64) or
+//! `UwUNotes-Setup-<version>-windows-arm64.exe` — and installing it means
+//! running it, with `--update --wait-pid <this process>`, and then quitting so
+//! it can replace an exe nobody has open any more. The plugin stays for the
+//! two steps that must not be hand-rolled: asking the feed, and checking what
+//! came back against the public key compiled into this binary. Which of the two
+//! setups a copy asks for follows from the processor it was built for: the
+//! plugin looks up `windows-x86_64` or `windows-aarch64`, and
+//! [`release_file_name`] expects the matching name.
 //!
 //! That signature is checked a second time here, on the bytes lying on disk,
 //! immediately before the setup is started. Between the download and the start
@@ -40,12 +45,29 @@
 //! packed version is newer than the installed one. That is the setup's, and it
 //! is the setup that refuses to go backwards.
 //!
-//! **Installing is Windows' alone.** The feed also lists the Linux archive
-//! (`linux-x86_64`) and the macOS disk images (`darwin-aarch64`,
-//! `darwin-x86_64`), because the plugin answers "no such platform" to a copy
-//! whose platform the feed does not name — and those copies should hear about
-//! a new version as much as any other. But what they would download is a
-//! `.tar.gz` or a `.dmg`, not a program to start with `--update`, so there:
+//! **The Linux packages install through their package manager.** A copy that
+//! was installed from UwUNotes' `.deb` or `.rpm` knows it (Tauri's bundler
+//! marks the binary), and the plugin looks up `linux-<arch>-deb` or
+//! `linux-<arch>-rpm` for it. Such a copy downloads the package, checks it
+//! here like a setup, and has the plugin hand it to `pkexec dpkg -i` or
+//! `pkexec rpm -U`; then it restarts into the new version. Only if the package
+//! manager really owns this executable, though: the AUR package is the `.deb`'s
+//! contents repacked, so it carries the same mark, and running dpkg on an Arch
+//! system would be wrong in every way. So [`this_copy`] asks dpkg's own file
+//! list, or `rpm -qf`, before it believes the mark.
+//!
+//! The file sits in a temporary folder of the plugin's between that check and
+//! dpkg reading it, writable by this user. Something running as this user that
+//! swapped it could as well have started pkexec with a package of its own; the
+//! password prompt is the same either way.
+//!
+//! **Everything else installs by hand**: macOS, the copies the per-user Linux
+//! setup of 0.4.x installed, the portable folder, the AUR package. The feed
+//! lists them all the same (`darwin-*`, `linux-x86_64`, `linux-aarch64`),
+//! because the plugin answers "no such platform" to a copy whose platform the
+//! feed does not name — and those copies should hear about a new version as
+//! much as any other. But what they would download is a `.tar.gz` or a `.dmg`,
+//! not a program to start with `--update`, so there:
 //!
 //! - [`check_for_update`] answers exactly as on Windows, with
 //!   `installable: false` in the [`UpdateCheck::Available`] it sends — the
@@ -54,16 +76,13 @@
 //! - [`install_update`] downloads nothing and returns an `FsError` of kind
 //!   `other` whose message names [`RELEASES`], for a page that calls it anyway.
 //!
-//! The download-and-hand-over machinery below stays compiled on every system
-//! (its tests run everywhere), which is what the `dead_code` allowance at the
-//! top of this module is for.
-
-// On macOS and Linux nothing calls the handover half of this file; see above.
-#![cfg_attr(not(windows), allow(dead_code))]
+//! Which of the three a copy is gets decided at run time, not by `cfg`, so
+//! every path below compiles — and is linted and tested — on every system.
 
 use std::fs::File;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -92,8 +111,78 @@ const UPDATES_FOLDER: &str = "updates";
 /// itself.
 pub(crate) const RELEASES: &str = "https://github.com/MinifyX/UwUNotes-Client/releases/latest";
 
-/// Whether [`install_update`] can do anything on this system.
-const INSTALLABLE: bool = cfg!(windows);
+/// What the `.deb` and the `.rpm` call the package, and what dpkg names its
+/// file list after.
+const PACKAGE: &str = "uwunotes";
+
+/// dpkg's record of the files the `uwunotes` package installed.
+const DPKG_LIST: &str = "/var/lib/dpkg/info/uwunotes.list";
+
+/// How this copy of the editor gets a newer version of itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Install {
+    /// Runs the downloaded setup with `--update`: every Windows copy.
+    Setup,
+    /// Hands the downloaded package to the package manager that owns this copy.
+    Package(Package),
+    /// Says there is an update and links [`RELEASES`].
+    ByHand,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Package {
+    Deb,
+    Rpm,
+}
+
+/// How this copy updates, found out once: none of it changes while it runs.
+fn this_copy() -> Install {
+    static FOUND: OnceLock<Install> = OnceLock::new();
+    *FOUND.get_or_init(|| {
+        if cfg!(windows) {
+            return Install::Setup;
+        }
+        if !cfg!(target_os = "linux") {
+            return Install::ByHand;
+        }
+        let Ok(exe) = std::env::current_exe() else {
+            return Install::ByHand;
+        };
+        use tauri::utils::config::BundleType;
+        match tauri::utils::platform::bundle_type() {
+            Some(BundleType::Deb) if dpkg_owns(&exe) => Install::Package(Package::Deb),
+            Some(BundleType::Rpm) if rpm_owns(&exe) => Install::Package(Package::Rpm),
+            _ => Install::ByHand,
+        }
+    })
+}
+
+/// Whether dpkg installed this executable as part of `uwunotes`. No list, no
+/// package: an Arch system with the AUR package has no dpkg database at all.
+fn dpkg_owns(exe: &Path) -> bool {
+    std::fs::read_to_string(DPKG_LIST).is_ok_and(|list| lists(&list, exe))
+}
+
+/// dpkg's `.list` files are one absolute path per line.
+fn lists(list: &str, exe: &Path) -> bool {
+    list.lines().any(|line| Path::new(line.trim()) == exe)
+}
+
+/// Whether rpm's database says `uwunotes` owns this executable.
+fn rpm_owns(exe: &Path) -> bool {
+    std::process::Command::new("rpm")
+        .args(["-qf", "--queryformat", "%{NAME}\\n"])
+        .arg(exe)
+        .output()
+        .is_ok_and(|out| {
+            out.status.success() && names_package(&String::from_utf8_lossy(&out.stdout))
+        })
+}
+
+/// `rpm -qf` prints the owning package's name, one line per owner.
+fn names_package(output: &str) -> bool {
+    output.lines().any(|line| line.trim() == PACKAGE)
+}
 
 /// The update the last check found, waiting for [`install_update`].
 ///
@@ -122,9 +211,9 @@ pub(crate) enum UpdateCheck {
         /// The release notes out of the feed. Text written elsewhere, so the
         /// page renders it as text and never as markup.
         notes: Option<String>,
-        /// Whether "Install and restart" can work here: `true` on Windows,
-        /// `false` on macOS and Linux, where the update is a download from
-        /// [`RELEASES`] instead.
+        /// Whether "Install and restart" can work here: `true` on Windows and
+        /// for the Linux packages, `false` everywhere else, where the update
+        /// is a download from [`RELEASES`] instead.
         installable: bool,
     },
     Failed {
@@ -162,7 +251,7 @@ pub(crate) async fn check_for_update(
             let answer = UpdateCheck::Available {
                 version: update.version.clone(),
                 notes: update.body.clone(),
-                installable: INSTALLABLE,
+                installable: this_copy() != Install::ByHand,
             };
             *found = Some(update);
             Ok(answer)
@@ -172,11 +261,13 @@ pub(crate) async fn check_for_update(
     }
 }
 
-/// Downloads the update the last check found and hands over to its setup.
+/// Downloads the update the last check found and installs it: through its
+/// setup on Windows, through the package manager for the Linux packages.
 ///
-/// On Windows this does not return: the setup starts and this process ends.
-/// Anything that has to reach the disk first has to be there before the page
-/// calls this, because the window's own close guard never runs — see
+/// When it works this does not return: on Windows the setup starts and this
+/// process ends, on Linux the package is installed and this process restarts
+/// into it. Anything that has to reach the disk first has to be there before
+/// the page calls this, because the window's own close guard never runs — see
 /// `lib/updates.ts`, which writes the session and its drafts beforehand.
 #[tauri::command]
 pub(crate) async fn install_update(
@@ -184,13 +275,17 @@ pub(crate) async fn install_update(
     state: State<'_, Updates>,
     on_progress: Channel<DownloadProgress>,
 ) -> CommandResult<()> {
-    if !INSTALLABLE {
-        return Err(FsError::other(
+    let by_hand = || {
+        FsError::other(
             None,
             format!(
                 "Updates on this system are installed by hand: download the new version from {RELEASES}."
             ),
-        ));
+        )
+    };
+    let install = this_copy();
+    if install == Install::ByHand {
+        return Err(by_hand());
     }
     let found = state.found.lock().await;
     let Some(update) = found.as_ref() else {
@@ -198,6 +293,11 @@ pub(crate) async fn install_update(
             None,
             "Nothing has been found to install; check for an update first.",
         ));
+    };
+    // The name the release signed this download under, which the check below
+    // requires the signature to carry.
+    let Some(name) = release_file_name(&update.version, install, std::env::consts::ARCH) else {
+        return Err(by_hand());
     };
 
     let mut received = 0u64;
@@ -225,7 +325,28 @@ pub(crate) async fn install_update(
             FsError::other(None, format!("The update could not be downloaded: {error}"))
         })?;
 
-    let name = setup_name(&update.version);
+    if let Install::Package(_) = install {
+        // Checked by the plugin already; checked here again for the name in
+        // the signature, which the plugin does not look at.
+        if !verify(&app, &bytes, &update.signature, &name) {
+            return Err(FsError::other(
+                None,
+                format!("The downloaded {name} is not what the release signed, so it was not installed."),
+            ));
+        }
+        let failed = |error: String| {
+            FsError::other(None, format!("The update could not be installed: {error}"))
+        };
+        // pkexec waits for a password, so off the async runtime's threads.
+        let update = update.clone();
+        tauri::async_runtime::spawn_blocking(move || update.install(bytes))
+            .await
+            .map_err(|error| failed(error.to_string()))?
+            .map_err(|error| failed(error.to_string()))?;
+        tracing::info!(%name, "installed by the package manager, restarting");
+        app.restart();
+    }
+
     let file = save_setup(&app, &name, &bytes)?;
     // Checked once by the plugin when it arrived, and again now, on what is
     // actually in that file — through the handle that then keeps anyone from
@@ -242,9 +363,25 @@ pub(crate) async fn install_update(
     Ok(())
 }
 
-/// What the release publishes for a version, and what the feed points at.
-fn setup_name(version: &str) -> String {
-    format!("UwUNotes-Setup-{version}.exe")
+/// The name the release signs the update for this copy under — which the
+/// signature has to carry, or the download is refused. `None` for a copy that
+/// installs by hand.
+///
+/// The two Windows names and the ones before them are compiled into every copy
+/// out there, so they never change: the release publishes the file under a
+/// stable name of its own and signs it under this one (scripts/release-files.mjs).
+fn release_file_name(version: &str, install: Install, arch: &str) -> Option<String> {
+    match (install, arch) {
+        (Install::Setup, "x86_64") => Some(format!("UwUNotes-Setup-{version}.exe")),
+        (Install::Setup, "aarch64") => Some(format!("UwUNotes-Setup-{version}-windows-arm64.exe")),
+        (Install::Package(Package::Deb), "x86_64" | "aarch64") => {
+            Some(format!("UwUNotes-{version}-linux-{arch}.deb"))
+        }
+        (Install::Package(Package::Rpm), "x86_64" | "aarch64") => {
+            Some(format!("UwUNotes-{version}-linux-{arch}.rpm"))
+        }
+        _ => None,
+    }
 }
 
 /// How the setup is told this is an update and whose exit it has to wait for.
@@ -436,12 +573,60 @@ mod tests {
         );
     }
 
-    /// One name, in three places that never see each other: the release
-    /// workflow attaches it, `scripts/update-feed.mjs` points the feed at it,
-    /// and this is what the signature is required to name.
+    /// One name per platform, in three places that never see each other:
+    /// `scripts/release-files.mjs` signs under it, `scripts/update-feed.mjs`
+    /// checks the signature for it, and this is what the signature is required
+    /// to name. The x64 one is what every copy since 0.2.0 expects.
     #[test]
-    fn the_setup_is_named_the_way_the_release_publishes_it() {
-        assert_eq!(setup_name("0.3.0"), "UwUNotes-Setup-0.3.0.exe");
+    fn each_copy_expects_the_name_the_release_signs_for_it() {
+        let name = |install, arch| release_file_name("0.3.0", install, arch);
+        assert_eq!(
+            name(Install::Setup, "x86_64").as_deref(),
+            Some("UwUNotes-Setup-0.3.0.exe")
+        );
+        assert_eq!(
+            name(Install::Setup, "aarch64").as_deref(),
+            Some("UwUNotes-Setup-0.3.0-windows-arm64.exe")
+        );
+        assert_eq!(
+            name(Install::Package(Package::Deb), "x86_64").as_deref(),
+            Some("UwUNotes-0.3.0-linux-x86_64.deb")
+        );
+        assert_eq!(
+            name(Install::Package(Package::Deb), "aarch64").as_deref(),
+            Some("UwUNotes-0.3.0-linux-aarch64.deb")
+        );
+        assert_eq!(
+            name(Install::Package(Package::Rpm), "x86_64").as_deref(),
+            Some("UwUNotes-0.3.0-linux-x86_64.rpm")
+        );
+        assert_eq!(
+            name(Install::Package(Package::Rpm), "aarch64").as_deref(),
+            Some("UwUNotes-0.3.0-linux-aarch64.rpm")
+        );
+        assert_eq!(name(Install::ByHand, "x86_64"), None);
+        assert_eq!(name(Install::Setup, "x86"), None);
+    }
+
+    /// Only a file list that names this very executable counts as dpkg owning
+    /// it — not the list of some other package, not a similar path.
+    #[test]
+    fn dpkg_owns_only_what_its_list_names() {
+        let list =
+            "/.\n/usr\n/usr/bin\n/usr/bin/uwunotes\n/usr/share/applications/uwunotes.desktop\n";
+        assert!(lists(list, Path::new("/usr/bin/uwunotes")));
+        assert!(!lists(list, Path::new("/usr/bin/uwunotes-desktop")));
+        assert!(!lists(list, Path::new("/opt/UwUNotes/usr/bin/uwunotes")));
+        assert!(!lists("", Path::new("/usr/bin/uwunotes")));
+    }
+
+    #[test]
+    fn rpm_owns_only_for_our_package() {
+        assert!(names_package("uwunotes\n"));
+        assert!(!names_package("uwunotes-bin\n"));
+        assert!(!names_package(
+            "file /usr/bin/uwunotes is not owned by any package\n"
+        ));
     }
 
     /// The handover, as the setup parses it. Without the pid the setup would
@@ -473,11 +658,16 @@ mod tests {
         );
     }
 
-    /// Only Windows runs the downloaded setup; everywhere else the page is told
-    /// to send people to the releases page.
+    /// Windows runs the downloaded setup; a Mac never installs anything itself
+    /// and is sent to the releases page. On Linux it depends on the package the
+    /// binary came in, and a test binary came in none, so it installs by hand.
     #[test]
-    fn only_windows_installs_updates_itself() {
-        assert_eq!(INSTALLABLE, cfg!(windows));
+    fn windows_installs_through_the_setup_and_an_unpackaged_copy_by_hand() {
+        if cfg!(windows) {
+            assert_eq!(this_copy(), Install::Setup);
+        } else {
+            assert_eq!(this_copy(), Install::ByHand);
+        }
         assert!(RELEASES.starts_with("https://github.com/MinifyX/UwUNotes-Client/"));
     }
 
@@ -497,7 +687,7 @@ mod tests {
             TEST_KEY,
             TEST_SETUP,
             TEST_SIGNATURE,
-            &setup_name("9.9.9")
+            &release_file_name("9.9.9", Install::Setup, "x86_64").unwrap()
         ));
     }
 
@@ -510,7 +700,7 @@ mod tests {
             TEST_KEY,
             b"not really a setup either",
             TEST_SIGNATURE,
-            &setup_name("9.9.9")
+            &release_file_name("9.9.9", Install::Setup, "x86_64").unwrap()
         ));
     }
 

@@ -2,8 +2,8 @@ name: Release
 
 # A tag builds, signs and publishes. A manual run (Actions → Release → Run
 # workflow, from any branch) builds and signs the same way and stops there, so
-# the three builds can be tried before anything is tagged: the artifacts are on
-# the run's page, and the `publish` job is skipped.
+# the builds can be tried before anything is tagged: the artifacts are on the
+# run's page, and the `publish` and `aur` jobs are skipped.
 on:
   push:
     tags: ['v*']
@@ -17,9 +17,14 @@ env:
 
 # The shape of it, and why:
 #
-#   check ──┬─ windows ─┐
-#           ├─ macos ×2 ├─ sign ── publish (tags only)
-#           └─ linux ───┘
+#   check ──┬─ windows ×2 (x64, ARM64) ─┐
+#           ├─ macos (universal) ───────├─ sign ── publish ── aur (tags only)
+#           └─ linux ×2 (x64, arm64) ───┘
+#
+# What a release attaches, and under which names, is scripts/release-files.mjs:
+# stable names without a version (UwUNotes-windows-x64-setup.exe, …) so a link
+# to `releases/latest/download/<name>` never goes stale, while the update
+# signatures are made under the versioned names installed copies expect.
 #
 # The builds run `pnpm install` and compile a few hundred crates, and every
 # `build.rs` and npm install script among them runs with whatever that job has.
@@ -33,12 +38,14 @@ env:
 #
 # `publish` is the only job with a token that can write, and it does not build
 # or install anything either: it attaches what the others made and writes the
-# feed.
+# feed. `aur` holds the AUR's SSH key and nothing else, and only pushes two text
+# files there.
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.check.outputs.prerelease }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       # Every `uses:` here is pinned to a commit rather than to a tag or a
       # branch, with the version in the comment. This workflow produces the
@@ -81,8 +88,8 @@ jobs:
           const tagged = process.env.REF.startsWith('refs/tags/v');
 
           // Both apps, because the setup is what says a version out loud — in
-          // its window, in "Installed apps" and in the file name it is
-          // published under. `pnpm build:setup` refuses to build them apart;
+          // its window, in "Installed apps" and in the name its update is
+          // signed under. `pnpm build:setup` refuses to build them apart;
           // this is the same check at minute zero instead of minute three.
           const versions = {};
           for (const app of ['desktop', 'setup']) {
@@ -111,13 +118,27 @@ jobs:
 
           // A version with a suffix — v0.1.0-beta.1 — is not the finished thing.
           const prerelease = version.includes('-');
-          appendFileSync(process.env.GITHUB_OUTPUT, `prerelease=${prerelease}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `prerelease=${prerelease}\nversion=${version}\n`);
           console.log(`UwUNotes ${version}, pre-release: ${prerelease}, publishing: ${tagged}`);
           EOF
 
   windows:
     needs: check
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            name: x64
+            # IMAGE_FILE_MACHINE_AMD64 in the setup's PE header.
+            machine: '0x8664'
+          # GitHub's ARM64 Windows runner builds natively: Node, pnpm, the
+          # Tauri CLI and Rust all come in their ARM64 flavour there, and the
+          # setup and the editor inside it are ARM64 executables.
+          - runner: windows-11-arm
+            name: arm64
+            # IMAGE_FILE_MACHINE_ARM64.
+            machine: '0xAA64'
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -145,57 +166,52 @@ jobs:
         with:
           toolchain: stable
 
-      # UwUNotes-Setup-<version>.exe in target/release: the editor built with
-      # --no-bundle and packed into UwUNotes' own installer, which is the file
-      # people download and the file an installed copy runs to update itself.
-      # The Cargo workspace is the repository root, so that is the root's
-      # target, not one next to src-tauri. Unsigned: see `sign`.
+      # UwUNotes-Setup-<version>.exe (x64) or …-windows-arm64.exe in
+      # target/release: the editor built with --no-bundle and packed into
+      # UwUNotes' own installer, which is the file people download and the file
+      # an installed copy runs to update itself. The Cargo workspace is the
+      # repository root, so that is the root's target, not one next to
+      # src-tauri. Unsigned: see `sign`.
       - name: Build the setup
         run: pnpm build:setup
 
-      # A second asset, for people who would rather have an MSI — one that a
-      # policy can deploy, or that goes on a machine where the per-user install
-      # is not what is wanted. It costs one bundle step and no compile: the
-      # build above left target/release warm, so this is WiX and little else.
-      #
-      # `createUpdaterArtifacts` is turned off for this build alone, because the
-      # artifact updates go through is the signed setup and nothing reads a
-      # signature of the MSI. Left on, `tauri build` would find the public key
-      # in tauri.conf.json, expect to sign, and refuse to bundle without the
-      # private half — which is the whole point of it not being here.
-      - name: Build the MSI
+      # An x64 setup published as the ARM64 one would install, run under
+      # emulation, and follow the x64 feed entry from then on — nothing would
+      # fail, which is why it is looked at here.
+      - name: Check the setup is built for ${{ matrix.name }}
         shell: pwsh
+        env:
+          MACHINE: ${{ matrix.machine }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
-          $config = Join-Path $env:RUNNER_TEMP 'msi.json'
-          Set-Content -Path $config -Encoding utf8 -Value '{ "bundle": { "createUpdaterArtifacts": false } }'
-          pnpm tauri build --bundles msi --config $config
+          $names = "UwUNotes-Setup-$env:VERSION.exe", "UwUNotes-Setup-$env:VERSION-windows-arm64.exe"
+          $setup = @(Get-ChildItem target/release/UwUNotes-Setup-*.exe | Where-Object Name -in $names)
+          if ($setup.Count -ne 1) { throw "Expected one setup, found $($setup.Count)." }
+          $bytes = [IO.File]::ReadAllBytes($setup[0].FullName)
+          $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = '0x{0:X4}' -f [BitConverter]::ToUInt16($bytes, $pe + 4)
+          if ($machine -ne $env:MACHINE) { throw "$($setup[0].Name) is for machine $machine, not $env:MACHINE." }
+          "$($setup[0].Name): machine $machine"
 
       - name: Collect what the release attaches
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/release/UwUNotes-Setup-*.exe, target/release/bundle/msi/*.msi dist/
+          Copy-Item target/release/UwUNotes-Setup-*.exe dist/
           Get-ChildItem dist
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: setup-windows
+          name: setup-windows-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
 
   macos:
     needs: check
-    # Both Macs build on the Apple Silicon runner: the Intel one is a
-    # cross-compile, which Apple's toolchain does natively and which queues far
-    # sooner than an Intel runner does.
+    # One image for both kinds of Mac, built on the Apple Silicon runner: the
+    # Intel half is a cross-compile, which Apple's toolchain does natively and
+    # which queues far sooner than an Intel runner does.
     runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            name: arm64
-          - target: x86_64-apple-darwin
-            name: x64
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -211,34 +227,44 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
-          targets: ${{ matrix.target }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      # UwUNotes-Setup-<version>-macos-<arm64|x64>.dmg: the editor as an app
-      # bundle for that processor, packed into the setup's own app bundle, in
-      # a disk image. Unsigned for the updater here: see `sign`.
+      # UwUNotes-Setup-<version>-macos-universal.dmg: the editor as a universal
+      # app bundle, packed into the setup's own universal app bundle, in a disk
+      # image. The script checks with `lipo` that both halves are in both.
+      # Unsigned for the updater here: see `sign`.
       - name: Build the setup
-        env:
-          TARGET: ${{ matrix.target }}
-        run: pnpm build:setup --target "$TARGET"
+        run: pnpm build:setup
 
       - name: Collect what the release attaches
         run: |
           mkdir -p dist
-          cp target/release/UwUNotes-Setup-*-macos-*.dmg dist/
+          cp target/release/UwUNotes-Setup-*-macos-universal.dmg dist/
           ls -l dist
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: setup-macos-${{ matrix.name }}
+          name: setup-macos
           path: dist/*
           if-no-files-found: error
 
   linux:
     needs: check
-    # 22.04 rather than latest: a binary links against the glibc it was built
-    # with and runs on that one and newer, so the older the build machine, the
-    # more distributions the download works on.
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          # 22.04 rather than latest: a binary links against the glibc it was
+          # built with and runs on that one and newer, so the older the build
+          # machine, the more distributions the download works on.
+          - runner: ubuntu-22.04
+            name: x64
+            rust: x86_64
+          # The same Ubuntu on GitHub's ARM runner, natively: WebKitGTK does
+          # not cross-compile gracefully, and nothing here needs it to.
+          - runner: ubuntu-22.04-arm
+            name: arm64
+            rust: aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -246,11 +272,12 @@ jobs:
 
       # What Tauri needs to compile against on Linux: WebKitGTK 4.1 and the
       # GTK stack underneath it. The same library is what the editor needs at
-      # run time, which docs/install.md tells people.
+      # run time, which the .deb and .rpm declare and docs/install.md tells
+      # people. `rpm` is only for looking into the finished .rpm below.
       - name: Install the system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev rpm
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -264,33 +291,82 @@ jobs:
           toolchain: stable
 
       # UwUNotes-Setup-<version>-linux-x86_64.tar.gz: one executable inside,
-      # the setup with the editor packed into it. Unsigned here: see `sign`.
-      - name: Build the setup
+      # the setup with the editor packed into it. No longer a download: it is
+      # what the copies the setup installed in 0.4.x update from, published as
+      # UwUNotes-update-linux-x64.tar.gz. x64 only, because nothing older runs
+      # on arm64. Before the packages, which rename the editor's executable.
+      # Unsigned here: see `sign`.
+      - name: Build the setup the 0.4.x copies update from
+        if: matrix.name == 'x64'
         run: pnpm build:setup
+
+      # UwUNotes-<version>-linux-<arch>.deb and .rpm, and
+      # UwUNotes-linux-<arch>-portable.tar.gz. Unsigned here: see `sign`.
+      - name: Build the .deb, the .rpm and the portable folder
+        run: node scripts/build-linux-packages.mjs
+
+      # Cheap checks of what people will install, on the oldest system it is
+      # for: the .deb installs with its dependencies, dpkg's list names the
+      # executable the editor looks for when it decides whether it may update
+      # itself, the executable knows it came in a .deb, and every library it
+      # links is there. The .rpm is looked at rather than installed — there is
+      # no rpm-based system on this runner — and the portable folder is opened.
+      - name: Check the packages
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          ARCH: ${{ matrix.rust }}
+          NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          deb="target/release/UwUNotes-${VERSION}-linux-${ARCH}.deb"
+          rpm="target/release/UwUNotes-${VERSION}-linux-${ARCH}.rpm"
+          portable="target/release/UwUNotes-linux-${NAME}-portable.tar.gz"
+
+          sudo apt-get install -y "./$deb"
+          grep -qx /usr/bin/uwunotes /var/lib/dpkg/info/uwunotes.list
+          grep -q __TAURI_BUNDLE_TYPE_VAR_DEB /usr/bin/uwunotes
+          grep -qx Name=UwUNotes /usr/share/applications/uwunotes.desktop
+          if ldd /usr/bin/uwunotes | grep 'not found'; then exit 1; fi
+          sudo apt-get remove -y uwunotes
+
+          test "$(rpm -qp --queryformat '%{NAME} %{ARCH}' "$rpm")" = "uwunotes $ARCH"
+
+          listing=$(tar -tzf "$portable")
+          for file in UwUNotes/AppRun UwUNotes/uwunotes UwUNotes/README.txt UwUNotes/usr/bin/uwunotes; do
+            grep -qx "$file" <<< "$listing" || { echo "::error::$portable has no $file"; exit 1; }
+          done
+          echo "The .deb installs, the .rpm is uwunotes $ARCH, the portable folder is complete."
 
       - name: Collect what the release attaches
         run: |
           mkdir -p dist
-          cp target/release/UwUNotes-Setup-*-linux-x86_64.tar.gz dist/
+          cp target/release/UwUNotes-*-linux-*.deb target/release/UwUNotes-*-linux-*.rpm target/release/UwUNotes-linux-*-portable.tar.gz dist/
+          if [ -e target/release/UwUNotes-Setup-*-linux-x86_64.tar.gz ]; then
+            cp target/release/UwUNotes-Setup-*-linux-x86_64.tar.gz dist/
+          fi
           ls -l dist
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: setup-linux
+          name: setup-linux-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
 
   sign:
-    needs: [windows, macos, linux]
+    needs: [check, windows, macos, linux]
     runs-on: ubuntu-latest
     steps:
-      # The lockfile and nothing else: it says which version of Tauri's CLI the
-      # builds used, and that is the one that signs. No workspace, so no
-      # package.json whose scripts could run, and no node_modules.
+      # The lockfile, which says which version of Tauri's CLI the builds used
+      # and so which one signs, and scripts/release-files.mjs, which says what
+      # is signed under which name — a Node script without dependencies. No
+      # workspace, so no package.json whose scripts could run, and no
+      # node_modules.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-          sparse-checkout: pnpm-lock.yaml
+          sparse-checkout: |
+            pnpm-lock.yaml
+            scripts/release-files.mjs
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -316,41 +392,50 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Every file an installed copy may download, under the versioned name
+      # that copy expects in the signature: a copy of the Mac image under each
+      # of the two names Macs look for, the others as they were built. The
+      # script fails if a build is missing, and prints what to sign.
+      - name: Put the files under the names they are signed as
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: node scripts/release-files.mjs stage "$VERSION" --dir dist > "$RUNNER_TEMP/to-sign.txt"
+
       # The one step that ever holds the key. It arrives through `env:` and is
       # never named in a `run:` line — a secret interpolated into a command is a
       # secret in the log of the first job that fails in an interesting way.
       #
       # What is signed is what an installed copy downloads through the feed:
-      # the Windows setup, which it runs, and the Linux archive and the two Mac
-      # images, which it only announces. The MSI is not in the feed.
+      # the Windows setups, which it runs, the .deb and .rpm, which the package
+      # manager installs, and the Linux archives and the Mac image, which it
+      # only announces. The x64 portable folder is not in the feed.
       - name: Sign for the updater
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          shopt -s nullglob
-          files=(dist/UwUNotes-Setup-*.exe dist/UwUNotes-Setup-*.tar.gz dist/UwUNotes-Setup-*.dmg)
-          if [ "${#files[@]}" -ne 4 ]; then
-            echo "::error::Expected four setups to sign, found ${#files[@]}: ${files[*]}"
-            exit 1
-          fi
-          for file in "${files[@]}"; do
+          while IFS= read -r file; do
             "$RUNNER_TEMP/signer/node_modules/.bin/tauri" signer sign "$file"
-          done
+          done < "$RUNNER_TEMP/to-sign.txt"
 
       # A release without a signature is a release nobody can update to, and an
       # unset secret looks from here exactly like a signer that simply did not
       # sign: a folder with no .sig in it.
-      - name: Check every setup was signed
+      - name: Check every file was signed
         run: |
-          shopt -s nullglob
-          for file in dist/UwUNotes-Setup-*.exe dist/UwUNotes-Setup-*.tar.gz dist/UwUNotes-Setup-*.dmg; do
+          count=0
+          while IFS= read -r file; do
             if [ ! -s "$file.sig" ]; then
               echo "::error::$file has no signature. Check the TAURI_SIGNING_PRIVATE_KEY secrets."
               exit 1
             fi
             echo "Signed: $file"
-          done
+            count=$((count + 1))
+          done < "$RUNNER_TEMP/to-sign.txt"
+          if [ "$count" -ne 10 ]; then
+            echo "::error::Expected ten files to sign, found $count."
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -367,8 +452,8 @@ jobs:
       # workflow that write anything.
       contents: write
     steps:
-      # For scripts/update-feed.mjs and the release notes. Nothing is installed
-      # and nothing is built: the script uses Node's own modules only.
+      # For the scripts and the release notes. Nothing is installed and nothing
+      # is built: the scripts use Node's own modules only.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -377,21 +462,26 @@ jobs:
         with:
           node-version: 22
 
-      # The setups from the builds and their signatures from `sign`, side by
-      # side in one folder, which is the shape update-feed.mjs expects.
+      # The builds and their signatures from `sign`, side by side in one folder.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Read the release notes
-        id: notes
+      # dist/ gets the same copies under the signed names `sign` made, which
+      # is the shape update-feed.mjs checks the signatures in; release/ gets
+      # the files under the names the release page shows, and nothing else;
+      # and the body is the notes with the Downloads section under them.
+      - name: Lay out the release
+        id: layout
         env:
-          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.check.outputs.version }}
         run: |
+          node scripts/release-files.mjs stage "$VERSION" --dir dist > /dev/null
+          node scripts/release-files.mjs publish "$VERSION" --dir dist --out release
           body="$RUNNER_TEMP/release-body.md"
           # As a file, so newlines and umlauts survive the trip into the action.
-          node -e 'const fs = require("fs"); const v = process.env.TAG.replace(/^v/, ""); fs.writeFileSync(process.argv[1], JSON.parse(fs.readFileSync(`release-notes/${v}.json`, "utf8")).en)' "$body"
+          node scripts/release-files.mjs notes "$VERSION" --out "$body"
           echo "body=$body" >> "$GITHUB_OUTPUT"
 
       # The signature above is for the updater. Windows and macOS still see a
@@ -399,33 +489,30 @@ jobs:
       # hand a checksum stays the only thing to check it against. It proves
       # nothing on its own — it is published by the same workflow — but it
       # makes a file that was swapped afterwards, on a mirror or in a forwarded
-      # message, noticeable. Everything the release attaches is listed, the
-      # .sig files included, so the file matches the release page rather than a
-      # subset of it. sha256sum writes LF, which is what `sha256sum -c` reads;
-      # v0.2.0 shipped a CRLF file that could not be checked that way.
+      # message, noticeable. Everything the release attaches is listed, so the
+      # file matches the release page rather than a subset of it; the AUR
+      # package takes its checksums from here too. sha256sum writes LF, which
+      # is what `sha256sum -c` reads; v0.2.0 shipped a CRLF file that could not
+      # be checked that way.
       - name: Write the checksums
         run: |
-          (cd dist && sha256sum -- *) > SHA256SUMS.txt
+          (cd release && sha256sum -- *) > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # softprops rather than `gh release create`: the body comes from a file,
-      # the installers are globbed, the pre-release flag is an input, and an
-      # installer that failed to appear fails the job.
+      # the files are globbed, the pre-release flag is an input, and a file that
+      # failed to appear fails the job.
       #
-      # The .sig files go up with the setups they belong to. The feed carries
-      # the same signatures, but a file next to the download is what lets a
-      # person check it by hand against the public key in tauri.conf.json.
+      # No .sig files any more: the feed carries every signature, and a .sig
+      # next to a stable-named file would name a different, versioned file in
+      # its trusted comment, which is more confusing than useful by hand.
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          body_path: ${{ steps.notes.outputs.body }}
+          body_path: ${{ steps.layout.outputs.body }}
           prerelease: ${{ needs.check.outputs.prerelease }}
           fail_on_unmatched_files: true
           files: |
-            dist/UwUNotes-Setup-*.exe
-            dist/UwUNotes-Setup-*.tar.gz
-            dist/UwUNotes-Setup-*.dmg
-            dist/*.sig
-            dist/*.msi
+            release/*
             SHA256SUMS.txt
 
       # Only now, with the release online and everything attached to it. The
@@ -493,3 +580,73 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: echo "::notice::$TAG is a pre-release, so latest.json keeps pointing at the last finished version."
+
+  aur:
+    needs: [check, publish]
+    runs-on: ubuntu-latest
+    # Read-only, and no secret but the AUR's own key: this job writes to the
+    # AUR and to nothing on GitHub. Pre-releases go there too — someone who
+    # installs uwunotes-bin gets what the release page offers.
+    permissions:
+      contents: read
+    steps:
+      # For scripts/aur.mjs and the PKGBUILD template, Node's own modules only.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      # From the published release rather than from an artifact: the package
+      # has to match what the AUR helper will download, and that is the file on
+      # the release page.
+      - name: Write PKGBUILD and .SRCINFO
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/SHA256SUMS.txt" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/SHA256SUMS.txt"
+          node scripts/aur.mjs "$VERSION" --sums "$RUNNER_TEMP/SHA256SUMS.txt" --out "$RUNNER_TEMP/aur"
+          cat "$RUNNER_TEMP/aur/PKGBUILD"
+
+      # Until the AUR account and its key exist, this is a notice and not a
+      # failure: the release is out either way, and the files above are in the
+      # log for anyone who wants to push them by hand.
+      - name: Push to the AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          VERSION: ${{ needs.check.outputs.version }}
+          GIT_AUTHOR_NAME: UwUNotes Release
+          GIT_AUTHOR_EMAIL: release@uwunotes.invalid
+          GIT_COMMITTER_NAME: UwUNotes Release
+          GIT_COMMITTER_EMAIL: release@uwunotes.invalid
+        run: |
+          set -euo pipefail
+          if [ -z "${AUR_SSH_PRIVATE_KEY}" ]; then
+            echo "::notice::No AUR_SSH_PRIVATE_KEY secret, so uwunotes-bin was not pushed to the AUR."
+            exit 0
+          fi
+          ssh="$RUNNER_TEMP/ssh"
+          mkdir -m 700 "$ssh"
+          (umask 077 && printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$ssh/aur")
+          # The AUR's Ed25519 host key, pinned rather than scanned: its
+          # fingerprint SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4 is
+          # the one aur.archlinux.org publishes on its front page.
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' > "$ssh/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh/aur -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh/known_hosts -o StrictHostKeyChecking=yes"
+          git() { command git -c core.hooksPath=/dev/null -c init.defaultBranch=master "$@"; }
+
+          dir="$RUNNER_TEMP/uwunotes-bin"
+          git clone -q ssh://aur@aur.archlinux.org/uwunotes-bin.git "$dir"
+          cp "$RUNNER_TEMP/aur/PKGBUILD" "$RUNNER_TEMP/aur/.SRCINFO" "$dir/"
+          git -C "$dir" add PKGBUILD .SRCINFO
+          if git -C "$dir" diff --cached --quiet; then
+            echo "uwunotes-bin already says $VERSION."
+          else
+            git -C "$dir" commit -qm "UwUNotes $VERSION"
+            git -C "$dir" push -q origin HEAD:master
+            echo "Pushed uwunotes-bin $VERSION: https://aur.archlinux.org/packages/uwunotes-bin"
+          fi
+          rm -rf "$ssh"

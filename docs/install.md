@@ -13,17 +13,19 @@ From 0.2.0 on, an installed UwUNotes says so when there is a newer version.
 
 ## What you need
 
-- **Windows 10 or 11, 64-bit.** That is the platform I develop on and the one I
-  test most. Windows on ARM has never been started.
+- **Windows 10 or 11, 64-bit**, x64 or ARM64. x64 is the platform I develop on
+  and the one I test most; the ARM64 setup is built by every release and tried
+  far less.
   **Microsoft Edge WebView2** comes with it: Windows 11 always has it, Windows
   10 usually. If it is missing, the setup offers to fetch it.
 - **macOS**, on Apple Silicon or Intel — see [macOS](#macos). Built by every
   release, tried far less than Windows.
-- **Linux, x86_64**, with **WebKitGTK 4.1** installed — see [Linux](#linux).
+- **Linux, x86_64 or arm64**, with **WebKitGTK 4.1** — see [Linux](#linux).
   Built by every release, tried far less than Windows.
 
-The setup is the same window with Nyu in it on all three. What differs is where
-it puts the editor and what a shortcut is, and both sections below say so.
+On Windows and macOS it is UwUNotes' own setup, the same window with Nyu in it.
+On Linux it is a package for your distribution or a portable folder, and the
+section below says which is which.
 
 UwUNotes speaks German and English, following the system.
 **Settings → Appearance → Language** switches.
@@ -35,30 +37,31 @@ Releases are on the
 newest one at the top and download, under **Assets**, the one file for your
 system:
 
-| System                 | File                                           |
-| ---------------------- | ---------------------------------------------- |
-| Windows                | `UwUNotes-Setup-<version>.exe`                 |
-| Mac with Apple Silicon | `UwUNotes-Setup-<version>-macos-arm64.dmg`     |
-| Mac with an Intel chip | `UwUNotes-Setup-<version>-macos-x64.dmg`       |
-| Linux (x86_64)         | `UwUNotes-Setup-<version>-linux-x86_64.tar.gz` |
+| System                          | File                                                       |
+| ------------------------------- | ---------------------------------------------------------- |
+| Windows (x64)                   | `UwUNotes-windows-x64-setup.exe`                           |
+| Windows on ARM                  | `UwUNotes-windows-arm64-setup.exe`                         |
+| macOS (Intel and Apple Silicon) | `UwUNotes-macos-universal.dmg`                             |
+| Ubuntu, Debian, Mint            | `UwUNotes-linux-x64.deb` (ARM: `UwUNotes-linux-arm64.deb`) |
+| Fedora, openSUSE                | `UwUNotes-linux-x64.rpm` (ARM: `UwUNotes-linux-arm64.rpm`) |
+| Arch, Manjaro                   | from the AUR: `yay -S uwunotes-bin`                        |
+| Any Linux, nothing installed    | `UwUNotes-linux-x64-portable.tar.gz` (ARM: `…-arm64-…`)    |
 
-Each is UwUNotes' own setup, and it is the only file you need. The Windows one is
-also the file an installed copy fetches when it updates itself.
+The names carry no version, so
+`https://github.com/MinifyX/UwUNotes-Client/releases/latest/download/<file>` is
+always the newest one; the version is in the release's title. The Windows setups
+are also what an installed copy fetches when it updates itself, and so are the
+`.deb` and the `.rpm`.
 
-The `.msi` next to it is the same editor in Tauri's stock bundle, for a machine
-where an MSI is what gets deployed. It has none of the screens described below,
-and the updater never uses it.
+`UwUNotes-update-linux-x64.tar.gz` is not for you: it is what copies installed
+by the Linux setup of 0.4.x update from (see [Linux](#linux)).
 
 `SHA256SUMS.txt` lists all of them, if you want to check that what you have is
-what was built: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in PowerShell, or
+what was built: `Get-FileHash .\UwUNotes-windows-x64-setup.exe` in PowerShell, or
 `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` on a Mac and
 `sha256sum -c SHA256SUMS.txt --ignore-missing` on Linux, next to the download.
 It is published by the same workflow that built the file, so it cannot tell you
 the build was honest — only that nothing happened to the file since.
-
-The `.sig` files beside the setups are not for you. They are what an installed
-UwUNotes checks before it installs an update, and they are explained under
-[Updates](#updates).
 
 Your browser may say the file is "not commonly downloaded" — which is true, and
 which it says about every file nobody has downloaded yet. Keep it anyway (in
@@ -119,10 +122,9 @@ to disk and closed itself before the setup starts.
 
 ## macOS
 
-**Which disk image.** Apple menu → **About This Mac**. A chip called **Apple
-M1**, **M2**, **M3** or later means `…-macos-arm64.dmg`; a processor called
-**Intel** means `…-macos-x64.dmg`. The Intel one does run on Apple Silicon
-through Rosetta, just slower and for no reason.
+**One disk image for every Mac.** `UwUNotes-macos-universal.dmg` carries the
+editor for Apple Silicon and for Intel, and each Mac runs its own half. (0.4.x
+had one image per processor; this one installs over either.)
 
 **The first start.** Open the disk image and double-click **UwUNotes Setup**.
 macOS will most likely refuse with "cannot be opened because the developer
@@ -170,35 +172,49 @@ setup over the old installation. Session, settings and drafts stay.
 
 ## Linux
 
-**What it needs.** x86_64, and WebKitGTK 4.1 — the browser engine the editor
-draws in, which a program cannot sensibly bring along itself. Without it the
-setup does not start at all, and says in a terminal which library is missing.
+x86_64 or arm64, Ubuntu 22.04, Debian 12, Fedora 36 or anything newer. Three
+ways, pick one:
 
-| Distribution         | Package                                   |
-| -------------------- | ----------------------------------------- |
-| Debian, Ubuntu, Mint | `sudo apt install libwebkit2gtk-4.1-0`    |
-| Fedora               | `sudo dnf install webkit2gtk4.1`          |
-| Arch, Manjaro        | `sudo pacman -S webkit2gtk-4.1`           |
-| openSUSE             | `sudo zypper install libwebkit2gtk-4_1-0` |
-
-Ubuntu 22.04, Debian 12, Fedora 36 and anything newer have it; older ones do
-not.
-
-**Running the setup.** Unpack the archive and start the one file inside —
-from a file manager by double-click where it allows that, or in a terminal:
+**A package for your distribution** — the usual choice. It installs system-wide
+to `/usr` (`/usr/bin/uwunotes`, an entry in the applications menu) and brings
+WebKitGTK 4.1, the browser engine the editor draws in, as a dependency:
 
 ```bash
-tar -xzf UwUNotes-Setup-0.3.1-linux-x86_64.tar.gz
-./UwUNotes-Setup-0.3.1
+sudo apt install ./UwUNotes-linux-x64.deb      # Debian, Ubuntu, Mint
+sudo dnf install ./UwUNotes-linux-x64.rpm      # Fedora
+sudo zypper install ./UwUNotes-linux-x64.rpm   # openSUSE
+yay -S uwunotes-bin                            # Arch, Manjaro (AUR)
 ```
 
-The archive is there because it keeps the file executable on the way through a
-browser; a bare download would arrive without that. No `sudo`, and please do not
-add one: everything goes into your own home folder, and a setup run as root
-would put it into root's.
+(`-arm64` instead of `-x64` on an ARM machine.) The `.deb` and the `.rpm`
+**update themselves**: **Install and restart** downloads the new package, checks
+its signature, and hands it to `dpkg` or `rpm` through `pkexec`, which asks for
+your password; then UwUNotes restarts. The AUR package is updated by pacman like
+everything else from the AUR — the editor only tells you there is a new version.
+Removing it is your package manager's job too: `sudo apt remove uwunotes`,
+`sudo dnf remove uwunotes`, `sudo pacman -R uwunotes-bin`.
 
-**What it does.** The same window and the same question as everywhere. The
-folder is shown, not asked:
+**The portable folder** — nothing installed, nothing needs root. Unpack it
+anywhere and start it from there:
+
+```bash
+tar -xzf UwUNotes-linux-x64-portable.tar.gz
+./UwUNotes/uwunotes
+```
+
+It brings its own libraries except WebKitGTK and the graphics stack, which your
+system has to have (`libwebkit2gtk-4.1-0`, `webkit2gtk4.1` or `webkit2gtk-4.1`,
+depending on the distribution). It does not update itself: it tells you about a
+new version, and then you unpack the new archive over it.
+
+**The per-user setup of 0.4.x.** 0.4.0 and 0.4.1 came as a setup in a tar.gz
+that installed into your home folder. That setup is no longer offered as a
+download; copies it installed keep telling you about new versions and are
+updated from `UwUNotes-update-linux-x64.tar.gz` on the release page — unpack it
+and run the one file inside, exactly as before. Or move to the package: remove
+the old copy (below) and install the `.deb` or `.rpm`; session, settings and
+drafts stay where they are. For the record, what that setup does — the same
+window and the same question as everywhere, the folder shown, not asked:
 
 - `~/.local/share/uwunotes/uwunotes` — the editor (`$XDG_DATA_HOME` if you set
   one), and `uninstall` beside it, which is the setup again.
@@ -225,9 +241,10 @@ did not make itself.
 It asks the usual question, and removes exactly the files listed above — each
 only while it is still what the setup put there.
 
-**Updates.** An installed copy tells you about a newer version like everywhere
-else, but does not install it itself: download the new archive and run the
-setup again. Session, settings and drafts stay.
+**Updates.** A copy the setup installed tells you about a newer version like
+everywhere else, but does not install it itself: download
+`UwUNotes-update-linux-x64.tar.gz` and run the setup in it. Session, settings
+and drafts stay.
 
 ## 4. Building it yourself
 
@@ -260,8 +277,11 @@ pnpm build:setup
 
 That builds the editor, packs it into the setup, and leaves the setup for the
 system you are on in `target/release` in the repository root:
-`UwUNotes-Setup-<version>.exe`, `…-macos-arm64.dmg` (or `-x64` with
-`pnpm build:setup --target x86_64-apple-darwin`), or `…-linux-x86_64.tar.gz`.
+`UwUNotes-Setup-<version>.exe` (`…-windows-arm64.exe` on ARM),
+`…-macos-universal.dmg` (with both Rust targets installed:
+`rustup target add aarch64-apple-darwin x86_64-apple-darwin`), or
+`…-linux-x86_64.tar.gz`. The Linux packages and the portable folder come from
+`node scripts/build-linux-packages.mjs`, into the same folder.
 On Linux, install the `-dev` packages Tauri's prerequisites list first. Without the
 project's signing key in the environment it says so and writes no `.sig`, which
 changes nothing about installing it — that signature is only what an _installed_
@@ -271,8 +291,8 @@ where you know precisely where the file came from.
 
 A bare `pnpm tauri build` is a different thing: Tauri's own bundles of the
 editor, and it stops without the signing key, because the config has updater
-artifacts switched on. The release workflow turns them off for the one build
-that makes the MSI.
+artifacts switched on. `scripts/build-linux-packages.mjs` turns them off for the
+one build that makes the `.deb` and the `.rpm`.
 
 ## Updates
 
@@ -290,11 +310,14 @@ of this existed, so nothing in it can tell you anything. Download the setup by
 hand one more time and run it over your installation; from that one on the
 editor does the looking.
 
-On a Mac and on Linux the strip says the same but has no **Install and
-restart**: what those systems download is a disk image or an archive, not a
-program the editor can run. The new version is a download from the releases
-page and a run of its setup, as described under [macOS](#macos) and
-[Linux](#linux).
+On a Mac, in the portable Linux folder, in a copy the old Linux setup installed
+and in the AUR package the strip says the same but has no **Install and
+restart**: what those download is a disk image or an archive, not a program the
+editor can run, or something pacman looks after. The new version is a download
+from the releases page, as described under [macOS](#macos) and [Linux](#linux).
+The `.deb` and the `.rpm` do install it: the package goes to `dpkg` or `rpm`
+through `pkexec`, and the editor restarts into the new version — but only when
+`dpkg` or `rpm` really lists the editor as theirs.
 
 On Windows, **Install and restart** downloads the setup, checks it, and hands over: the
 editor writes the session and every unsaved buffer to disk, starts the setup
@@ -312,7 +335,7 @@ button that says exactly that.
 
 ### What the signature means, and what it does not
 
-Every setup a release publishes is signed with the project's own key, and the
+Every setup and package a release publishes is signed with the project's own key, and the
 public half of that key is built into the app. Before an update is installed the
 app checks the file it downloaded against that key and refuses anything the key
 did not sign — a file swapped somewhere on the way, or a feed pointing at
@@ -423,19 +446,20 @@ Ab 0.2.0 meldet sich ein installiertes UwUNotes, wenn es etwas Neueres gibt.
 
 ## Was du brauchst
 
-- **Windows 10 oder 11, 64 Bit.** Das ist die Plattform, auf der ich entwickle
-  und am meisten teste. Windows auf ARM habe ich nie gestartet.
+- **Windows 10 oder 11, 64 Bit**, x64 oder ARM64. x64 ist die Plattform, auf
+  der ich entwickle und am meisten teste; das ARM64-Setup baut jedes Release,
+  ausprobiert ist es weit weniger.
   **Microsoft Edge WebView2** gehört dazu: Windows 11 hat es immer, Windows 10
   meistens. Fehlt es, bietet das Setup an, es zu holen.
 - **macOS**, mit Apple Silicon oder Intel — siehe [macOS](#macos-1). Jedes
   Release baut es, ausprobiert ist es weit weniger als Windows.
-- **Linux, x86_64**, mit installiertem **WebKitGTK 4.1** — siehe
+- **Linux, x86_64 oder arm64**, mit **WebKitGTK 4.1** — siehe
   [Linux](#linux-1). Jedes Release baut es, ausprobiert ist es weit weniger als
   Windows.
 
-Das Setup ist auf allen dreien dasselbe Fenster mit Nyu darin. Anders ist nur,
-wohin es den Editor legt und was eine Verknüpfung ist; beides steht in den
-Abschnitten unten.
+Unter Windows und macOS ist es UwUNotes' eigenes Setup, dasselbe Fenster mit
+Nyu darin. Unter Linux ist es ein Paket für deine Distribution oder ein
+portabler Ordner; welches wofür, steht im Abschnitt unten.
 
 UwUNotes spricht Deutsch und Englisch, je nach System.
 **Einstellungen → Erscheinungsbild → Sprache** schaltet um.
@@ -447,32 +471,32 @@ Releases stehen auf der
 neueste ganz oben und lade unter **Assets** die eine Datei für dein System
 herunter:
 
-| System                  | Datei                                          |
-| ----------------------- | ---------------------------------------------- |
-| Windows                 | `UwUNotes-Setup-<version>.exe`                 |
-| Mac mit Apple Silicon   | `UwUNotes-Setup-<version>-macos-arm64.dmg`     |
-| Mac mit Intel-Prozessor | `UwUNotes-Setup-<version>-macos-x64.dmg`       |
-| Linux (x86_64)          | `UwUNotes-Setup-<version>-linux-x86_64.tar.gz` |
+| System                          | Datei                                                      |
+| ------------------------------- | ---------------------------------------------------------- |
+| Windows (x64)                   | `UwUNotes-windows-x64-setup.exe`                           |
+| Windows auf ARM                 | `UwUNotes-windows-arm64-setup.exe`                         |
+| macOS (Intel und Apple Silicon) | `UwUNotes-macos-universal.dmg`                             |
+| Ubuntu, Debian, Mint            | `UwUNotes-linux-x64.deb` (ARM: `UwUNotes-linux-arm64.deb`) |
+| Fedora, openSUSE                | `UwUNotes-linux-x64.rpm` (ARM: `UwUNotes-linux-arm64.rpm`) |
+| Arch, Manjaro                   | aus dem AUR: `yay -S uwunotes-bin`                         |
+| Jedes Linux, ohne Installation  | `UwUNotes-linux-x64-portable.tar.gz` (ARM: `…-arm64-…`)    |
 
-Jede davon ist UwUNotes' eigenes Setup und die einzige Datei, die du brauchst.
-Die für Windows ist außerdem genau die, die eine installierte Kopie selbst holt,
-wenn sie sich aktualisiert.
+Die Namen tragen keine Version, also ist
+`https://github.com/MinifyX/UwUNotes-Client/releases/latest/download/<Datei>`
+immer die neueste; die Version steht im Titel des Releases. Die Windows-Setups
+sind außerdem das, was eine installierte Kopie selbst holt, wenn sie sich
+aktualisiert, und ebenso das `.deb` und das `.rpm`.
 
-Die `.msi` daneben ist derselbe Editor in Tauris Standard-Paket, für Rechner, auf
-denen eine MSI verteilt wird. Sie hat keinen der unten beschriebenen Schritte,
-und der Updater benutzt sie nie.
+`UwUNotes-update-linux-x64.tar.gz` ist nicht für dich: Daraus aktualisieren sich
+Kopien, die das Linux-Setup von 0.4.x installiert hat (siehe [Linux](#linux-1)).
 
 `SHA256SUMS.txt` listet alle davon, falls du prüfen möchtest, ob du auch wirklich
-die gebaute Datei hast: `Get-FileHash .\UwUNotes-Setup-0.3.0.exe` in der
+die gebaute Datei hast: `Get-FileHash .\UwUNotes-windows-x64-setup.exe` in der
 PowerShell, dann vergleichen — oder neben dem Download
 `shasum -a 256 -c SHA256SUMS.txt --ignore-missing` auf dem Mac und
 `sha256sum -c SHA256SUMS.txt --ignore-missing` unter Linux. Die Datei kommt
 aus demselben Workflow, der auch das Setup gebaut hat — sie kann dir also nicht sagen, dass der Build ehrlich war,
 nur dass der Datei seitdem nichts passiert ist.
-
-Die `.sig`-Dateien neben den Setups sind nicht für dich. Sie sind das, was ein
-installiertes UwUNotes prüft, bevor es ein Update installiert, und stehen unter
-[Updates](#updates-1).
 
 Dein Browser meldet vielleicht, die Datei werde „nicht häufig heruntergeladen“ —
 was stimmt und was er über jede Datei sagt, die noch niemand heruntergeladen
@@ -538,10 +562,9 @@ Setup startet.
 
 ## macOS
 
-**Welches Image.** Apple-Menü → **Über diesen Mac**. Steht dort ein Chip namens
-**Apple M1**, **M2**, **M3** oder neuer, ist es `…-macos-arm64.dmg`; steht dort
-ein Prozessor von **Intel**, ist es `…-macos-x64.dmg`. Das Intel-Image läuft
-über Rosetta auch auf Apple Silicon, nur langsamer und ohne Grund.
+**Ein Image für jeden Mac.** `UwUNotes-macos-universal.dmg` enthält den Editor
+für Apple Silicon und für Intel, und jeder Mac startet seine Hälfte. (0.4.x hatte
+ein Image pro Prozessor; dieses installiert über beide.)
 
 **Der erste Start.** Öffne das Image und doppelklicke **UwUNotes Setup**. macOS
 lehnt das sehr wahrscheinlich ab: „kann nicht geöffnet werden, da der Entwickler
@@ -592,35 +615,52 @@ bleiben.
 
 ## Linux
 
-**Was es braucht.** x86_64 und WebKitGTK 4.1 — die Browser-Engine, in der der
-Editor zeichnet und die ein Programm nicht sinnvoll selbst mitbringen kann.
-Fehlt sie, startet das Setup gar nicht und sagt im Terminal, welche Bibliothek
-fehlt.
+x86_64 oder arm64, Ubuntu 22.04, Debian 12, Fedora 36 oder alles Neuere. Drei
+Wege, such dir einen aus:
 
-| Distribution         | Paket                                     |
-| -------------------- | ----------------------------------------- |
-| Debian, Ubuntu, Mint | `sudo apt install libwebkit2gtk-4.1-0`    |
-| Fedora               | `sudo dnf install webkit2gtk4.1`          |
-| Arch, Manjaro        | `sudo pacman -S webkit2gtk-4.1`           |
-| openSUSE             | `sudo zypper install libwebkit2gtk-4_1-0` |
-
-Ubuntu 22.04, Debian 12, Fedora 36 und alles Neuere haben es, Älteres nicht.
-
-**Das Setup starten.** Das Archiv entpacken und die eine Datei darin starten —
-im Dateimanager per Doppelklick, wo er das erlaubt, oder im Terminal:
+**Ein Paket für deine Distribution** — der übliche Weg. Es installiert
+systemweit nach `/usr` (`/usr/bin/uwunotes`, ein Eintrag im Anwendungsmenü) und
+bringt WebKitGTK 4.1, die Browser-Engine, in der der Editor zeichnet, als
+Abhängigkeit mit:
 
 ```bash
-tar -xzf UwUNotes-Setup-0.3.1-linux-x86_64.tar.gz
-./UwUNotes-Setup-0.3.1
+sudo apt install ./UwUNotes-linux-x64.deb      # Debian, Ubuntu, Mint
+sudo dnf install ./UwUNotes-linux-x64.rpm      # Fedora
+sudo zypper install ./UwUNotes-linux-x64.rpm   # openSUSE
+yay -S uwunotes-bin                            # Arch, Manjaro (AUR)
 ```
 
-Das Archiv gibt es, weil es die Datei auf dem Weg durch den Browser ausführbar
-hält; ein nackter Download käme ohne das an. Kein `sudo`, und bitte auch keins
-davorsetzen: Alles landet in deinem eigenen Home-Ordner, und ein Setup als root
-legte es in den von root.
+(`-arm64` statt `-x64` auf einem ARM-Rechner.) Das `.deb` und das `.rpm`
+**aktualisieren sich selbst**: **Installieren und neu starten** lädt das neue
+Paket, prüft seine Signatur und gibt es über `pkexec` an `dpkg` oder `rpm`, das
+nach deinem Passwort fragt; danach startet UwUNotes neu. Das AUR-Paket
+aktualisiert pacman wie alles aus dem AUR — der Editor sagt nur, dass es etwas
+Neues gibt. Entfernen ist ebenfalls Sache des Paketmanagers:
+`sudo apt remove uwunotes`, `sudo dnf remove uwunotes`,
+`sudo pacman -R uwunotes-bin`.
 
-**Was es tut.** Dasselbe Fenster und dieselbe Frage wie überall. Der Ordner wird
-angezeigt, nicht gefragt:
+**Der portable Ordner** — nichts wird installiert, nichts braucht root. Irgendwo
+entpacken und von dort starten:
+
+```bash
+tar -xzf UwUNotes-linux-x64-portable.tar.gz
+./UwUNotes/uwunotes
+```
+
+Er bringt seine Bibliotheken mit, außer WebKitGTK und dem Grafik-Unterbau, die
+dein System haben muss (`libwebkit2gtk-4.1-0`, `webkit2gtk4.1` oder
+`webkit2gtk-4.1`, je nach Distribution). Er aktualisiert sich nicht selbst: Er
+meldet eine neue Version, und dann entpackst du das neue Archiv darüber.
+
+**Das Setup von 0.4.x.** 0.4.0 und 0.4.1 kamen als Setup in einem tar.gz, das in
+deinen Home-Ordner installiert hat. Als Download gibt es dieses Setup nicht mehr;
+Kopien, die es installiert hat, melden neue Versionen weiter und werden aus
+`UwUNotes-update-linux-x64.tar.gz` auf der Release-Seite aktualisiert —
+entpacken und die eine Datei darin starten, genau wie bisher. Oder zum Paket
+wechseln: die alte Kopie entfernen (unten) und das `.deb` oder `.rpm`
+installieren; Sitzung, Einstellungen und Entwürfe bleiben, wo sie sind. Zur
+Vollständigkeit, was dieses Setup tut — dasselbe Fenster und dieselbe Frage wie
+überall, der Ordner wird angezeigt, nicht gefragt:
 
 - `~/.local/share/uwunotes/uwunotes` — der Editor (`$XDG_DATA_HOME`, wenn du
   eins gesetzt hast), und `uninstall` daneben, das wieder das Setup ist.
@@ -648,9 +688,10 @@ angelegt hat, schreibt das Setup nicht.
 Es stellt die übliche Frage und entfernt genau die Dateien von oben — jede nur,
 solange sie noch das ist, was das Setup dort hingelegt hat.
 
-**Updates.** Eine installierte Kopie meldet eine neuere Version wie überall,
-installiert sie aber nicht selbst: Lad das neue Archiv herunter und starte das
-Setup noch einmal. Sitzung, Einstellungen und Entwürfe bleiben.
+**Updates.** Eine Kopie, die das Setup installiert hat, meldet eine neuere
+Version wie überall, installiert sie aber nicht selbst: Lad
+`UwUNotes-update-linux-x64.tar.gz` herunter und starte das Setup darin.
+Sitzung, Einstellungen und Entwürfe bleiben.
 
 ## 4. Selbst bauen
 
@@ -682,9 +723,11 @@ pnpm build:setup
 ```
 
 Das baut den Editor, packt ihn ins Setup und legt das Setup für dein System nach
-`target/release` im Wurzelverzeichnis: `UwUNotes-Setup-<version>.exe`,
-`…-macos-arm64.dmg` (oder `-x64` mit
-`pnpm build:setup --target x86_64-apple-darwin`) oder `…-linux-x86_64.tar.gz`.
+`target/release` im Wurzelverzeichnis: `UwUNotes-Setup-<version>.exe`
+(`…-windows-arm64.exe` auf ARM), `…-macos-universal.dmg` (mit beiden
+Rust-Targets: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`) oder
+`…-linux-x86_64.tar.gz`. Die Linux-Pakete und den portablen Ordner baut
+`node scripts/build-linux-packages.mjs`, in denselben Ordner.
 Unter Linux vorher die `-dev`-Pakete aus Tauris Voraussetzungen installieren. Ohne den
 Signaturschlüssel des Projekts in der Umgebung sagt es das und schreibt keine
 `.sig` — am Installieren ändert das nichts, denn diese Signatur prüft nur eine
@@ -694,8 +737,8 @@ diese Warnung einmal zu sehen, wenn man ganz genau weiß, woher die Datei kommt.
 
 Ein schlichtes `pnpm tauri build` ist etwas anderes: Tauris eigene Pakete des
 Editors. Es bricht ohne den Signaturschlüssel ab, weil in der Konfiguration die
-Updater-Artefakte eingeschaltet sind. Der Release-Workflow schaltet sie für den
-einen Build aus, der die MSI macht.
+Updater-Artefakte eingeschaltet sind. `scripts/build-linux-packages.mjs`
+schaltet sie für den einen Build aus, der das `.deb` und das `.rpm` macht.
 
 ## Updates
 
@@ -713,11 +756,15 @@ worden, bevor es das alles gab, also kann dir nichts darin etwas sagen. Lad das
 Setup einmal von Hand herunter und installier es über die vorhandene Version; ab
 dieser Installation schaut der Editor selbst nach.
 
-Auf dem Mac und unter Linux sagt der Streifen dasselbe, hat aber kein
-**Installieren und neu starten**: Was diese Systeme herunterladen, ist ein
-Image oder ein Archiv, kein Programm, das der Editor starten kann. Die neue
-Version ist dort ein Download von der Releases-Seite und ein Lauf ihres Setups,
-wie unter [macOS](#macos-1) und [Linux](#linux-1) beschrieben.
+Auf dem Mac, im portablen Linux-Ordner, in einer Kopie vom alten Linux-Setup und
+im AUR-Paket sagt der Streifen dasselbe, hat aber kein **Installieren und neu
+starten**: Was diese herunterladen, ist ein Image oder ein Archiv, kein
+Programm, das der Editor starten kann, oder etwas, um das sich pacman kümmert.
+Die neue Version ist dort ein Download von der Releases-Seite, wie unter
+[macOS](#macos-1) und [Linux](#linux-1) beschrieben. Das `.deb` und das `.rpm`
+installieren sie dagegen: Das Paket geht über `pkexec` an `dpkg` oder `rpm`, und
+der Editor startet in der neuen Version neu — aber nur, wenn `dpkg` oder `rpm`
+den Editor wirklich als ihren führen.
 
 Unter Windows lädt **Installieren und neu starten** das Setup herunter, prüft es und übergibt:
 Der Editor schreibt Sitzung und jeden ungespeicherten Puffer auf die Platte,
@@ -736,7 +783,7 @@ mit einem Knopf angeboten, auf dem genau das steht.
 
 ### Was die Signatur heißt und was nicht
 
-Jedes Setup aus einem Release ist mit dem eigenen Schlüssel des Projekts
+Jedes Setup und Paket aus einem Release ist mit dem eigenen Schlüssel des Projekts
 signiert, und die öffentliche Hälfte dieses Schlüssels steckt in der App. Bevor
 ein Update installiert wird, prüft die App die heruntergeladene Datei gegen
 diesen Schlüssel und lehnt alles ab, was er nicht signiert hat — eine unterwegs

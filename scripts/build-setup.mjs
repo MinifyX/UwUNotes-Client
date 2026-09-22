@@ -1,20 +1,29 @@
 // Builds UwUNotes' own installer for the system it runs on: the editor, packed
 // into the setup with Nyu in it.
 //
-//   pnpm build:setup                                (for this machine)
-//   pnpm build:setup --target x86_64-apple-darwin   (an Intel Mac, from an Apple Silicon one)
+//   pnpm build:setup     (for this machine)
 //
 // What comes out, in target/release:
 //
-//   Windows  UwUNotes-Setup-<version>.exe                     the setup itself
-//   macOS    UwUNotes-Setup-<version>-macos-arm64.dmg         Apple Silicon
-//            UwUNotes-Setup-<version>-macos-x64.dmg           Intel
-//   Linux    UwUNotes-Setup-<version>-linux-x86_64.tar.gz     one executable inside
+//   Windows x64    UwUNotes-Setup-<version>.exe                     the setup itself
+//   Windows ARM64  UwUNotes-Setup-<version>-windows-arm64.exe       the setup itself
+//   macOS          UwUNotes-Setup-<version>-macos-universal.dmg     Intel and Apple Silicon
+//   Linux          UwUNotes-Setup-<version>-linux-x86_64.tar.gz     one executable inside
 //
-// Two Mac images rather than one universal: each carries the editor for its
-// own processor only, which halves the download, and a Mac knows which one it
-// is (Apple menu → About This Mac). `--target` picks the Mac; without it the
-// build is for the processor this script runs on.
+// Those are the names the builds and the update signatures use; the release
+// publishes the same bytes under stable names (UwUNotes-windows-x64-setup.exe
+// and so on). scripts/release-files.mjs has the table and the reason.
+//
+// Windows builds for the processor of the Rust toolchain it finds — x64 on an
+// x64 runner, ARM64 on `windows-11-arm` — and says which in the file name,
+// because an ARM64 copy updates itself from a setup of its own. One Mac image
+// for both processors: `--target universal-apple-darwin` compiles each half
+// and joins them with `lipo`, for the editor and for the setup. It is a bigger
+// download than a single-processor image and spares everyone the question
+// which Mac they have. The Linux setup is x86_64 only: it is there for the
+// copies it installed in 0.4.x, and published for them alone as
+// UwUNotes-update-linux-x64.tar.gz; everyone else on Linux gets the .deb, the
+// .rpm or the portable folder from scripts/build-linux-packages.mjs.
 //
 // With TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD) set, the result is also signed
 // for the updater, which writes a .sig next to it. That signature is what
@@ -25,10 +34,8 @@
 //
 // What it deliberately does not do: use Tauri's installers. No NSIS, no MSI, no
 // Tauri DMG — the editor is built `--no-bundle` on Windows and Linux and as a
-// bare `.app` on macOS, and the setup around it is ours. The MSI a release also
-// carries is a separate `tauri build --bundles msi` in
-// .github/workflows/release.yml. This script produces one file and its
-// signature.
+// bare `.app` on macOS, and the setup around it is ours. This script produces
+// one file and its signature.
 
 import { execFileSync, execSync } from 'node:child_process';
 import {
@@ -36,6 +43,7 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -63,17 +71,18 @@ function fail(message) {
   process.exit(1);
 }
 
-let values = {};
 try {
-  ({ values } = parseArgs({ options: { target: { type: 'string' } } }));
+  parseArgs({ options: {} });
 } catch (error) {
-  fail(`${error.message}\n  Usage: node scripts/build-setup.mjs [--target <rust target>]`);
+  fail(`${error.message}\n  Usage: node scripts/build-setup.mjs`);
 }
 
-/** The Mac processors, by Rust target: what the image is called, and the one Node reports. */
-const MACS = {
-  'aarch64-apple-darwin': { name: 'arm64', arch: 'arm64' },
-  'x86_64-apple-darwin': { name: 'x64', arch: 'x64' },
+/** The one Mac build: both processors, by the target Tauri knows for that. */
+const MAC_TARGET = 'universal-apple-darwin';
+/** The Windows processors, by Rust host: what that adds to the file name. */
+const WINDOWS = {
+  'x86_64-pc-windows-msvc': '',
+  'aarch64-pc-windows-msvc': '-windows-arm64',
 };
 
 const platform = process.platform;
@@ -83,14 +92,17 @@ if (!['win32', 'darwin', 'linux'].includes(platform)) {
 if (platform === 'linux' && process.arch !== 'x64') {
   fail('The Linux setup is built for x86_64 only, and on x86_64.');
 }
-let target = values.target;
-if (platform === 'darwin') {
-  target ??= Object.keys(MACS).find((key) => MACS[key].arch === process.arch);
-  if (!MACS[target]) {
-    fail(`--target is ${target}; a Mac setup is one of ${Object.keys(MACS).join(', ')}.`);
+const target = platform === 'darwin' ? MAC_TARGET : undefined;
+// What Cargo builds for without --target is the toolchain's host, not the
+// processor Node was built for. The two can differ under emulation, and the
+// file name has to say what is inside the file.
+let windowsSuffix = '';
+if (platform === 'win32') {
+  const host = /^host: (\S+)$/m.exec(execFileSync('rustc', ['-vV'], { encoding: 'utf8' }))?.[1];
+  if (!(host in WINDOWS)) {
+    fail(`rustc builds for ${host}; a Windows setup is ${Object.keys(WINDOWS).join(' or ')}.`);
   }
-} else if (target) {
-  fail('--target is for the two Mac builds; Windows and Linux build for this machine.');
+  windowsSuffix = WINDOWS[host];
 }
 
 // Where Cargo leaves what it built: target/<triple>/release when a target is
@@ -149,8 +161,8 @@ if (process.env.TAURI_SIGNING_PRIVATE_KEY || process.env.TAURI_SIGNING_PRIVATE_K
 const output = join(
   release,
   {
-    win32: `UwUNotes-Setup-${version}.exe`,
-    darwin: `UwUNotes-Setup-${version}-macos-${MACS[target]?.name}.dmg`,
+    win32: `UwUNotes-Setup-${version}${windowsSuffix}.exe`,
+    darwin: `UwUNotes-Setup-${version}-macos-universal.dmg`,
     linux: `UwUNotes-Setup-${version}-linux-x86_64.tar.gz`,
   }[platform],
 );
@@ -182,7 +194,7 @@ console.log(`\n▸ Building UwUNotes ${version}${target ? ` for ${target}` : ''}
 let payload;
 if (platform === 'darwin') {
   // The editor as a bare app bundle. `createUpdaterArtifacts` is off for this
-  // build alone, as it is for the MSI: Tauri would otherwise find the public key
+  // build alone, as it is for the Linux packages: Tauri would otherwise find the public key
   // in tauri.conf.json, expect to sign an .app.tar.gz nobody reads, and stop
   // without the private half — which is the whole point of it not being here.
   const config = configFile('editor', { bundle: { createUpdaterArtifacts: false } });
@@ -193,6 +205,21 @@ if (platform === 'darwin') {
   payload = editor.exe;
 }
 if (!existsSync(payload)) fail(`The editor build left no ${payload}.`);
+
+/**
+ * A universal build that quietly came out with one processor would install
+ * and run on half the Macs, so the executable is asked what it carries.
+ */
+function checkUniversal(bundle) {
+  const folder = join(bundle, 'Contents', 'MacOS');
+  const [exe] = readdirSync(folder);
+  const archs = execFileSync('lipo', ['-archs', join(folder, exe)], { encoding: 'utf8' }).trim();
+  if (!archs.split(/\s+/).includes('x86_64') || !archs.split(/\s+/).includes('arm64')) {
+    fail(`${bundle} carries ${archs}, not both x86_64 and arm64.`);
+  }
+  console.log(`  ${exe}: ${archs}`);
+}
+if (platform === 'darwin') checkUniversal(payload);
 
 console.log('\n▸ Packing it into the setup');
 if (platform === 'darwin') {
@@ -215,6 +242,7 @@ if (platform === 'darwin') {
     UWUNOTES_SETUP_PAYLOAD: payload,
   });
   if (!existsSync(setup.bundle)) fail(`The setup build left no ${setup.bundle}.`);
+  checkUniversal(setup.bundle);
 
   // The disk image people download: one window with the setup in it. `ditto`
   // rather than a plain copy, because it keeps what a bundle is made of —

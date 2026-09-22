@@ -134,9 +134,13 @@ today.
 
 ## Install
 
-The setups are on the
-[releases page](https://github.com/MinifyX/UwUNotes-Client/releases): an .exe for
-Windows, a DMG per Mac chip, and a tar.gz for Linux. On Windows it puts
+Everything is on the
+[releases page](https://github.com/MinifyX/UwUNotes-Client/releases), under
+names that stay the same from release to release: a setup for Windows x64
+(`UwUNotes-windows-x64-setup.exe`) and one for Windows on ARM, one DMG for every
+Mac (`UwUNotes-macos-universal.dmg`), a `.deb` and an `.rpm` for x64 and arm64
+Linux, `uwunotes-bin` on the AUR, and a portable folder for any other Linux.
+On Windows the setup puts
 the editor in `%LOCALAPPDATA%\Programs\UwUNotes` without asking for an
 administrator, and it takes itself off again through Windows' own list of
 installed apps. It is not signed, so Windows will put a box in front of it —
@@ -209,6 +213,7 @@ page is the same idea on port 1431:
 ```bash
 pnpm --filter @uwunotes/setup dev   # the installer's page in a browser
 pnpm build:setup                    # editor, packed into UwUNotes-Setup-<version>.exe
+node scripts/build-linux-packages.mjs  # on Linux: the .deb, the .rpm and the portable folder
 ```
 
 In the browser it pretends: `?mode=update`, `?mode=uninstall`, `?mode=downgrade`

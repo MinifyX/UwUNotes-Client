@@ -19,7 +19,7 @@ Markdown works in both. A first line with a blank line under it reads as a headl
    `apps/desktop/src-tauri/tauri.conf.json`, `apps/setup/src-tauri/tauri.conf.json`, and the
    `package.json` files — the root one, `apps/desktop`, `apps/setup` and `packages/uwu-tokens`.
    The setup says a version out loud in three places nobody else does: its window, Windows' list of
-   installed apps, and the file name it is published under.
+   installed apps, and the file name its update is signed under.
 2. Add `release-notes/<version>.json`, with a non-empty `en`.
 3. Commit.
 4. Tag and push the tag: `git tag v0.3.0 && git push origin v0.3.0`.
@@ -29,22 +29,31 @@ That is the whole manual part. `.github/workflows/release.yml` takes it from the
 - **Minute zero, before anything compiles.** The tag is compared against _both_ `tauri.conf.json`
   files and the notes are read; a mismatch or a missing `en` stops the job there rather than after
   twelve minutes of compiling. `pnpm build:setup` refuses the same mismatch locally.
-- **The setups, unsigned.** `pnpm build:setup` on four runners: Windows (`UwUNotes-Setup-<version>.exe`),
-  macOS twice (`…-macos-arm64.dmg` and `…-macos-x64.dmg`, both on the Apple Silicon runner) and
-  Ubuntu 22.04 (`…-linux-x86_64.tar.gz`). None of these jobs has a secret or a token that can write:
-  they run `pnpm install` and a few hundred build scripts, and hand their files on as artifacts.
-- **The MSI.** A second Windows asset for machines where an MSI is what gets deployed, with
-  `createUpdaterArtifacts` switched off for that one build. Left on, `tauri build` finds the public
-  key, expects to sign, and refuses to bundle without the private half.
+- **The builds, unsigned.** `pnpm build:setup` on Windows x64 and on `windows-11-arm`
+  (`UwUNotes-Setup-<version>.exe`, `…-windows-arm64.exe`) and on the Apple Silicon Mac, once, as a
+  universal build (`…-macos-universal.dmg`). On Ubuntu 22.04 x64 and arm64,
+  `scripts/build-linux-packages.mjs` makes the `.deb`, the `.rpm` and the portable folder, and the
+  x64 runner also builds the old per-user setup (`…-linux-x86_64.tar.gz`) that copies installed by
+  0.4.x update from. The Windows jobs check the setup's processor, the Linux jobs install the `.deb`
+  and look into the `.rpm` and the portable folder. None of these jobs has a secret or a token that
+  can write: they run `pnpm install` and a few hundred build scripts, and hand their files on as
+  artifacts.
 - **The signatures.** A `sign` job that builds nothing and installs nothing but Tauri's CLI, with
-  install scripts off, signs the four setups. It is the only job that ever sees the key, and it fails
-  if a `.sig` is missing — an unset secret otherwise looks exactly like a signer that did not sign.
-- **The release.** `SHA256SUMS.txt` over everything attached, written with LF endings so
-  `sha256sum -c` can read it; then the release itself, with the `en` notes as the body. A tag with a
-  suffix, `v0.3.0-beta.1`, is marked as a pre-release. A manual run of the workflow stops before
-  this, so the builds can be tried from a branch.
-- **The feed, last.** Only once the release exists with its files on it, and never for a
-  pre-release — which is said in a `::notice::` rather than skipped in silence.
+  install scripts off, signs every file an installed copy may download, under the versioned name
+  that copy expects in the signature (`scripts/release-files.mjs stage`; the Mac image twice, once
+  per name the two kinds of Mac look for). It is the only job that ever sees the key, and it fails if
+  a `.sig` is missing — an unset secret otherwise looks exactly like a signer that did not sign.
+- **The release.** The files under their stable names (`UwUNotes-windows-x64-setup.exe`, …; the
+  table is `scripts/release-files.mjs`), `SHA256SUMS.txt` over all of them, written with LF endings
+  so `sha256sum -c` can read it, and the `en` notes with a generated Downloads section under them as
+  the body. No `.sig` files: the feed carries the signatures. A tag with a suffix, `v0.3.0-beta.1`,
+  is marked as a pre-release. A manual run of the workflow stops before this, so the builds can be
+  tried from a branch.
+- **The feed.** Only once the release exists with its files on it, and never for a pre-release —
+  which is said in a `::notice::` rather than skipped in silence.
+- **The AUR, last.** `scripts/aur.mjs` writes `PKGBUILD` and `.SRCINFO` for `uwunotes-bin` from the
+  published `SHA256SUMS.txt` and pushes them to the AUR with the `AUR_SSH_PRIVATE_KEY` secret —
+  pre-releases included. Without that secret the job says so in a notice and succeeds.
 
 Nothing is built on my own machine, so nothing depends on what happens to be installed there this month.
 
@@ -86,11 +95,13 @@ reaches the feed — betas are for the people who went looking for them, and the
 else follows.
 
 The same script reads a finished build and says what a release would publish. It looks in
-`target/release` (or `--dir`) for the setups and wants a `.sig` beside each, so the local
-`pnpm build:setup` has to have had the key and its password in the environment. Windows is always
-required; the Linux archive and the Mac images go in when they are there, and the workflow passes
-`--require-all`. Only Windows installs an update by itself — the others are in the feed so an
-installed copy there hears about a new version at all.
+`target/release` (or `--dir`) for each file under the versioned name it is signed as and wants a
+`.sig` beside it, so the local `pnpm build:setup` has to have had the key and its password in the
+environment. Windows x64 is always required; the rest go in when they are there and signed, and the
+workflow passes `--require-all`. Each entry's URL is the stable asset name, its signature the one
+made under the versioned name — the name installed copies check for, which is why the two can
+differ (`scripts/release-files.mjs` explains). Windows and the `.deb`/`.rpm` install an update by
+themselves — the others are in the feed so an installed copy there hears about a new version at all.
 
 It prints the feed and writes nothing. It refuses when the signature does not match the setup or was
 made with a key installed copies do not trust, and it checks the file name inside the signature's

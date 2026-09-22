@@ -1,0 +1,30 @@
+# Maintainer: MinifyX <https://github.com/MinifyX>
+#
+# Written by scripts/aur.mjs from this template for every release; edit the
+# template in the UwUNotes-Client repository, not the copy on the AUR.
+# @VERSION@, @PKGVER@ and the @SHA256_*@ values are filled in from the
+# release's SHA256SUMS.txt.
+
+pkgname=uwunotes-bin
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc='A text and code editor with cat ears'
+arch=('x86_64' 'aarch64')
+url='https://github.com/MinifyX/UwUNotes-Client'
+license=('GPL-3.0-only')
+depends=('webkit2gtk-4.1' 'gtk3' 'hicolor-icon-theme')
+optdepends=('git: git status in the file tree')
+provides=('uwunotes')
+conflicts=('uwunotes')
+options=('!strip' '!debug')
+source_x86_64=("uwunotes-bin-${pkgver}-x86_64.deb::https://github.com/MinifyX/UwUNotes-Client/releases/download/v@VERSION@/UwUNotes-linux-x64.deb")
+source_aarch64=("uwunotes-bin-${pkgver}-aarch64.deb::https://github.com/MinifyX/UwUNotes-Client/releases/download/v@VERSION@/UwUNotes-linux-arm64.deb")
+sha256sums_x86_64=('@SHA256_X86_64@')
+sha256sums_aarch64=('@SHA256_AARCH64@')
+
+# The release's .deb, unpacked: the same files the Debian package installs.
+# pacman owns them here, so the editor sees no dpkg database that lists it and
+# leaves updating to pacman.
+package() {
+  bsdtar -xf data.tar.* -C "${pkgdir}"
+}

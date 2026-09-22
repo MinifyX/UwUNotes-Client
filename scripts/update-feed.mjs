@@ -6,27 +6,37 @@
 //   node scripts/update-feed.mjs v0.2.0 --dir dist --require-all --verify-release --out latest.json
 //
 // The version and the notes come from the tag and release-notes/<version>.json,
-// the signatures from the .sig files beside the setups, and the URLs from the
-// release's own download paths. One entry per system, each naming the file a
-// release publishes for it:
+// the signatures from the .sig files beside the staged files, and the URLs from
+// the release's own download paths. Which entries there are, what each is
+// signed as and which release asset it points at is the table in
+// scripts/release-files.mjs; in short:
 //
-//   windows-x86_64   UwUNotes-Setup-<v>.exe                   run with --update by the editor
-//   linux-x86_64     UwUNotes-Setup-<v>-linux-x86_64.tar.gz   announced, installed by hand
-//   darwin-aarch64   UwUNotes-Setup-<v>-macos-arm64.dmg       announced, installed by hand
-//   darwin-x86_64    UwUNotes-Setup-<v>-macos-x64.dmg         announced, installed by hand
+//   windows-x86_64       UwUNotes-windows-x64-setup.exe        run with --update by the editor
+//   windows-aarch64      UwUNotes-windows-arm64-setup.exe      run with --update by the editor
+//   linux-<arch>-deb/rpm UwUNotes-linux-<x64|arm64>.<deb|rpm>  installed through pkexec dpkg / rpm
+//   linux-x86_64         UwUNotes-update-linux-x64.tar.gz      announced, installed by hand
+//   linux-aarch64        UwUNotes-linux-arm64-portable.tar.gz  announced, installed by hand
+//   darwin-aarch64       UwUNotes-macos-universal.dmg          announced, installed by hand
+//   darwin-x86_64        UwUNotes-macos-universal.dmg          announced, installed by hand
 //
-// Only Windows installs an update by itself (see apps/desktop/src-tauri/src/
-// updates.rs). The others are in the feed all the same, because the updater
-// plugin answers "platform not found" to a copy whose system the feed does not
-// name — and those copies should hear about a new version as much as any other.
+// Each signature is made under the versioned name the installed copy expects
+// (UwUNotes-Setup-<v>.exe and so on), each URL names the stable asset; see
+// release-files.mjs for why both hold at once. `--dir` has to have been through
+// `release-files.mjs stage`, so the files are there under their signed names.
+//
+// Windows and the system packages install an update by themselves (see
+// apps/desktop/src-tauri/src/updates.rs). The others are in the feed all the
+// same, because the updater plugin answers "platform not found" to a copy whose
+// system the feed does not name — and those copies should hear about a new
+// version as much as any other.
 //
 // Everything this is about to write is checked first: every signature against
 // the public key installed copies have baked in, and with --verify-release
 // against the release on GitHub. A feed naming a file nobody can download is
 // worse than no feed: the app keeps asking it, and keeps failing.
 //
-// Windows is required, always: it is what every installed copy since 0.2.0
-// follows. The others are included when their files are there, and with
+// Windows x64 is required, always: it is what every installed copy since 0.2.0
+// follows. The others are included when their files are signed, and with
 // --require-all — which is what the release workflow passes — a missing one is
 // an error rather than a quieter feed.
 //
@@ -40,28 +50,19 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-export const REPOSITORY = 'MinifyX/UwUNotes-Client';
+import { downloadUrl, feedEntries, REPOSITORY } from './release-files.mjs';
+
+export { downloadUrl, REPOSITORY };
 export const FEED_BRANCH = 'updates';
 /** The one platform the feed cannot be without. */
 export const PLATFORM = 'windows-x86_64';
 
-/** Every platform the feed names, and what a release calls its file. */
-export const PLATFORMS = {
-  'windows-x86_64': (version) => `UwUNotes-Setup-${version}.exe`,
-  'linux-x86_64': (version) => `UwUNotes-Setup-${version}-linux-x86_64.tar.gz`,
-  'darwin-aarch64': (version) => `UwUNotes-Setup-${version}-macos-arm64.dmg`,
-  'darwin-x86_64': (version) => `UwUNotes-Setup-${version}-macos-x64.dmg`,
-};
-
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Where an asset of release v<version> ends up on github.com. */
-export const downloadUrl = (version, name) =>
-  `https://github.com/${REPOSITORY}/releases/download/v${version}/${name}`;
-
 /**
- * Tauri v2's updater format, for one setup per platform:
- * `setups` maps a platform key to `{ name, signature }`.
+ * Tauri v2's updater format, one file per platform: `setups` maps a platform
+ * key to `{ asset, signature }` — the release asset the URL names, and the
+ * signature over the same bytes under their versioned name.
  */
 export function updateFeed({ version, notes, setups, date = new Date() }) {
   return {
@@ -73,7 +74,7 @@ export function updateFeed({ version, notes, setups, date = new Date() }) {
     platforms: Object.fromEntries(
       Object.entries(setups).map(([platform, setup]) => [
         platform,
-        { signature: setup.signature, url: downloadUrl(version, setup.name) },
+        { signature: setup.signature, url: downloadUrl(version, setup.asset) },
       ]),
     ),
   };
@@ -146,7 +147,7 @@ export function signatureProblems({ file, signature, pubkey, name }) {
 
 /**
  * Reads back what would be published and says what is wrong with it.
- * `names` maps each platform the feed is meant to carry to its file name.
+ * `names` maps each platform the feed is meant to carry to its release asset.
  */
 export function feedProblems(text, { version, names }) {
   let feed;
@@ -202,9 +203,6 @@ export async function releaseAsset(version, name) {
   return release.assets?.find((asset) => asset.name === name);
 }
 
-/** What `pnpm build:setup` calls the Windows setup for a version. */
-export const setupName = (version) => PLATFORMS[PLATFORM](version);
-
 function fail(message) {
   console.error(`\n✗ ${message}`);
   process.exit(1);
@@ -259,37 +257,40 @@ if (import.meta.main) {
 
   const setups = {};
   const paths = {};
-  for (const [platform, nameFor] of Object.entries(PLATFORMS)) {
-    const name = nameFor(version);
+  for (const [platform, { signed: name, asset }] of Object.entries(feedEntries(version))) {
+    const required = platform === PLATFORM || values['require-all'];
     const path = join(dir, name);
     if (!existsSync(path)) {
-      if (platform === PLATFORM || values['require-all']) {
-        fail(`${path} is missing. Run pnpm build:setup first.`);
-      }
+      if (required) fail(`${path} is missing. Build it, then run release-files.mjs stage.`);
       console.log(`  · ${platform}: no ${name} here, left out`);
       continue;
     }
     if (!existsSync(`${path}.sig`)) {
-      fail(`${name}.sig is missing: the build was not signed, so there is nothing to feed.`);
+      if (required) {
+        fail(`${name}.sig is missing: the build was not signed, so there is nothing to feed.`);
+      }
+      console.log(`  · ${platform}: ${name} is not signed, left out`);
+      continue;
     }
     const signature = readFileSync(`${path}.sig`, 'utf8').trim();
     if (!signature) fail(`${name}.sig is empty.`);
     const signed = signatureProblems({ file: readFileSync(path), signature, pubkey, name });
     if (signed.length > 0) fail(signed.join('\n  '));
-    console.log(`  ✓ ${platform}: ${name}, signed with ${publicKey(pubkey).id}`);
-    setups[platform] = { name, signature };
+    console.log(`  ✓ ${platform}: ${name} as ${asset}, signed with ${publicKey(pubkey).id}`);
+    setups[platform] = { asset, signature };
     paths[platform] = path;
   }
 
   const feed = updateFeed({ version, notes, setups });
   const text = `${JSON.stringify(feed, null, 2)}\n`;
-  const names = Object.fromEntries(Object.entries(setups).map(([key, { name }]) => [key, name]));
+  const names = Object.fromEntries(Object.entries(setups).map(([key, { asset }]) => [key, asset]));
   const written = feedProblems(text, { version, names });
   if (written.length > 0) fail(written.join('\n  '));
   console.log(`  ✓ ${Object.keys(setups).length} platforms, ${notes.length} characters of notes`);
 
   if (values['verify-release']) {
-    for (const [platform, { name }] of Object.entries(setups)) {
+    // Two Mac entries name the same asset, so it is looked at twice; cheap.
+    for (const [platform, { asset: name }] of Object.entries(setups)) {
       const asset = await releaseAsset(version, name);
       if (!asset || asset.state !== 'uploaded') {
         fail(`Release v${version} has no finished ${name}: the feed would send everyone to a 404.`);

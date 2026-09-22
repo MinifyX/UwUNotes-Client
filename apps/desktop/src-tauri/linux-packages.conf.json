@@ -1,0 +1,11 @@
+{
+  "productName": "uwunotes",
+  "mainBinaryName": "uwunotes",
+  "bundle": {
+    "createUpdaterArtifacts": false,
+    "linux": {
+      "deb": { "desktopTemplate": "linux/uwunotes.desktop" },
+      "rpm": { "desktopTemplate": "linux/uwunotes.desktop" }
+    }
+  }
+}
