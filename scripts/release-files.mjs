@@ -131,8 +131,10 @@ export const signedNames = (version) =>
 /**
  * The Downloads section of the release page, in English and German, from the
  * same table as everything else so it cannot name a file that is not there.
+ * The Arch row names the AUR package only when `aurLive`: AUR registration can
+ * be closed for a while, and until the package exists the portable build is it.
  */
-export function downloadsSection() {
+export function downloadsSection(aurLive = false) {
   const code = (name) => `\`${name}\``;
   const rows = [
     ['Windows (x64)', 'Windows (x64)', code(`${APP}-windows-x64-setup.exe`)],
@@ -152,7 +154,13 @@ export function downloadsSection() {
       'Fedora / openSUSE',
       `${code(`${APP}-linux-x64.rpm`)} · ARM: ${code(`${APP}-linux-arm64.rpm`)}`,
     ],
-    ['Arch Linux', 'Arch Linux', `AUR: ${code(`yay -S ${PACKAGE}-bin`)}`],
+    aurLive
+      ? ['Arch Linux', 'Arch Linux', `AUR: ${code(`yay -S ${PACKAGE}-bin`)}`]
+      : [
+          'Arch Linux',
+          'Arch Linux',
+          `${code(`${APP}-linux-x64-portable.tar.gz`)} (AUR: ${code(`${PACKAGE}-bin`)} coming · folgt)`,
+        ],
     [
       'Linux portable',
       'Linux portabel',
@@ -212,12 +220,25 @@ function publish(version, dir, out) {
   }
 }
 
-function notes(version, out) {
+/** Whether the AUR has the package; false when it doesn't or doesn't answer. */
+async function aurExists() {
+  try {
+    const response = await fetch(`https://aur.archlinux.org/rpc/v5/info?arg[]=${PACKAGE}-bin`, {
+      headers: { 'user-agent': 'uwunotes-release' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    return response.ok && (await response.json()).resultcount > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function notes(version, out) {
   const file = join(root, 'release-notes', `${version}.json`);
   if (!existsSync(file)) fail(`${file} is missing. See release-notes/README.md.`);
   const english = JSON.parse(readFileSync(file, 'utf8')).en;
   if (typeof english !== 'string' || !english.trim()) fail(`${file} has no 'en' text.`);
-  writeFileSync(out, `${english.trim()}\n\n${downloadsSection()}\n`);
+  writeFileSync(out, `${english.trim()}\n\n${downloadsSection(await aurExists())}\n`);
 }
 
 if (import.meta.main) {
@@ -240,6 +261,6 @@ if (import.meta.main) {
 
   if (command === 'stage') stage(version, dir);
   else if (command === 'publish' && values.out) publish(version, dir, resolve(values.out));
-  else if (command === 'notes' && values.out) notes(version, resolve(values.out));
+  else if (command === 'notes' && values.out) await notes(version, resolve(values.out));
   else fail(usage);
 }
