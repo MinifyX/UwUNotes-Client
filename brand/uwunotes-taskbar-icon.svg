@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="UwUNotes: a sheet of paper with cat ears, ruled lines and a caret">
+  <title>UwUNotes</title>
+  <!--
+    Taskbar, window and Linux menus: Nyu alone, upright, no tile. A sheet with
+    a folded corner and three ruled plum lines, the last one short with the
+    caret at its end, so it reads as notes; the ears say Nyu. The white
+    die-cut edge keeps it visible on dark and light taskbars.
+  -->
+  <g transform="translate(256 258) scale(1.3) translate(-256 -234)"><g stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="40">
+      <path d="M118 196 L132 100 Q135 82 151 91 L230 150 Z"/>
+      <path d="M394 196 L380 100 Q377 82 361 91 L282 150 Z"/>
+      <path d="M146 140 H366 A46 46 0 0 1 412 186 V318 L352 378 H146 A46 46 0 0 1 100 332 V186 A46 46 0 0 1 146 140 Z"/>
+    </g>
+    <g fill="#FF6FA6" stroke="#4B1D3F" stroke-width="17">
+      <path d="M118 196 L132 100 Q135 82 151 91 L230 150 Z"/>
+      <path d="M394 196 L380 100 Q377 82 361 91 L282 150 Z"/>
+    </g>
+    <g fill="#FFB8D3">
+      <path d="M148 140 L152 118 Q153 110 160 114 L192 138 Z"/>
+      <path d="M364 140 L360 118 Q359 110 352 114 L320 138 Z"/>
+    </g>
+    <g fill="#FFB8D3" stroke="#4B1D3F" stroke-width="17"><path d="M146 140 H366 A46 46 0 0 1 412 186 V318 L352 378 H146 A46 46 0 0 1 100 332 V186 A46 46 0 0 1 146 140 Z"/></g>
+    <g fill="none" stroke="#4B1D3F" stroke-width="20">
+      <path d="M150 200 H362"/>
+      <path d="M150 256 H362"/>
+      <path d="M150 312 H262"/>
+    </g>
+    <rect x="284" y="282" width="22" height="60" rx="9" fill="#FF4D8D"/>
+    <path d="M412 318 H366 A14 14 0 0 0 352 332 V378 Z" fill="#FF6FA6" stroke="#4B1D3F" stroke-width="13.600000000000001"/>
+  </g></g>
+</svg>

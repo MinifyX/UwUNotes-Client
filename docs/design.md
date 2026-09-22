@@ -165,11 +165,20 @@ something.
   body `#FF6FA6`, light page `#FFB8D3`, pastel props, a white die-cut edge.
   These are fixed artwork and stay the same in dark mode; the white edge is what
   keeps the outlines readable on a `#0e0b11` ground.
-- **App icon.** Made to be told apart in a taskbar at 16–24 px, where a pale
-  tile would read as UwUMail: a **dark plum tile**, and on it a pink notepad
-  with cat ears, as large as the tile allows, one ruled line, a yellow pencil
-  and a single sparkle. Regenerate the platform icons with
-  `pnpm tauri icon ../../brand/uwunotes-app-icon.svg` in `apps/desktop`.
+- **App icon** (website, GitHub, macOS Dock). Built like UwUMail's, UwUSSH's
+  and UwURDP's: Nyu as a pink sheet with a folded corner and cat ears,
+  slightly tilted on a pastel tile with two sparkles and a heart. The tile is
+  **butter yellow**, like a notepad (UwUMail pink, UwUSSH lavender, UwURDP sky
+  blue). The sheet is the face, with two ruled lines and the caret below.
+- **Taskbar icon.** On the Windows taskbar, in the setup and in Linux menus
+  Nyu stands alone: upright, no tile, white die-cut edge, a sheet with a
+  folded corner and three plum ruled lines, the last one short with the pink
+  caret at its end, so it reads as notes; the ears say Nyu
+  (`brand/uwunotes-taskbar-icon.svg`). At 16 and 24 px a simplified cut takes
+  over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs`
+  regenerates all desktop icons from these three.
+- **The face.** Wherever Nyu has one, it's UwU: two U eyes and a **round `w`**
+  (two soft arcs, never a zigzag).
 - **Sources** in `brand/` (icon, symbol, mono symbol) and
   `apps/desktop/src/components/nyu/` (React).
 

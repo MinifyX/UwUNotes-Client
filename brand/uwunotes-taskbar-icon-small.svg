@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="UwUNotes: a sheet of paper with cat ears, ruled lines and a caret">
+  <title>UwUNotes</title>
+  <!--
+    16 and 24 px cut of uwunotes-taskbar-icon.svg: thicker outlines, two
+    lines instead of three, a bigger caret, no inner ears.
+  -->
+  <g transform="translate(256 258) scale(1.3) translate(-256 -234)"><g stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="30">
+      <path d="M118 196 L132 100 Q135 82 151 91 L230 150 Z"/>
+      <path d="M394 196 L380 100 Q377 82 361 91 L282 150 Z"/>
+      <path d="M146 140 H366 A46 46 0 0 1 412 186 V318 L352 378 H146 A46 46 0 0 1 100 332 V186 A46 46 0 0 1 146 140 Z"/>
+    </g>
+    <g fill="#FF6FA6" stroke="#4B1D3F" stroke-width="26">
+      <path d="M118 196 L132 100 Q135 82 151 91 L230 150 Z"/>
+      <path d="M394 196 L380 100 Q377 82 361 91 L282 150 Z"/>
+    </g>
+    <g fill="#FFB8D3" stroke="#4B1D3F" stroke-width="26"><path d="M146 140 H366 A46 46 0 0 1 412 186 V318 L352 378 H146 A46 46 0 0 1 100 332 V186 A46 46 0 0 1 146 140 Z"/></g>
+    <g fill="none" stroke="#4B1D3F" stroke-width="30">
+      <path d="M156 208 H356"/>
+      <path d="M156 276 H256"/>
+    </g>
+    <rect x="282" y="240" width="30" height="72" rx="12" fill="#FF4D8D"/>
+    <path d="M412 318 H366 A14 14 0 0 0 352 332 V378 Z" fill="#FF6FA6" stroke="#4B1D3F" stroke-width="20.8"/>
+  </g></g>
+</svg>
