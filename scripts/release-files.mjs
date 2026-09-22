@@ -86,7 +86,7 @@ export function releaseFiles(version) {
         asset: `${APP}-linux-${arch}.${kind}`,
         built: `${APP}-${v}-linux-${rust}.${kind}`,
         // tauri-plugin-updater looks for `linux-<arch>-<deb|rpm>` first in a
-        // copy that was bundled as one; `pkexec dpkg -i` / `rpm -U` installs it.
+        // copy that was bundled as one; `pkexec dpkg -i` / `rpm -U --oldpackage` installs it.
         feed: { [`linux-${rust}-${kind}`]: `${APP}-${v}-linux-${rust}.${kind}` },
       }));
     }),

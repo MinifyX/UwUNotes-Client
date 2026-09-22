@@ -11,7 +11,7 @@
 //
 // The packages are Tauri's own bundles of the editor, installing system-wide
 // to /usr, and they update themselves: the editor finds out that dpkg or rpm
-// owns it and hands the signed update to `pkexec dpkg -i` / `rpm -U` (see
+// owns it and hands the signed update to `pkexec dpkg -i` / `rpm -U --oldpackage` (see
 // apps/desktop/src-tauri/src/updates.rs). Their names carry the version
 // because the update signature is made under that name; the release publishes
 // them as UwUNotes-linux-<x64|arm64>.<deb|rpm> (scripts/release-files.mjs).

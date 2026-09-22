@@ -49,17 +49,26 @@
 //! was installed from UwUNotes' `.deb` or `.rpm` knows it (Tauri's bundler
 //! marks the binary), and the plugin looks up `linux-<arch>-deb` or
 //! `linux-<arch>-rpm` for it. Such a copy downloads the package, checks it
-//! here like a setup, and has the plugin hand it to `pkexec dpkg -i` or
-//! `pkexec rpm -U`; then it restarts into the new version. Only if the package
-//! manager really owns this executable, though: the AUR package is the `.deb`'s
-//! contents repacked, so it carries the same mark, and running dpkg on an Arch
-//! system would be wrong in every way. So [`this_copy`] asks dpkg's own file
-//! list, or `rpm -qf`, before it believes the mark.
+//! here like a setup, and hands it to `pkexec dpkg -i` or
+//! `pkexec rpm -U --oldpackage`; then it restarts into the new version. Not
+//! through the plugin's own `install`: that runs `rpm -U` without
+//! `--oldpackage`, and rpm sorts `0.5.0-beta.2` after `0.5.0`, so an rpm copy
+//! on a beta would refuse the finished version for good. That the offered
+//! version is newer has been decided by the feed check already, and that it is
+//! the one the release signed by [`verify`]. Only when the user pressed
+//! "Install and restart", never by itself at start: the password prompt is not
+//! something to spring on anybody. Without pkexec or a polkit agent the error
+//! says the `sudo dpkg -i` / `sudo rpm -U --oldpackage` line to type instead.
 //!
-//! The file sits in a temporary folder of the plugin's between that check and
-//! dpkg reading it, writable by this user. Something running as this user that
-//! swapped it could as well have started pkexec with a package of its own; the
-//! password prompt is the same either way.
+//! And only if the package manager really owns this executable: the AUR
+//! package is the `.deb`'s contents repacked, so it carries the same mark, and
+//! running dpkg on an Arch system would be wrong in every way. So [`this_copy`]
+//! asks dpkg's own file list, or `rpm -qf`, before it believes the mark.
+//!
+//! The checked bytes go to a fresh folder only this user can open, and that is
+//! the file root installs. Something running as this user that swapped it
+//! could as well have started pkexec with a package of its own; the password
+//! prompt is the same either way.
 //!
 //! **Everything else installs by hand**: macOS, the copies the per-user Linux
 //! setup of 0.4.x installed, the portable folder, the AUR package. The feed
@@ -325,7 +334,7 @@ pub(crate) async fn install_update(
             FsError::other(None, format!("The update could not be downloaded: {error}"))
         })?;
 
-    if let Install::Package(_) = install {
+    if let Install::Package(package) = install {
         // Checked by the plugin already; checked here again for the name in
         // the signature, which the plugin does not look at.
         if !verify(&app, &bytes, &update.signature, &name) {
@@ -334,15 +343,20 @@ pub(crate) async fn install_update(
                 format!("The downloaded {name} is not what the release signed, so it was not installed."),
             ));
         }
-        let failed = |error: String| {
-            FsError::other(None, format!("The update could not be installed: {error}"))
-        };
+        // What the release page calls the file, for the command in an error.
+        let asset = update
+            .download_url
+            .path_segments()
+            .and_then(|mut segments| segments.next_back())
+            .unwrap_or(name.as_str())
+            .to_owned();
         // pkexec waits for a password, so off the async runtime's threads.
-        let update = update.clone();
-        tauri::async_runtime::spawn_blocking(move || update.install(bytes))
+        tauri::async_runtime::spawn_blocking(move || install_package(package, &bytes, &asset))
             .await
-            .map_err(|error| failed(error.to_string()))?
-            .map_err(|error| failed(error.to_string()))?;
+            .map_err(|error| {
+                FsError::other(None, format!("The update could not be installed: {error}"))
+            })?
+            .map_err(|message| FsError::other(None, message))?;
         tracing::info!(%name, "installed by the package manager, restarting");
         app.restart();
     }
@@ -381,6 +395,71 @@ fn release_file_name(version: &str, install: Install, arch: &str) -> Option<Stri
             Some(format!("UwUNotes-{version}-linux-{arch}.rpm"))
         }
         _ => None,
+    }
+}
+
+/// What installs a package over the one that is there. `--oldpackage`
+/// because rpm sorts `0.5.0-beta.2` after `0.5.0`; whether the offered
+/// version is newer was decided by the feed check, not by rpm.
+fn package_command(package: Package) -> (&'static str, &'static [&'static str]) {
+    match package {
+        Package::Deb => ("deb", &["dpkg", "-i"]),
+        Package::Rpm => ("rpm", &["rpm", "-U", "--oldpackage"]),
+    }
+}
+
+/// The same, for a person to type when pkexec cannot ask for the password.
+fn manual_command(package: Package, asset: &str) -> String {
+    let (_, command) = package_command(package);
+    format!("sudo {} {asset}", command.join(" "))
+}
+
+/// Installs a checked `.deb` or `.rpm` through its package manager, which asks
+/// for the administrator password through pkexec. Blocks until it is done.
+///
+/// The bytes go to a fresh folder only this user can open, and root installs
+/// that file: nothing else is lying around under a name that could be swapped
+/// between the check and the install.
+fn install_package(package: Package, bytes: &[u8], asset: &str) -> Result<(), String> {
+    let by_hand = || {
+        format!(
+            "Download {asset} from {RELEASES} and install it with `{}`.",
+            manual_command(package, asset)
+        )
+    };
+    let failed = |error: std::io::Error| format!("The update could not be installed: {error}");
+    let (extension, command) = package_command(package);
+    let staging = tempfile::Builder::new()
+        .prefix("uwunotes-update-")
+        .tempdir()
+        .map_err(failed)?;
+    let file = staging.path().join(format!("{PACKAGE}.{extension}"));
+    std::fs::write(&file, bytes).map_err(failed)?;
+
+    let status = std::process::Command::new("pkexec")
+        .args(command)
+        .arg(&file)
+        .stdin(std::process::Stdio::null())
+        .status()
+        .map_err(|error| {
+            format!(
+                "There is no pkexec to ask for the administrator password ({error}). {}",
+                by_hand()
+            )
+        })?;
+    match status.code() {
+        Some(0) => Ok(()),
+        // pkexec's own: the password dialog was closed, or there is no polkit
+        // agent to show one.
+        Some(126) => Err("The password was not given, so nothing was installed.".to_owned()),
+        Some(127) => Err(format!(
+            "The administrator password could not be asked for (polkit). {}",
+            by_hand()
+        )),
+        _ => Err(format!(
+            "The package manager did not install the update ({status}). {}",
+            by_hand()
+        )),
     }
 }
 
@@ -618,6 +697,25 @@ mod tests {
         assert!(!lists(list, Path::new("/usr/bin/uwunotes-desktop")));
         assert!(!lists(list, Path::new("/opt/UwUNotes/usr/bin/uwunotes")));
         assert!(!lists("", Path::new("/usr/bin/uwunotes")));
+    }
+
+    /// `--oldpackage`, or an rpm copy on a beta never takes the finished
+    /// version: rpm sorts `0.5.0-beta.2` after `0.5.0`.
+    #[test]
+    fn packages_are_installed_over_whatever_version_is_there() {
+        assert_eq!(package_command(Package::Deb), ("deb", &["dpkg", "-i"][..]));
+        assert_eq!(
+            package_command(Package::Rpm),
+            ("rpm", &["rpm", "-U", "--oldpackage"][..])
+        );
+        assert_eq!(
+            manual_command(Package::Rpm, "UwUNotes-linux-x64.rpm"),
+            "sudo rpm -U --oldpackage UwUNotes-linux-x64.rpm"
+        );
+        assert_eq!(
+            manual_command(Package::Deb, "UwUNotes-linux-arm64.deb"),
+            "sudo dpkg -i UwUNotes-linux-arm64.deb"
+        );
     }
 
     #[test]

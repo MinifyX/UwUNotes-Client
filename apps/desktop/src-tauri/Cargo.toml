@@ -33,6 +33,9 @@ tauri-plugin-opener = "2"
 # hands the bytes to the installer. That check is the reason this is a
 # dependency rather than a `reqwest` call and a `Command::spawn`.
 tauri-plugin-updater = "2"
+# A folder only this user can open, for a checked .deb or .rpm on its way to
+# the package manager. The updater plugin uses the same crate.
+tempfile.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Deleting a file from the tree goes to the recycle bin, never a hard delete.

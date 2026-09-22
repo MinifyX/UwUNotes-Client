@@ -39,7 +39,7 @@ ignore = "0.4"
 # "Installed apps" (winreg), the Start-menu shortcut and the known folders it
 # all goes into (windows); everywhere a version comparison that stops an
 # update from going backwards (semver). Its tests install into a folder of
-# their own (tempfile).
+# their own (tempfile), and the editor stages a Linux package update in one.
 semver = "1"
 tar = "0.4"
 tempfile = "3"
