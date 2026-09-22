@@ -167,9 +167,11 @@ something.
   keeps the outlines readable on a `#0e0b11` ground.
 - **App icon** (website, GitHub, macOS Dock). Built like UwUMail's, UwUSSH's
   and UwURDP's: Nyu as a pink sheet with a folded corner and cat ears,
-  slightly tilted on a pastel tile with two sparkles and a heart. The tile is
-  **butter yellow**, like a notepad (UwUMail pink, UwUSSH lavender, UwURDP sky
-  blue). The sheet is the face, with two ruled lines and the caret below.
+  slightly tilted. The sheet is the face, with two ruled lines and the caret
+  below. A small star top left, the heart top right, a big star bottom left.
+- **The tile.** Every UwU app's icon for the website and GitHub sits on
+  UwUMail's pastel pink tile (`#FFF3F8` to `#FFD3E5`), never another colour.
+  Each one gets sparkles and a heart, arranged differently around it.
 - **Taskbar icon.** On the Windows taskbar, in the setup and in Linux menus
   Nyu stands alone: upright, no tile, white die-cut edge, a sheet with a
   folded corner and three plum ruled lines, the last one short with the pink
