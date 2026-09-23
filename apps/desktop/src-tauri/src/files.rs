@@ -13,7 +13,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use uwunotes_fs::{DirEntry, Eol, FileStamp, FsError, LoadedFile, PathInfo, Place};
+use uwunotes_fs::{DirEntry, Eol, FileStamp, FsError, LoadedFile, PathInfo};
 
 use crate::CommandResult;
 
@@ -73,11 +73,6 @@ pub(crate) fn file_status(path: String) -> CommandResult<Option<FileStamp>> {
 #[tauri::command(async)]
 pub(crate) fn list_dir(path: String) -> CommandResult<Vec<DirEntry>> {
     uwunotes_fs::list_dir(Path::new(&path))
-}
-
-#[tauri::command(async)]
-pub(crate) fn list_places() -> Vec<Place> {
-    uwunotes_fs::places()
 }
 
 #[tauri::command(async)]

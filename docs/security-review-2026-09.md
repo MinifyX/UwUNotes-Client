@@ -297,6 +297,37 @@ the way reading one does; the menus and the compare bar render file names as
 text. On macOS and Linux the setup installs per user, refuses a target that is
 a symlink pointing elsewhere, and removes only files it wrote.
 
+## 2026-09-23
+
+A third pass, over the whole repository at 571ec64, with the earlier fixes
+re-checked first. All of them still held. What it found:
+
+- **High — a hook in `.git/hooks` ran on the gutter's diff.** Fixed in
+  b559d22. The check in `git.rs` reads the config and nothing else, and a
+  hook in the default hooks directory is named by no config key: the
+  repository was judged inert and git was run in it. A `git diff` of a file
+  whose timestamp the index does not know — every file of a freshly unpacked
+  or synced project — refreshes the index, writes it despite
+  `--no-optional-locks`, and runs `post-index-change`. Reproduced with git
+  2.55; the comment on `git()` that said `--no-optional-locks` prevented this
+  was wrong, and is corrected. Every git call now passes `core.hooksPath` set
+  to the git executable's own absolute path, which as a file can hold nothing
+  beneath it, so no hook is found on any system. Neither an empty value nor
+  `/dev/null` would do: git for Windows reads the first as the root of the
+  repository's drive and turns the second into a path relative to the working
+  tree. Hooks declared in the config (`hook.<name>.command`) are keys like the
+  others and already refused. A test plants the hook in a real repository,
+  shows that a plain `git diff` runs it, and that the gutter's diff does not.
+- **Not affected — the AppImage extraction directory.** The sibling app's
+  updater started its Linux setup with `APPIMAGE_EXTRACT_AND_RUN=1`, which
+  unpacks into a predictable folder under `/tmp`. UwUNotes's updater starts no
+  AppImage: on Linux it installs a `.deb` or `.rpm` through `pkexec` from a
+  fresh private temporary folder, and copies that came some other way are
+  updated by hand.
+
+Also removed, as dead code: the `list_places` command, which the page never
+called, and the part of `uwunotes-fs` only it used.
+
 ## Accepted, for now
 
 - **Microsoft's WebView2 bootstrapper is downloaded and run.** Over https, from

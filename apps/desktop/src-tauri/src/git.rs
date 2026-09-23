@@ -114,23 +114,30 @@ fn statuses(folder: &Path) -> Option<GitStatuses> {
 /// Runs one git command in `folder`. `None` for a git that is not installed, a
 /// folder that is not a repository, or any other non-zero exit.
 ///
-/// The two options in front of the subcommand are not tidiness. A repository is
+/// The options in front of the subcommand are not tidiness. A repository is
 /// data — `.git/config` is not signed, and it travels inside a zip, a network
-/// share or a synced folder — and several configuration values are things git
-/// runs as a program. `core.fsmonitor` is a command line executed on `status`;
-/// `core.hooksPath` can point at a `post-index-change` hook that fires when a
-/// status refreshes the index, which `--no-optional-locks` stops by never
-/// writing one. So a folder the user merely opened would otherwise run a
+/// share or a synced folder, as does everything else under `.git` — and git
+/// runs several things it finds there as programs. `core.fsmonitor` is a
+/// command line executed on `status`. A hook is a program git runs by itself:
+/// `git diff` on a file whose timestamps no longer match the index — every file
+/// of a project that was just unpacked or synced — refreshes the index, writes
+/// it despite `--no-optional-locks`, and runs `post-index-change`. That hook
+/// lives in `.git/hooks` without any configuration naming it, so no check of
+/// the config can see it; hooks are switched off here instead of being looked
+/// for, see [`no_hooks`]. A folder the user merely opened would otherwise run a
 /// program as them, every eight seconds, with the console hidden. What no flag
 /// can switch off is checked in [`repository_is_inert`] instead.
 fn git(folder: &Path, arguments: &[&str]) -> Option<Vec<u8>> {
-    let mut command = Command::new(git_program()?);
+    let program = git_program()?;
+    let mut command = Command::new(program);
     command
         // `-C` rather than `current_dir`, so a folder that has been deleted
         // fails as a git error instead of as a spawn error.
         .arg("-C")
         .arg(folder)
         .arg("--no-optional-locks")
+        .arg("-c")
+        .arg(no_hooks(program))
         .arg("-c")
         .arg("core.fsmonitor=false")
         // The same reason as `--ignore-submodules` on status, for every other
@@ -145,6 +152,29 @@ fn git(folder: &Path, arguments: &[&str]) -> Option<Vec<u8>> {
 
     let output = command.output().ok()?;
     output.status.success().then_some(output.stdout)
+}
+
+/// `core.hooksPath` pointed at a place that can never hold a hook: the git
+/// executable itself. Git looks for `<hooksPath>/<hook name>`, and a path that
+/// goes *through* a regular file names nothing on any system, so every hook —
+/// the default `.git/hooks` and any `core.hooksPath` the repository sets, which
+/// this overrides — is simply not found.
+///
+/// Not the obvious candidates. An empty value makes git look in the root of the
+/// drive the repository is on, and `/dev/null` is what git for Windows turns
+/// into `nul/`, a path relative to the working tree: both are places a
+/// repository on a stick or a share can bring along. An empty directory of our
+/// own would be a directory somebody could later fill. The git executable is
+/// absolute (see [`resolve_git`]), is a file, and is the one path this module
+/// already knows exists.
+///
+/// Hooks set up in the config instead — `hook.<name>.command`, which newer
+/// versions of git read — are config keys, and [`names_a_program`] refuses them
+/// like the others.
+fn no_hooks(program: &Path) -> std::ffi::OsString {
+    let mut setting = std::ffi::OsString::from("core.hooksPath=");
+    setting.push(program);
+    setting
 }
 
 /// The `git` we will run, as an absolute path, worked out once.
@@ -178,17 +208,21 @@ fn resolve_git() -> Option<PathBuf> {
         })
         .map(|folder| folder.join(name))
         .find(|candidate| candidate.is_file())
+        // A relative entry on PATH would give a relative answer, which git
+        // would read relative to the repository once it is the
+        // `core.hooksPath` of [`no_hooks`].
+        .and_then(|found| std::path::absolute(found).ok())
 }
 
 /// Whether this repository can be asked for a status or a diff without running
 /// programs it names itself.
 ///
-/// `git()` turns off the two that a flag can reach. A *clean filter* —
-/// `filter.<name>.clean` plus a `.gitattributes` that points at it — is the one
-/// it cannot: git has no `--no-filters` for diff, and it runs the filter to
-/// normalise the working copy before comparing. So a repository that names any
-/// exec-capable key in its own `.git/config` gets no letters in the tree and no
-/// marks in the gutter at all.
+/// `git()` turns off what a flag can reach: the fsmonitor and hooks. A *clean
+/// filter* — `filter.<name>.clean` plus a `.gitattributes` that points at it —
+/// is the one it cannot: git has no `--no-filters` for diff, and it runs the
+/// filter to normalise the working copy before comparing. So a repository that
+/// names any exec-capable key in its own `.git/config` gets no letters in the
+/// tree and no marks in the gutter at all.
 ///
 /// Normal repositories name none of these locally, with one exception that is
 /// entirely ordinary: `git lfs install --local` writes three filter keys into
@@ -555,6 +589,8 @@ mod tests {
         runs_a_program, GitFileStatus, GitHunkKind,
     };
     use std::path::Path;
+    use std::process::{Command, Stdio};
+    use std::time::Duration;
 
     #[test]
     fn the_config_keys_git_would_run_are_recognised() {
@@ -569,6 +605,9 @@ mod tests {
             "diff.uwu.textconv",
             "filter.lfs.clean",
             "filter.evil.process",
+            // A hook set up in the config rather than dropped into `.git/hooks`,
+            // which `core.hooksPath` does not switch off.
+            "hook.uwu.command",
         ] {
             assert!(names_a_program(key), "{key}");
         }
@@ -709,6 +748,73 @@ mod tests {
         .unwrap();
         assert!(super::git(&folder, &["config", "--local", "include.path", "evil.cfg"]).is_some());
         assert_eq!(super::inspect_repository(&folder), Some(false));
+
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    /// The exploit the 2026-09-23 review found: a hook in the default
+    /// `.git/hooks`, which no config key names, fired by the gutter's diff of a
+    /// file whose timestamp the index does not know. Skipped where git is not
+    /// installed.
+    #[test]
+    fn a_hook_in_the_repository_never_runs() {
+        let Some(program) = git_program() else { return };
+        let folder = std::env::temp_dir().join(format!("uwunotes-git-hook-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        assert!(super::git(&folder, &["init", "-q"]).is_some());
+        let file = folder.join("notes.txt");
+        std::fs::write(&file, "uwu\n").unwrap();
+        assert!(super::git(&folder, &["add", "notes.txt"]).is_some());
+
+        // Hooks run in the top of the working tree, so this lands beside the file.
+        let hook = folder.join(".git").join("hooks").join("post-index-change");
+        std::fs::write(&hook, "#!/bin/sh\necho ran > hook-ran\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let marker = folder.join("hook-ran");
+        // What an unpacked archive looks like to the index: same contents,
+        // a timestamp it has never seen.
+        let make_stale = || {
+            let old = std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000_000);
+            std::fs::File::options()
+                .write(true)
+                .open(&file)
+                .unwrap()
+                .set_modified(old)
+                .unwrap();
+        };
+
+        // The config says nothing: this is a repository the check calls safe.
+        assert_eq!(super::inspect_repository(&folder), Some(true));
+
+        // And the hook is real — a plain `git diff` with the options the app
+        // had before runs it — so the assertion below is not vacuous.
+        make_stale();
+        let plain = Command::new(program)
+            .arg("-C")
+            .arg(&folder)
+            .args(["--no-optional-locks", "diff", "--", "notes.txt"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(plain.success());
+        assert!(
+            marker.exists(),
+            "the hook never ran, so this test proves nothing"
+        );
+        std::fs::remove_file(&marker).unwrap();
+
+        make_stale();
+        let _ = super::file_diff(&file);
+        assert!(
+            !marker.exists(),
+            "the gutter's diff ran the repository's hook"
+        );
 
         let _ = std::fs::remove_dir_all(&folder);
     }

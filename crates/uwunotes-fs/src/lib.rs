@@ -35,8 +35,8 @@ pub use encoding::{
 pub use error::{FsError, FsResult};
 pub use hash::{hash_file, hash_text, HashAlgorithm};
 pub use listing::{
-    create_dir, create_file, join_path, list_dir, path_info, places, rename_path, DirEntry,
-    DirEntryKind, PathInfo, Place, PlaceIcon,
+    create_dir, create_file, join_path, list_dir, path_info, rename_path, DirEntry, DirEntryKind,
+    PathInfo,
 };
 pub use read::{file_stamp, read_file, FileStamp, LoadedFile, MAX_FILE_BYTES};
 pub use search::{
