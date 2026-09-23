@@ -68,13 +68,6 @@ export type DirEntry = {
   hidden: boolean;
 };
 
-/** A starting point in the file tree: Home, Desktop, a drive. */
-export type Place = {
-  name: string;
-  path: string;
-  icon: 'home' | 'desktop' | 'documents' | 'drive';
-};
-
 /** Reads a file and decodes it. `encoding` forces one instead of detecting it. */
 export const readTextFile = (path: string, encoding?: EncodingLabel) =>
   invoke<LoadedFile>('read_text_file', { path, encoding: encoding ?? null });
@@ -105,8 +98,6 @@ export const writeTextFile = (args: {
 export const fileStatus = (path: string) => invoke<FileStamp | null>('file_status', { path });
 
 export const listDir = (path: string) => invoke<DirEntry[]>('list_dir', { path });
-
-export const listPlaces = () => invoke<Place[]>('list_places');
 
 export const createDir = (path: string) => invoke<void>('create_dir', { path });
 

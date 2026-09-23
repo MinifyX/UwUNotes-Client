@@ -95,7 +95,6 @@ pub fn run() {
             files::write_text_file,
             files::file_status,
             files::list_dir,
-            files::list_places,
             files::create_dir,
             files::create_file,
             files::rename_path,

@@ -1,5 +1,5 @@
-//! The file tree: what is in a directory, where a user is likely to start, and
-//! the four small operations the tree's context menu needs.
+//! The file tree: what is in a directory, and the four small operations the
+//! tree's context menu needs.
 //!
 //! Sorting is the interesting part. Directories come first and names compare
 //! case-insensitively, because a tree sorted by byte value puts `Zebra` before
@@ -32,28 +32,6 @@ pub struct DirEntry {
     pub size: u64,
     pub mtime_ms: i64,
     pub hidden: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum PlaceIcon {
-    Home,
-    Desktop,
-    Documents,
-    Drive,
-}
-
-/// A starting point in the file tree.
-///
-/// `name` is whatever the folder is actually called on disk, which is the only
-/// name that is certainly right. The page can substitute a translated word for
-/// the three well-known places — that is what `icon` is for.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Place {
-    pub name: String,
-    pub path: String,
-    pub icon: PlaceIcon,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -119,86 +97,6 @@ const fn kind_rank(kind: DirEntryKind) -> u8 {
         DirEntryKind::Dir => 0,
         DirEntryKind::File => 1,
     }
-}
-
-/// Home, Desktop, Documents and every drive that answers.
-pub fn places() -> Vec<Place> {
-    let mut places = Vec::new();
-
-    if let Some(home) = home_directory() {
-        push_place(&mut places, home.clone(), PlaceIcon::Home);
-        push_place(
-            &mut places,
-            well_known(&home, "XDG_DESKTOP_DIR", "Desktop"),
-            PlaceIcon::Desktop,
-        );
-        push_place(
-            &mut places,
-            well_known(&home, "XDG_DOCUMENTS_DIR", "Documents"),
-            PlaceIcon::Documents,
-        );
-    }
-
-    push_roots(&mut places);
-    places
-}
-
-fn push_place(places: &mut Vec<Place>, path: PathBuf, icon: PlaceIcon) {
-    if !path.is_dir() {
-        return;
-    }
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.to_string_lossy().into_owned());
-    places.push(Place {
-        name,
-        path: display_path(&path),
-        icon,
-    });
-}
-
-/// The XDG variable when the desktop environment set one — on a German Linux
-/// the folder really is called `Schreibtisch` — and the English name otherwise,
-/// which is what Windows and macOS use on disk regardless of display language.
-fn well_known(home: &Path, variable: &str, fallback: &str) -> PathBuf {
-    match std::env::var_os(variable) {
-        Some(value) if !value.is_empty() => PathBuf::from(value),
-        _ => home.join(fallback),
-    }
-}
-
-fn home_directory() -> Option<PathBuf> {
-    let variable = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
-    std::env::var_os(variable)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-}
-
-#[cfg(windows)]
-fn push_roots(places: &mut Vec<Place>) {
-    // From C: onwards. Probing A: and B: wakes up floppy hardware that has not
-    // existed for twenty years but is still emulated, slowly, by some BIOSes.
-    for letter in b'C'..=b'Z' {
-        let letter = char::from(letter);
-        let root = format!("{letter}:\\");
-        if Path::new(&root).is_dir() {
-            places.push(Place {
-                name: format!("{letter}:"),
-                path: root,
-                icon: PlaceIcon::Drive,
-            });
-        }
-    }
-}
-
-#[cfg(not(windows))]
-fn push_roots(places: &mut Vec<Place>) {
-    places.push(Place {
-        name: "/".to_owned(),
-        path: "/".to_owned(),
-        icon: PlaceIcon::Drive,
-    });
 }
 
 pub fn create_dir(path: &Path) -> FsResult<()> {
