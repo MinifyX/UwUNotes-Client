@@ -646,11 +646,6 @@ export async function closeDocsSafely(ids: readonly DocId[]): Promise<boolean> {
   return allClosed;
 }
 
-/** Closes everything; unsaved changes go to the note trash, nothing is asked. */
-export function closeAllSafely(): Promise<boolean> {
-  return closeDocsSafely(allDocs().map((doc) => doc.meta.id));
-}
-
 export function hasClosedTabs(): boolean {
   return closedTabs.size() > 0 || trashEntries().length > 0;
 }

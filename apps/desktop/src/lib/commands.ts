@@ -340,7 +340,9 @@ function fileCommands(): Command[] {
       shortcut: shortcutLabel('file.closeAll'),
       enabled: hasDoc,
       // Pinned tabs stay, as they do for every bulk close; see `lib/tabs.ts`.
-      // Quitting still goes through `closeAllSafely`, which spares nothing.
+      // Quitting closes no tab at all: the window's close guard in `App.tsx`
+      // writes the session and the drafts, and the next start brings back
+      // every tab, pinned or not.
       run: async () => {
         await closeAllUnpinned();
       },
