@@ -9,6 +9,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { withHat, type HatId } from './hats';
 import { NYU, NyuFigure, Paw, Sticker } from './Nyu';
 
 // Every scene is drawn on a 320 × 220 canvas, the same as UwUMail's and
@@ -169,8 +170,10 @@ export function Glass({
   );
 }
 
+type SceneProps = { hat?: HatId | null };
+
 /** The session is being restored: Nyu waves, already writing on something. */
-function Startup() {
+function Startup({ hat }: SceneProps) {
   return (
     <>
       <Shadow cx={152} />
@@ -181,7 +184,7 @@ function Startup() {
         scale={0.62}
         tilt={-5}
         edge={NYU_EDGE}
-        front={<Paw x={238} y={104} className="nyu-wave" />}
+        {...withHat(hat, { front: <Paw x={238} y={104} className="nyu-wave" /> })}
       />
       <Sticker edge={EDGE}>
         <Sheet x={272} y={150} rotate={8} size={0.85} writing />
@@ -195,14 +198,22 @@ function Startup() {
 }
 
 /** No document in this pane: Nyu naps on a shut notebook. */
-function Empty() {
+function Empty({ hat }: SceneProps) {
   return (
     <>
       <Shadow cx={160} rx={96} />
       <Sticker edge={EDGE}>
         <Notebook x={160} y={182} rotate={-2} />
       </Sticker>
-      <NyuFigure mood="sleepy" x={156} y={122} scale={0.58} tilt={6} edge={NYU_EDGE} />
+      <NyuFigure
+        mood="sleepy"
+        x={156}
+        y={122}
+        scale={0.58}
+        tilt={6}
+        edge={NYU_EDGE}
+        {...withHat(hat)}
+      />
       <g className="nyu-zzz" fill="none" stroke={NYU.violet} strokeWidth={5}>
         <path d="M228 76 h16 l-16 16 h16" />
         <path d="M254 46 h11 l-11 11 h11" />
@@ -212,7 +223,7 @@ function Empty() {
 }
 
 /** The search found nothing: Nyu checks the page again, closely. */
-function NoResults() {
+function NoResults({ hat }: SceneProps) {
   return (
     <>
       <Shadow cx={146} />
@@ -223,7 +234,7 @@ function NoResults() {
         scale={0.6}
         tilt={-6}
         edge={NYU_EDGE}
-        front={<Paw x={230} y={152} />}
+        {...withHat(hat, { front: <Paw x={230} y={152} /> })}
       />
       <Sticker edge={EDGE}>
         <Sheet x={248} y={122} rotate={9} size={0.9} />
@@ -240,12 +251,23 @@ const SCENES = {
   startup: Startup,
   empty: Empty,
   noResults: NoResults,
-} satisfies Record<string, () => ReactNode>;
+} satisfies Record<string, (props: SceneProps) => ReactNode>;
 
 export type SceneName = keyof typeof SCENES;
 
-/** A small illustration of Nyu for empty states. Decorative only. */
-export function NyuScene({ name, className }: { name: SceneName; className?: string }) {
+/**
+ * A small illustration of Nyu for empty states. Decorative only. `hat` is
+ * whatever the caller decided she wears today; this file does not ask.
+ */
+export function NyuScene({
+  name,
+  className,
+  hat,
+}: {
+  name: SceneName;
+  className?: string;
+  hat?: HatId | null;
+}) {
   const Scene = SCENES[name];
   return (
     <svg
@@ -256,7 +278,7 @@ export function NyuScene({ name, className }: { name: SceneName; className?: str
       strokeLinejoin="round"
       aria-hidden
     >
-      <Scene />
+      <Scene hat={hat} />
     </svg>
   );
 }

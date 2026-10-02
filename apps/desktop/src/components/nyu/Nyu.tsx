@@ -240,10 +240,20 @@ type NyuProps = {
   /** Blinking is on by default and stops on its own when motion is reduced. */
   blink?: boolean;
   title?: string;
+  /** Extra parts in Nyu's own coordinates — a hat from `hats.tsx`, say. */
+  behind?: ReactNode;
+  front?: ReactNode;
 };
 
 /** The symbol on its own: title bar, empty states, the about box. */
-export function Nyu({ size = 96, mood = 'uwu', blink = true, title = 'Nyu' }: NyuProps) {
+export function Nyu({
+  size = 96,
+  mood = 'uwu',
+  blink = true,
+  title = 'Nyu',
+  behind,
+  front,
+}: NyuProps) {
   return (
     <svg
       viewBox="0 0 256 256"
@@ -255,7 +265,7 @@ export function Nyu({ size = 96, mood = 'uwu', blink = true, title = 'Nyu' }: Ny
       className={blink ? 'nyu-host nyu-blink' : 'nyu-host'}
       style={{ overflow: 'visible' }}
     >
-      <NyuFigure mood={mood} />
+      <NyuFigure mood={mood} behind={behind} front={front} />
     </svg>
   );
 }

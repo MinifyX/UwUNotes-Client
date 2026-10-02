@@ -1,0 +1,381 @@
+/*
+ * The companion in the status bar, her bursts and her speech bubble, and the
+ * Nyu-Pomodoro's status bar item.
+ *
+ * Chrome (the bubble, focus rings, the countdown) uses `--uwu-*` tokens; the
+ * artwork keeps Nyu's fixed sticker palette. Every animation here is either
+ * finite or tied to a pose that only lasts while the user is doing something
+ * (typing along). Nothing loops while she sits there doing nothing — blinking
+ * is a class a timer flips (NyuCompanion.tsx), not an infinite keyframe.
+ */
+
+.nyu-companion {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  width: calc(34px + var(--nyu-companion-extra, 0px));
+  /* The bar's own left padding is 12px; she sits a little closer to the edge. */
+  margin-left: -6px;
+  z-index: 20;
+}
+
+.nyu-companion-button {
+  position: absolute;
+  left: 0;
+  bottom: 1px;
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.nyu-companion-button:focus-visible {
+  outline: 2px solid var(--uwu-pink);
+  outline-offset: 0;
+}
+
+.nyu-companion-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nyu-companion-body,
+.nyu-companion-svg .nyu-look,
+.nyu-type-paw,
+.nyu-companion-zzz {
+  transform-box: fill-box;
+}
+
+.nyu-companion-body {
+  transform-origin: 50% 100%;
+}
+
+/* ── Eyes ── */
+
+.nyu-companion-svg .nyu-look {
+  transform: translate(var(--nyu-look-x, 0px), var(--nyu-look-y, 0px));
+  transition: transform 280ms ease-out;
+}
+
+.nyu-companion-svg.is-blinking .nyu-eyes {
+  transform-origin: center;
+  transform: scaleY(0.1);
+}
+
+/* ── Poses ── */
+
+.nyu-type-paw {
+  animation: nyu-type 220ms ease-in-out infinite alternate;
+}
+
+.nyu-type-paw-r {
+  animation-delay: -110ms;
+}
+
+[data-pose='excited'] .nyu-companion-body {
+  animation: nyu-bounce 520ms ease-in-out infinite alternate;
+}
+
+[data-pose='waking'] .nyu-companion-body {
+  animation: nyu-stretch 1.4s ease-in-out both;
+}
+
+/* Finite on purpose: a few breaths, then she sleeps perfectly still. */
+[data-pose='sleeping'] .nyu-companion-body {
+  animation: nyu-breathe 4s ease-in-out 6;
+}
+
+.nyu-companion-zzz {
+  transform-origin: center;
+  animation: nyu-companion-zzz 3s ease-in-out 8;
+}
+
+/* ── Reactions ── */
+
+.nyu-companion-body[data-motion='nod'] {
+  animation: nyu-nod 700ms ease-in-out 1;
+}
+
+.nyu-companion-body[data-motion='hop'] {
+  animation: nyu-hop 560ms cubic-bezier(0.3, 0, 0.4, 1) 2;
+}
+
+.nyu-companion-body[data-motion='wiggle'] {
+  animation: nyu-wiggle 400ms ease-in-out 3;
+}
+
+.nyu-companion-body[data-motion='wobble'] {
+  animation: nyu-wobble 900ms ease-in-out 2;
+}
+
+.nyu-companion-body[data-motion='dance'] {
+  animation: nyu-dance 600ms ease-in-out 4;
+}
+
+.nyu-companion-body[data-motion='peek'] {
+  animation: nyu-peek 1s ease-in-out 1;
+}
+
+/* ── Bursts ── */
+
+.nyu-burst {
+  position: absolute;
+  left: -14px;
+  bottom: 18px;
+  width: 64px;
+  height: 44px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.nyu-particle {
+  opacity: 0;
+  animation: nyu-particle var(--nyu-burst-ms, 1200ms) ease-out both;
+}
+
+.nyu-burst-dizzy {
+  left: -6px;
+  bottom: 20px;
+  width: 44px;
+  height: 22px;
+}
+
+.nyu-dizzy-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nyu-dizzy 700ms linear 3;
+}
+
+/* ── Speech bubble ── */
+
+.nyu-bubble {
+  position: absolute;
+  left: 2px;
+  bottom: calc(100% + 12px);
+  width: max-content;
+  max-width: min(280px, 60vw);
+  padding: 6px 10px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: 12px;
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: nyu-bubble-in 180ms ease-out both;
+}
+
+.nyu-bubble::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid var(--uwu-hairline);
+  border-bottom: 1px solid var(--uwu-hairline);
+  background: var(--uwu-surface);
+  transform: rotate(45deg);
+}
+
+/* ── The Nyu-Pomodoro in the status bar ── */
+
+.nyu-pomodoro-item svg {
+  flex: none;
+  overflow: visible;
+}
+
+.nyu-pomodoro-item[data-phase='focus'] {
+  color: var(--uwu-pink-ink);
+}
+
+.nyu-pomodoro-item[data-phase='break'],
+.nyu-pomodoro-item[data-phase='longBreak'] {
+  color: var(--uwu-online);
+}
+
+.nyu-pomodoro-item[data-paused='true'] .nyu-pomodoro-time {
+  opacity: 0.6;
+}
+
+/* ── Animations off ── */
+
+[data-motion='reduced'] .nyu-companion *,
+[data-motion='reduced'] .nyu-companion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@keyframes nyu-type {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes nyu-bounce {
+  from {
+    transform: translateY(0) rotate(-2deg);
+  }
+  to {
+    transform: translateY(-6%) rotate(2deg);
+  }
+}
+
+@keyframes nyu-stretch {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(0.94, 1.12);
+  }
+  60% {
+    transform: scale(1.06, 0.94);
+  }
+}
+
+@keyframes nyu-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.03, 0.97);
+  }
+}
+
+@keyframes nyu-companion-zzz {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translate(0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(4%, -12%);
+  }
+}
+
+@keyframes nyu-nod {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-7deg) translateY(2%);
+  }
+  60% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes nyu-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  50% {
+    transform: translateY(-16%) scale(0.96, 1.05);
+  }
+}
+
+@keyframes nyu-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-8deg);
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes nyu-wobble {
+  0%,
+  100% {
+    transform: rotate(0) skewX(0);
+  }
+  25% {
+    transform: rotate(-6deg) skewX(4deg);
+  }
+  50% {
+    transform: rotate(4deg) skewX(-3deg);
+  }
+  75% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes nyu-dance {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-14%) rotate(-10deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0);
+  }
+  75% {
+    transform: translateY(-14%) rotate(10deg);
+  }
+}
+
+@keyframes nyu-peek {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  40%,
+  70% {
+    transform: translateX(6%) rotate(8deg);
+  }
+}
+
+@keyframes nyu-particle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes nyu-dizzy {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nyu-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

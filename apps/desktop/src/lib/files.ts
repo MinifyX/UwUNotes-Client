@@ -58,6 +58,7 @@ import { t } from './i18n';
 import type { PaneId } from './layout';
 import { ask, askText } from './prompt';
 import { getSettings, subscribeSettings, type Settings } from './settings';
+import { emitNyu } from './nyu-events';
 import { playError, playSaved } from './sound';
 import { toast } from './toast';
 import { viewFor } from './views';
@@ -139,6 +140,8 @@ async function openOnePath(path: string, pane?: PaneId): Promise<DocId | null> {
   const id = openLoadedFile(file, resolved.name);
   showDoc(id, pane);
   rememberFile(resolved.path);
+  // A lossy or binary file gets no cat: the warning below is the news.
+  if (!file.lossy && !file.binary) emitNyu('file-opened');
   await applyDocLanguage(id);
 
   if (file.lossy) {
@@ -291,7 +294,10 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
       rememberFile(path);
       void dropDraft(id).catch(() => undefined);
       if (newPath) await applyDocLanguage(id);
-      if (!mode.silent) playSaved();
+      if (!mode.silent) {
+        playSaved();
+        emitNyu('saved');
+      }
       return true;
     } catch (error) {
       const failure = asApiError(error);
@@ -373,6 +379,7 @@ export async function saveAll(): Promise<void> {
 
   if (failed.length === 0) {
     playSaved();
+    if (saved > 1) emitNyu('saved-all', { count: saved });
     toast('success', t('{count} Dateien gespeichert.', { count: saved }));
   } else {
     playError();

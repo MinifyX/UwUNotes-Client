@@ -1,6 +1,6 @@
 /**
- * Two very small noises: one for a save that went through, one for something
- * that went wrong.
+ * Three very small noises: one for a save that went through, one for something
+ * that went wrong, and a soft chime when a Nyu-Pomodoro round ends.
  *
  * Synthesised with WebAudio rather than shipped as files. Two sine blips are a
  * dozen lines of code and no bytes in the bundle, and nothing here ever touches
@@ -8,8 +8,8 @@
  * nobody should install.
  *
  * Off by default, and this module does NOT decide when to play: it is called
- * from `lib/files.ts` at the two moments that earn a sound. A keystroke does
- * not.
+ * from `lib/files.ts` at the two moments that earn a sound, and from
+ * `lib/nyu.ts` when a Pomodoro phase is over. A keystroke does not.
  */
 
 import { getSettings } from './settings';
@@ -78,4 +78,16 @@ export function playError(): void {
   const peak = level();
   if (peak <= 0) return;
   blip(0, 196, 0.22, peak);
+}
+
+/**
+ * Three soft rising notes for the end of a Nyu-Pomodoro round: C6, E6, G6.
+ * Quieter than the save chirp, because it arrives when nobody pressed anything.
+ */
+export function playChime(): void {
+  const peak = level() * 0.8;
+  if (peak <= 0) return;
+  blip(0, 1046.5, 0.18, peak);
+  blip(0.16, 1318.5, 0.18, peak * 0.9);
+  blip(0.32, 1568, 0.3, peak * 0.8);
 }

@@ -33,6 +33,8 @@ import { TAB_SIZES, updateSettings, useSettings } from '../lib/settings';
 import { activeView } from '../lib/views';
 import { activeDocId, useWorkspace } from '../lib/workspace';
 import { PLAIN_TEXT, resolveLanguage } from '../editor/languages';
+import { NyuCompanion } from './nyu/companion/NyuCompanion';
+import { PomodoroItem } from './nyu/companion/PomodoroItem';
 import { pickGreeting } from './nyu/greetings';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
@@ -199,6 +201,7 @@ export function StatusBar() {
 
   return (
     <footer className="statusbar">
+      <NyuCompanion />
       <div className="statusbar-message" aria-live="polite">
         {meta?.staleOnDisk ? (
           <span className="statusbar-notice" data-tone="warning">
@@ -219,6 +222,7 @@ export function StatusBar() {
       </div>
 
       <div className="statusbar-items">
+        <PomodoroItem />
         <button
           type="button"
           className="statusbar-item"

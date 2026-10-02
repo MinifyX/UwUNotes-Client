@@ -1,0 +1,243 @@
+/*
+ * Nyu's page (NyuDialog.tsx): level card, hat picker, achievements, stats.
+ * Chrome only, so tokens throughout; Nyu herself brings her own colours.
+ */
+
+.nyu-page {
+  display: grid;
+  gap: 22px;
+}
+
+.nyu-page-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nyu-page-portrait {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 128px;
+  border-radius: 16px;
+  background: var(--uwu-pink-tint);
+}
+
+.nyu-page-off {
+  color: var(--uwu-muted);
+  font-size: 13px;
+}
+
+.nyu-level {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nyu-level-number {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--uwu-ink);
+}
+
+.nyu-level-bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--uwu-elevated);
+}
+
+.nyu-level-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--uwu-pink);
+  transition: width 400ms ease-out;
+}
+
+.nyu-level-xp,
+.nyu-level-streak {
+  font-size: 12px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nyu-page-section {
+  display: grid;
+  gap: 10px;
+}
+
+.nyu-page-title {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--uwu-hairline);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.nyu-page-count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ── Hats ── */
+
+.nyu-hats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nyu-hat {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 6px 8px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.nyu-hat svg {
+  overflow: visible;
+  margin-top: 8px;
+}
+
+.nyu-hat[aria-pressed='true'] {
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.nyu-hat:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+  cursor: default;
+}
+
+.nyu-hat-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nyu-hat-lock {
+  font-size: 10.5px;
+  color: var(--uwu-muted);
+}
+
+/* ── Achievements ── */
+
+.nyu-achievements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nyu-achievement {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: 10px;
+  background: var(--uwu-surface);
+}
+
+.nyu-achievement[data-done='false'] {
+  opacity: 0.55;
+}
+
+.nyu-achievement-mark {
+  flex: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--uwu-muted);
+}
+
+.nyu-achievement[data-done='true'] .nyu-achievement-mark {
+  color: var(--uwu-pink);
+}
+
+.nyu-achievement-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nyu-achievement-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--uwu-ink);
+}
+
+.nyu-achievement-hint {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/* ── Stats ── */
+
+.nyu-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.nyu-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--uwu-hairline);
+  font-size: 12.5px;
+}
+
+.nyu-stat dt {
+  color: var(--uwu-muted);
+}
+
+.nyu-stat dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nyu-page-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--uwu-hairline);
+}
+
+.nyu-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .nyu-page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nyu-page-portrait {
+    align-self: center;
+  }
+}

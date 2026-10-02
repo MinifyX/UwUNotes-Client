@@ -24,6 +24,8 @@ import { closeAllSafely, openPaths, startFileWatchers } from './lib/files';
 import { startGitWatch } from './lib/git';
 import { t, useLanguage } from './lib/i18n';
 import { persistSession, restoreSession, startSessionAutosave } from './lib/session';
+import { startNyu } from './lib/nyu';
+import { useNyuHat } from './lib/nyu-progress';
 import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
@@ -47,6 +49,9 @@ import { UpdateHint } from './components/UpdateHint';
 import { PromptHost } from './components/PromptHost';
 import { Nyu } from './components/nyu/Nyu';
 import { ZenEdge, ZenHint } from './components/Zen';
+import { hatParts } from './components/nyu/hats';
+import { NyuCameos } from './components/nyu/companion/NyuCameos';
+import { NyuDialog } from './components/nyu/companion/NyuDialog';
 import { pickGreeting } from './components/nyu/greetings';
 
 export function App() {
@@ -81,6 +86,7 @@ export function App() {
   useEffect(() => startGitWatch(), []);
   useEffect(() => startUpdateCheck(), []);
   useEffect(() => installWheelZoom(), []);
+  useEffect(() => startNyu(), []);
 
   // `version` and `workspace` are not read, only depended on: between them they
   // cover every change the title is built from — the active tab, the file name,
@@ -181,6 +187,7 @@ export function App() {
       <StatusBar />
       {zen ? <ZenHint /> : null}
 
+      <NyuCameos />
       <Toasts />
       <PromptHost />
 
@@ -190,6 +197,7 @@ export function App() {
       {dialog === 'settings' ? <SettingsDialog /> : null}
       {dialog === 'about' ? <AboutDialog /> : null}
       {dialog === 'hash' ? <HashDialog /> : null}
+      {dialog === 'nyu' ? <NyuDialog /> : null}
     </div>
   );
 }
@@ -205,9 +213,10 @@ function Startup() {
   // Empty when the tone is set to neutral, which is that setting asking for the
   // cat without the chatter.
   const greeting = pickGreeting('startup');
+  const hat = useNyuHat();
   return (
     <div className="startup" role="status" aria-label={t('UwUNotes wird geladen')}>
-      <Nyu size={96} mood="sparkle" />
+      <Nyu size={96} mood="sparkle" {...hatParts(hat)} />
       {greeting ? <p className="startup-greeting">{greeting}</p> : null}
     </div>
   );

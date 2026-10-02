@@ -87,6 +87,24 @@ export type Settings = {
   sounds: boolean;
   soundVolume: number;
 
+  /** The little Nyu at the left end of the status bar. */
+  nyuCompanion: boolean;
+  /** Easter eggs, petting reactions and cameos: the parts of Nyu that are pure play. */
+  nyuGimmicks: boolean;
+  /** Seasonal hats and the cameos that go with an occasion. */
+  nyuOccasions: boolean;
+  /** XP, levels and achievements. Off stops counting and hides them. */
+  nyuLevels: boolean;
+  /** Now and then a tip in a speech bubble — only in the playful tone. */
+  nyuTips: boolean;
+  /** The tomato in the status bar. The palette commands work either way. */
+  pomodoroButton: boolean;
+  pomodoroFocusMinutes: number;
+  pomodoroBreakMinutes: number;
+  pomodoroLongBreakMinutes: number;
+  /** A long break after this many focus rounds. */
+  pomodoroLongEvery: number;
+
   /** Folded-away folders in the file tree, as absolute paths. */
   collapsedFolders: string[];
 
@@ -109,6 +127,13 @@ export const AUTOSAVE_CHOICES = [0, 30, 60, 300] as const;
 export const ZEN_WIDTH_MIN = 40;
 export const ZEN_WIDTH_MAX = 160;
 export const HISTORY_RETENTION_CHOICES = [7, 30, 90, 365] as const;
+/** Minutes (and rounds) the Nyu-Pomodoro accepts, as [min, max]. */
+export const POMODORO_LIMITS = {
+  focus: [5, 120],
+  break: [1, 60],
+  longBreak: [5, 90],
+  longEvery: [2, 8],
+} as const;
 
 /** The monospace faces bundled with the app, plus whatever the system has. */
 export const BUNDLED_FONTS = ['JetBrains Mono Variable', 'Fira Code Variable'] as const;
@@ -160,6 +185,17 @@ export const DEFAULT_SETTINGS: Settings = {
   gitGutter: true,
   sounds: false,
   soundVolume: 0.35,
+
+  nyuCompanion: true,
+  nyuGimmicks: true,
+  nyuOccasions: true,
+  nyuLevels: true,
+  nyuTips: true,
+  pomodoroButton: true,
+  pomodoroFocusMinutes: 25,
+  pomodoroBreakMinutes: 5,
+  pomodoroLongBreakMinutes: 15,
+  pomodoroLongEvery: 4,
 
   collapsedFolders: [],
 
@@ -253,6 +289,37 @@ export function sanitize(raw: unknown): Settings {
     gitGutter: bool(input.gitGutter, d.gitGutter),
     sounds: bool(input.sounds, d.sounds),
     soundVolume: num(input.soundVolume, 0, 1, d.soundVolume),
+
+    nyuCompanion: bool(input.nyuCompanion, d.nyuCompanion),
+    nyuGimmicks: bool(input.nyuGimmicks, d.nyuGimmicks),
+    nyuOccasions: bool(input.nyuOccasions, d.nyuOccasions),
+    nyuLevels: bool(input.nyuLevels, d.nyuLevels),
+    nyuTips: bool(input.nyuTips, d.nyuTips),
+    pomodoroButton: bool(input.pomodoroButton, d.pomodoroButton),
+    pomodoroFocusMinutes: int(
+      input.pomodoroFocusMinutes,
+      POMODORO_LIMITS.focus[0],
+      POMODORO_LIMITS.focus[1],
+      d.pomodoroFocusMinutes,
+    ),
+    pomodoroBreakMinutes: int(
+      input.pomodoroBreakMinutes,
+      POMODORO_LIMITS.break[0],
+      POMODORO_LIMITS.break[1],
+      d.pomodoroBreakMinutes,
+    ),
+    pomodoroLongBreakMinutes: int(
+      input.pomodoroLongBreakMinutes,
+      POMODORO_LIMITS.longBreak[0],
+      POMODORO_LIMITS.longBreak[1],
+      d.pomodoroLongBreakMinutes,
+    ),
+    pomodoroLongEvery: int(
+      input.pomodoroLongEvery,
+      POMODORO_LIMITS.longEvery[0],
+      POMODORO_LIMITS.longEvery[1],
+      d.pomodoroLongEvery,
+    ),
 
     collapsedFolders: Array.isArray(input.collapsedFolders)
       ? input.collapsedFolders
