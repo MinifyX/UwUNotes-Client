@@ -42,6 +42,7 @@ import {
   BUNDLED_FONTS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  HISTORY_RETENTION_CHOICES,
   resetSettings,
   TAB_SIZES,
   updateSettings,
@@ -342,6 +343,29 @@ function SettingsBody() {
               value={settings.defaultEol}
               options={NEW_FILE_EOLS.map((eol) => ({ value: eol, label: eolName(eol) }))}
               onChange={(defaultEol) => write({ defaultEol })}
+            />
+          </Section>
+
+          <Section title={t('Zeitreise')}>
+            <SwitchField
+              label={t('Zeitreise')}
+              hint={t(
+                'Hebt automatisch Versionen jeder Datei und jeder ungespeicherten Notiz auf: beim Speichern, vor dem Neuladen und Ersetzen und alle paar Minuten beim Tippen.',
+              )}
+              checked={settings.history}
+              onChange={(history) => write({ history })}
+            />
+            <SelectField
+              label={t('Tägliche Versionen aufheben')}
+              hint={t(
+                'Die letzte Stunde bleibt ganz, der letzte Tag stündlich, danach eine pro Tag.',
+              )}
+              value={settings.historyRetentionDays}
+              options={HISTORY_RETENTION_CHOICES.map((days) => ({
+                value: days,
+                label: t('{count} Tage', { count: days }),
+              }))}
+              onChange={(historyRetentionDays) => write({ historyRetentionDays })}
             />
           </Section>
 
