@@ -58,6 +58,7 @@ import { activeView, focusActiveView } from './views';
 import { toggleSidebar } from './chrome';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
+import { historyCommands } from './history';
 import { printDoc } from './print';
 import { getZoom, resetZoom, stepZoom, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from './zoom';
 import {
@@ -157,6 +158,7 @@ export function allCommands(): Command[] {
     ...languageCommands(),
     ...macroCommands(),
     ...toolCommands(),
+    ...historyCommands(),
     ...extensionCommands(),
     ...appCommands(),
   ];

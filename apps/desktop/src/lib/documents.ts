@@ -91,9 +91,16 @@ export function allDocs(): Doc[] {
   return [...docs.values()];
 }
 
+/**
+ * Different in every run. A note's Zeitreise history is keyed by its id and
+ * outlives the run, so the first new buffer of tomorrow must not be called
+ * `doc-1-0` again and inherit the versions of today's.
+ */
+const RUN = Date.now().toString(36);
+
 export function newDocId(): DocId {
   docCounter += 1;
-  return `doc-${docCounter}-${version}`;
+  return `doc-${docCounter}-${version}-${RUN}`;
 }
 
 /** `Neu 1`, `Neu 2`, … The German name is what `t()` translates in the tab. */
