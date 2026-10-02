@@ -15,6 +15,11 @@
 //! large it is: it is the text the user threw away a moment ago, and a trash
 //! that silently refused the one thing it was just handed would be a trash that
 //! loses notes.
+//!
+//! The size cap only ever takes large entries (from [`SMALL_ENTRY_BYTES`] up).
+//! It exists for pasted logs, and one of those thrown away today must not push
+//! last week's shopping list out of the trash — the notes the trash is for are
+//! a few kilobytes each, and the entry count already bounds them.
 
 use std::fs;
 use std::path::PathBuf;
@@ -38,6 +43,11 @@ pub const MAX_ENTRIES: usize = 200;
 /// All entries together. Notes are small; a pasted log file is not, and a few
 /// of those should not quietly grow the config directory by gigabytes.
 pub const MAX_TOTAL_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Entries below this size on disk are spared by the size cap; only age and
+/// [`MAX_ENTRIES`] remove them. [`MAX_ENTRIES`] of them together stay under
+/// [`MAX_TOTAL_BYTES`], so sparing them cannot defeat the cap.
+pub const SMALL_ENTRY_BYTES: u64 = 256 * 1024;
 
 /// How much of an entry's text the listing carries: enough for the preview
 /// line and for the sidebar's search to find a note by what it says, without
@@ -209,20 +219,30 @@ impl SessionStore {
         Ok(())
     }
 
-    /// Drops what is too old, then the oldest of what is too much — always
-    /// keeping the newest entry.
+    /// Drops what is too old or past the entry count, then the oldest large
+    /// entries while the whole is over the size cap — always keeping the
+    /// newest entry, and never taking a small one for its size.
     pub fn purge_trash_at(&self, now: u64) -> FsResult<()> {
+        self.purge_trash_with(now, MAX_TOTAL_BYTES)
+    }
+
+    /// [`Self::purge_trash_at`] with the size cap passed in, so a test can
+    /// exercise it without writing 64 MB.
+    fn purge_trash_with(&self, now: u64, max_total: u64) -> FsResult<()> {
         let entries = self.read_all()?;
-        let mut total: u64 = 0;
-        for (index, (entry, size)) in entries.iter().enumerate() {
-            total = total.saturating_add(*size);
-            let newest = index == 0;
-            let expired = now.saturating_sub(entry.trashed_at) > MAX_AGE_MS;
-            let surplus = index >= MAX_ENTRIES || total > MAX_TOTAL_BYTES;
-            if !newest && (expired || surplus) {
-                if let Err(error) = self.delete_trash(&entry.id) {
-                    tracing::warn!(id = %entry.id, %error, "old trash entry could not be removed");
-                }
+        let doomed = sweep_plan(
+            entries
+                .iter()
+                .map(|(entry, size)| (entry.trashed_at, *size)),
+            now,
+            max_total,
+        );
+        for index in doomed {
+            let Some((entry, _)) = entries.get(index) else {
+                continue;
+            };
+            if let Err(error) = self.delete_trash(&entry.id) {
+                tracing::warn!(id = %entry.id, %error, "old trash entry could not be removed");
             }
         }
         Ok(())
@@ -285,6 +305,39 @@ impl SessionStore {
         }
         Ok(self.trash_directory().join(file_name(id)))
     }
+}
+
+/// Which entries the sweep removes, by index, given `(trashed_at, size)` for
+/// each entry newest first.
+///
+/// Kept apart from the disk so the policy reads in one place: age and count
+/// first, for every entry; then, while the survivors are over `max_total`, the
+/// oldest entries of [`SMALL_ENTRY_BYTES`] or more. Index 0 is never in it.
+fn sweep_plan(entries: impl Iterator<Item = (u64, u64)>, now: u64, max_total: u64) -> Vec<usize> {
+    let mut doomed = Vec::new();
+    let mut survivors = Vec::new();
+    let mut total: u64 = 0;
+    for (index, (trashed_at, size)) in entries.enumerate() {
+        let expired = now.saturating_sub(trashed_at) > MAX_AGE_MS;
+        if index > 0 && (expired || index >= MAX_ENTRIES) {
+            doomed.push(index);
+        } else {
+            total = total.saturating_add(size);
+            survivors.push((index, size));
+        }
+    }
+    // Oldest first, the newest never: it is the text the user just handed over.
+    for &(index, size) in survivors.iter().rev() {
+        if total <= max_total {
+            break;
+        }
+        if index == 0 || size < SMALL_ENTRY_BYTES {
+            continue;
+        }
+        total = total.saturating_sub(size);
+        doomed.push(index);
+    }
+    doomed
 }
 
 fn file_name(id: &str) -> String {
@@ -368,6 +421,9 @@ mod tests {
         sent.path = Some("/home/nyu/notes/liste.txt".to_owned());
         sent.extra
             .insert("untitled".to_owned(), serde_json::Value::from(3));
+        // The page's document id, so a restored note finds its Zeitreise again.
+        sent.extra
+            .insert("docId".to_owned(), serde_json::Value::from("doc-7-0-abc"));
 
         let summary = store.trash_note_at(sent, NOW).unwrap();
         assert_eq!(summary.name, "Einkaufsliste");
@@ -383,6 +439,10 @@ mod tests {
         assert_eq!(
             entry.note.extra.get("untitled"),
             Some(&serde_json::Value::from(3))
+        );
+        assert_eq!(
+            entry.note.extra.get("docId"),
+            Some(&serde_json::Value::from("doc-7-0-abc"))
         );
 
         store.delete_trash(&summary.id).unwrap();
@@ -447,6 +507,58 @@ mod tests {
         let listed = store.list_trash().unwrap();
         assert_eq!(listed.len(), MAX_ENTRIES);
         assert_eq!(listed[0].name, format!("n{}", MAX_ENTRIES + 2));
+    }
+
+    #[test]
+    fn the_size_cap_takes_large_entries_and_spares_small_notes() {
+        let scratch = Scratch::new("size");
+        let store = scratch.store();
+        let big = "x".repeat(300 * 1024);
+        store
+            .trash_note_at(note("notiz-alt", "Milch"), NOW - 3 * DAY)
+            .unwrap();
+        store
+            .trash_note_at(note("log-alt", &big), NOW - 2 * DAY)
+            .unwrap();
+        store
+            .trash_note_at(note("notiz", "Katzenfutter"), NOW - DAY)
+            .unwrap();
+        store.trash_note_at(note("log-neu", &big), NOW).unwrap();
+
+        // A cap the two logs together are over: the older log goes, both notes
+        // stay — they are older than it, and small.
+        store.purge_trash_with(NOW, 400 * 1024).unwrap();
+        let names: Vec<_> = store
+            .list_trash()
+            .unwrap()
+            .into_iter()
+            .map(|entry| entry.name)
+            .collect();
+        assert_eq!(names, ["log-neu", "notiz", "notiz-alt"]);
+
+        // Even a cap the newest log alone is over keeps it, and the notes.
+        store.purge_trash_with(NOW, 1024).unwrap();
+        assert_eq!(store.list_trash().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn the_sweep_plan_evicts_large_entries_oldest_first() {
+        const KIB: u64 = 1024;
+        // Newest first: (trashed_at, size).
+        let entries = [
+            (NOW, 400 * KIB),
+            (NOW - 1, 300 * KIB),
+            (NOW - 2, 2 * KIB),
+            (NOW - 3, 300 * KIB),
+            (NOW - 4, KIB),
+        ];
+        let doomed = sweep_plan(entries.into_iter(), NOW, 800 * KIB);
+        assert_eq!(doomed, [3]);
+        let doomed = sweep_plan(entries.into_iter(), NOW, 100 * KIB);
+        assert_eq!(doomed, [3, 1]);
+        // Age still takes a small note.
+        let aged = [(NOW, KIB), (NOW - 31 * DAY, KIB)];
+        assert_eq!(sweep_plan(aged.into_iter(), NOW, u64::MAX), [1]);
     }
 
     #[test]
