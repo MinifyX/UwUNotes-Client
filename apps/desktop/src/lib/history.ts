@@ -196,6 +196,21 @@ export async function afterSave(
   if (result && saved) lastSent.set(keyString(key), saved);
 }
 
+/**
+ * An untitled note came back under a new document id — restored from the
+ * trash while its old id was taken: its versions follow it.
+ */
+export async function moveNoteHistory(from: DocId, to: DocId) {
+  if (from === to) return;
+  lastSent.delete(keyString({ kind: 'note', id: from }));
+  await historyMove(
+    { kind: 'note', id: from },
+    { kind: 'note', id: to },
+    retentionDays(),
+  ).catch(() => undefined);
+  announce();
+}
+
 /** A file was renamed on disk: its versions follow it. */
 export async function moveHistoryForRename(from: string, to: string) {
   lastSent.delete(keyString({ kind: 'path', path: from }));

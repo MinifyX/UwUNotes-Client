@@ -21,6 +21,7 @@
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
 import type { EncodingLabel, Eol, FileStamp, LoadedFile } from './api';
+import { noteTitle } from './note-title';
 import { getSettings } from './settings';
 import type { TabColor } from './tabs';
 
@@ -247,10 +248,24 @@ export function openLoadedFile(file: LoadedFile, name: string, id?: DocId): DocI
   });
 }
 
-/** An empty buffer with no path, named `Neu n`. */
+/**
+ * A buffer with no path, named `Neu n` — or, when it starts with text, after
+ * its first line and with the dirty dot on.
+ *
+ * Text that exists nowhere else (a Zeitreise version opened as a tab, say) is
+ * unsaved by definition. A clean buffer would close without going to the
+ * trash and leave no draft behind on quit, and the text would simply be gone.
+ */
 export function openUntitled(text = ''): DocId {
   const untitled = nextUntitledNumber();
-  return openDoc({ path: null, name: untitledName(untitled), text, untitled });
+  if (text === '') return openDoc({ path: null, name: untitledName(untitled), text, untitled });
+  return openDoc({
+    path: null,
+    name: noteTitle(text.slice(0, 4_000)) ?? untitledName(untitled),
+    text,
+    untitled,
+    dirty: true,
+  });
 }
 
 /**

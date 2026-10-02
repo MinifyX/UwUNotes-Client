@@ -16,6 +16,10 @@
  *
  * It does NOT import `lib/files.ts`: files imports this to close tabs, and the
  * restore path below needs nothing from there but a file read.
+ *
+ * A trashed tab carries its document id, pin, colour and bookmarks along. The
+ * id matters most: an untitled note's Zeitreise history is filed under it, and
+ * a note restored under a fresh id would come back without its past.
  */
 
 import type { EditorState } from '@codemirror/state';
@@ -30,6 +34,7 @@ import {
   type TrashEntry,
   type TrashSummary,
 } from './api';
+import { bookmarksForSession, restoreBookmarks, sanitizeBookmarkLines } from './bookmarks';
 import { createClosedStack } from './closed-tabs';
 import {
   docText,
@@ -45,10 +50,12 @@ import {
   untitledName,
   type DocId,
 } from './documents';
+import { moveNoteHistory } from './history';
 import { t } from './i18n';
 import { noteTitle } from './note-title';
 import { emitNyu } from './nyu-events';
 import { ask } from './prompt';
+import { sanitizeTabColor } from './tabs';
 import { toast } from './toast';
 import { activateDoc, showDocNext } from './workspace';
 import { applyDocLanguage } from '../editor/setup';
@@ -130,6 +137,11 @@ export async function putInTrash(id: DocId): Promise<TrashSummary> {
     eol: meta.eol,
     language: meta.languageOverride,
     untitled: meta.untitled,
+    docId: meta.id,
+    // `undefined` stays out of the JSON, so a plain tab writes what it did.
+    pinned: meta.pinned || undefined,
+    color: meta.color,
+    bookmarks: bookmarksForSession(id),
   });
   closedTabs.push({ kind: 'trash', id: summary.id });
   // The new entry on top straight away; Rust may also have swept old ones,
@@ -229,6 +241,7 @@ async function openTrashed(entry: TrashEntry): Promise<DocId> {
           eol: entry.eol,
           languageOverride: entry.language,
         });
+        restoreTabExtras(id, entry);
         showDocNext(id);
         await applyDocLanguage(id);
         return id;
@@ -243,6 +256,7 @@ async function openTrashed(entry: TrashEntry): Promise<DocId> {
         languageOverride: entry.language,
         dirty: true,
       });
+      restoreTabExtras(id, entry);
       showDocNext(id);
       await applyDocLanguage(id);
       return id;
@@ -252,7 +266,14 @@ async function openTrashed(entry: TrashEntry): Promise<DocId> {
   // A fresh number rather than the stored one: the old `Neu 3` may well be
   // taken by now, and the name comes from the first line anyway.
   const untitled = nextUntitledNumber();
+  // The old id where it is free, so the note's Zeitreise is simply still
+  // there. Taken (the same entry restored twice, a hand-edited file), the
+  // versions move to the fresh id instead of staying behind where no tab
+  // will ever ask for them.
+  const previousId = storedDocId(entry.docId);
+  const reuse = previousId && !getDoc(previousId) ? previousId : undefined;
   const id = openDoc({
+    id: reuse,
     path: null,
     name: noteTitle(entry.text) ?? untitledName(untitled),
     untitled,
@@ -263,9 +284,30 @@ async function openTrashed(entry: TrashEntry): Promise<DocId> {
     languageOverride: entry.language,
     dirty: true,
   });
+  if (previousId && !reuse) await moveNoteHistory(previousId, id);
+  restoreTabExtras(id, entry);
   showDocNext(id);
   await applyDocLanguage(id);
   return id;
+}
+
+/**
+ * A document id read back from a trash file, or `undefined` when it is not
+ * one. The file is on the user's disk and may have been edited, and the id
+ * ends up naming a history in Rust, so only the shape `newDocId` mints passes.
+ */
+function storedDocId(raw: unknown): string | undefined {
+  return typeof raw === 'string' && /^doc-[0-9a-z-]{1,80}$/.test(raw) ? raw : undefined;
+}
+
+/**
+ * Pin, colour and bookmarks, before the tab is shown — the workspace orders a
+ * pinned tab when it places it.
+ */
+function restoreTabExtras(id: DocId, entry: TrashEntry): void {
+  const color = sanitizeTabColor(entry.color);
+  if (entry.pinned === true || color) patchMeta(id, { pinned: entry.pinned === true, color });
+  restoreBookmarks(id, sanitizeBookmarkLines(entry.bookmarks));
 }
 
 function withText(state: EditorState, text: string): EditorState {

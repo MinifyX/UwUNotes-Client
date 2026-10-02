@@ -401,6 +401,15 @@ export type TrashNote = {
   language: string | null;
   /** The `Neu n` number of an untitled note, carried by Rust untouched. */
   untitled?: number | null;
+  /**
+   * The tab's document id. An untitled note's Zeitreise history is keyed by
+   * it, so the restore reuses it — or moves the versions to the new id.
+   */
+  docId?: string;
+  /** The tab's pin, colour and bookmarks, so they come back with the text. */
+  pinned?: boolean;
+  color?: string;
+  bookmarks?: number[];
 };
 
 export type TrashEntry = TrashNote & {

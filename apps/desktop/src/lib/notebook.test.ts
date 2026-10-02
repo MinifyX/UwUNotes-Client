@@ -34,6 +34,7 @@ const deleteTrash = vi.fn(async (id: string) => {
   entries.delete(id);
 });
 const listTrash = vi.fn(async () => [] as TrashSummary[]);
+const historyMove = vi.fn(async () => undefined);
 
 vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>();
@@ -43,6 +44,7 @@ vi.mock('./api', async (importOriginal) => {
     readTrash,
     deleteTrash,
     listTrash,
+    historyMove,
     dropDraft: vi.fn(async () => undefined),
     pathInfo: vi.fn(async (path: string) => ({
       path,
@@ -171,6 +173,50 @@ describe('Ctrl+Shift+T', () => {
     expect(documents.findByPath('/notes/a.txt')).not.toBeNull();
   });
 
+  it('brings an untitled note back under its old id, pin and bookmarks included', async () => {
+    const { files, documents, workspace } = await fresh();
+    const bookmarks = await import('./bookmarks');
+    const note = documents.openUntitled();
+    workspace.showDoc(note);
+    type(documents, note, 'Idee\nzweite Zeile');
+    documents.patchMeta(note, { pinned: true, color: 'green' });
+    bookmarks.restoreBookmarks(note, [2]);
+
+    await files.closeDocSafely(note);
+    expect(trashNote).toHaveBeenCalledWith(
+      expect.objectContaining({ docId: note, pinned: true, color: 'green', bookmarks: [2] }),
+    );
+    await files.reopenClosedTab();
+
+    // The same id: its Zeitreise versions are filed under it and simply stay.
+    expect(documents.docText(note)).toBe('Idee\nzweite Zeile');
+    expect(documents.getMeta(note)?.pinned).toBe(true);
+    expect(documents.getMeta(note)?.color).toBe('green');
+    expect(bookmarks.bookmarksForSession(note)).toEqual([2]);
+    expect(historyMove).not.toHaveBeenCalled();
+  });
+
+  it('moves the Zeitreise of a restored note whose old id is taken', async () => {
+    const { files, documents, workspace } = await fresh();
+    const note = documents.openUntitled();
+    workspace.showDoc(note);
+    type(documents, note, 'Idee');
+    await files.closeDocSafely(note);
+    // Whatever holds the id now, the restored note must not take it over.
+    documents.openDoc({ id: note, path: null, name: 'Platzhalter', text: '' });
+
+    await files.reopenClosedTab();
+
+    const back = documents.allDocs().find((doc) => doc.meta.id !== note);
+    expect(back).toBeDefined();
+    expect(documents.docText(back?.meta.id ?? '')).toBe('Idee');
+    expect(historyMove).toHaveBeenCalledWith(
+      { kind: 'note', id: note },
+      { kind: 'note', id: back?.meta.id },
+      expect.any(Number),
+    );
+  });
+
   it('restores a trashed file edit on top of the file on disk', async () => {
     const { files, documents } = await fresh();
     await files.openPaths(['/notes/b.txt']);
@@ -189,6 +235,17 @@ describe('Ctrl+Shift+T', () => {
 });
 
 describe('untitled notes', () => {
+  it('that start with text are unsaved and named, so closing keeps the text', async () => {
+    const { documents } = await fresh();
+    const note = documents.openUntitled('# Alte Fassung\nText von gestern');
+    expect(documents.getMeta(note)?.dirty).toBe(true);
+    expect(documents.getMeta(note)?.name).toBe('Alte Fassung');
+
+    const empty = documents.openUntitled();
+    expect(documents.getMeta(empty)?.dirty).toBe(false);
+    expect(documents.getMeta(empty)?.name).toBe(`Neu ${documents.getMeta(empty)?.untitled}`);
+  });
+
   it('name themselves after their first line, and fall back to Neu n', async () => {
     vi.useFakeTimers();
     const { notebook, documents } = await fresh();
