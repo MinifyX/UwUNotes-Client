@@ -141,6 +141,9 @@ export function App() {
     void appWindow
       .onCloseRequested(async (event) => {
         event.preventDefault();
+        // A window closed while its tabs are still coming back must not write
+        // a session that lists only the ones that made it so far.
+        await restoreSession().catch(() => undefined);
         const saved = await persistSession().catch(() => false);
         if (!saved) {
           const answer = await ask(

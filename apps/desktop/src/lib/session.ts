@@ -77,6 +77,14 @@ const SESSION_VERSION = 1;
 let restoring: Promise<void> | null = null;
 
 /**
+ * Whether {@link restoring} has settled. A promise cannot be asked, and
+ * {@link persistSession} has to know: a session written halfway through a
+ * restore lists only the documents that are back so far, and the drafts of the
+ * rest look like garbage to the next start.
+ */
+let restoreSettled = false;
+
+/**
  * Whether the drafts on disk are accounted for by the documents in the window.
  *
  * Only a restore that actually rebuilt from a stored session can say yes. Every
@@ -103,6 +111,12 @@ let draftUnreadable = false;
 let draftsRestored = 0;
 
 /**
+ * Something did not come back and said so in an error toast. Nyu does not
+ * cheer "everything's back" next to that (KONZEPT: never next to bad news).
+ */
+let restoreFailed = false;
+
+/**
  * Rebuilds the last window, or opens one empty buffer.
  *
  * Idempotent on purpose. `App` starts this from an effect, and React's
@@ -113,7 +127,9 @@ let draftsRestored = 0;
  * for a race between two of them.
  */
 export function restoreSession(): Promise<void> {
-  restoring ??= restoreOnce();
+  restoring ??= restoreOnce().finally(() => {
+    restoreSettled = true;
+  });
   return restoring;
 }
 
@@ -121,6 +137,7 @@ async function restoreOnce(): Promise<void> {
   pruneAllowed = false;
   draftUnreadable = false;
   draftsRestored = 0;
+  restoreFailed = false;
 
   // With "restore the session" switched off the clean files, the splits and
   // the folder stay closed — but unsaved text still comes back. Closing never
@@ -191,7 +208,7 @@ async function restoreOnce(): Promise<void> {
   if (restored.size === 0) newFile();
   else {
     applyRestoredScroll();
-    emitNyu('session-restored', { count: restored.size });
+    if (!restoreFailed) emitNyu('session-restored', { count: restored.size });
   }
 
   announceDrafts();
@@ -250,6 +267,7 @@ async function restoreDocument(
       // save collect text that was only briefly unreadable, so this whole run
       // sweeps up nothing at all.
       draftUnreadable = true;
+      restoreFailed = true;
       toast(
         'error',
         t('Eine ungespeicherte Notiz ließ sich nicht laden: {name}', {
@@ -300,6 +318,7 @@ async function restoreDocument(
     if (entry.language) patchMeta(id, { languageOverride: entry.language });
     return id;
   } catch (error) {
+    restoreFailed = true;
     toast('error', describeApiError(asApiError(error), entry.path));
     return null;
   }
@@ -436,6 +455,8 @@ export function takeRestoredScroll(id: DocId): number | null {
 /** The run in progress, and the one queued behind it. */
 let persisting: Promise<boolean> | null = null;
 let queued: Promise<boolean> | null = null;
+/** The one run every call during a restore shares, once the restore is done. */
+let afterRestore: Promise<boolean> | null = null;
 
 /**
  * Writes the session and the drafts. Safe to call as often as you like.
@@ -447,8 +468,22 @@ let queued: Promise<boolean> | null = null;
  * either order and leave the older text on disk; so a call that arrives while
  * a run is going waits for it and then runs once more, and every call that
  * arrives in the meantime shares that one follow-up run.
+ *
+ * And none while the restore is still going. Opening each restored document
+ * announces a change, the autosave answers it, and on a slow disk that write
+ * would land with half the tabs missing — the next start would then prune the
+ * drafts of the other half. Every call made meanwhile shares one run after it.
  */
 export function persistSession(): Promise<boolean> {
+  if (restoring && !restoreSettled) {
+    afterRestore ??= restoring
+      .catch(() => undefined)
+      .then(() => {
+        afterRestore = null;
+        return persistSession();
+      });
+    return afterRestore;
+  }
   if (persisting) {
     queued ??= persisting
       .catch(() => false)

@@ -202,3 +202,87 @@ describe('restoring with the setting switched off', () => {
     expect(documents.nextUntitledNumber()).toBe(5);
   });
 });
+
+describe('a restore that is still going', () => {
+  const note = (docId: string, name: string) => ({
+    docId,
+    path: null,
+    name,
+    encoding: 'UTF-8',
+    bom: false,
+    eol: 'lf' as const,
+    language: null,
+    cursor: 0,
+    scrollTop: 0,
+    dirty: true,
+    stamp: null,
+  });
+  const stored: StoredSession = {
+    version: 1,
+    documents: [note('doc-1-0', 'Schnell'), note('doc-2-0', 'Langsam')],
+    layout: { kind: 'pane', id: 'pane-0' },
+    panes: { 'pane-0': { tabs: ['doc-1-0', 'doc-2-0'], active: 'doc-2-0' } },
+    activePane: 'pane-0',
+    folder: null,
+    recentFiles: [],
+    recentFolders: [],
+  };
+
+  it('holds every write back until all of its documents are there', async () => {
+    const { session, documents } = await fresh();
+    loadSession.mockResolvedValueOnce(stored);
+    let release: (text: string) => void = () => undefined;
+    readDraft
+      .mockResolvedValueOnce('schnell da')
+      .mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+
+    const restore = session.restoreSession();
+    await vi.waitFor(() => expect(documents.getDoc('doc-1-0')).toBeDefined());
+
+    // What the autosave would do on the first document's announcement.
+    const early = session.persistSession();
+    const alsoEarly = session.persistSession();
+    await Promise.resolve();
+    expect(saveSession).not.toHaveBeenCalled();
+    expect(writeDraft).not.toHaveBeenCalled();
+
+    release('langsam da');
+    await restore;
+    expect(await early).toBe(true);
+    expect(await alsoEarly).toBe(true);
+
+    // One write, after the restore, naming both documents.
+    expect(saveSession).toHaveBeenCalledTimes(1);
+    const [written, prune] = saveSession.mock.calls[0]!;
+    expect(written.documents.map((entry) => entry.docId)).toEqual(['doc-1-0', 'doc-2-0']);
+    expect(prune).toBe(true);
+  });
+
+  it('lets Nyu cheer only when nothing failed', async () => {
+    const { session } = await fresh();
+    const events = await import('./nyu-events');
+    const heard = vi.fn();
+    const stop = events.onNyu(heard);
+    loadSession.mockResolvedValueOnce(stored);
+    readDraft.mockResolvedValueOnce('da').mockRejectedValueOnce(new Error('locked'));
+
+    await session.restoreSession();
+    stop();
+
+    expect(heard).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'session-restored' }));
+  });
+
+  it('lets Nyu cheer when everything came back', async () => {
+    const { session } = await fresh();
+    const events = await import('./nyu-events');
+    const heard = vi.fn();
+    const stop = events.onNyu(heard);
+    loadSession.mockResolvedValueOnce(stored);
+    readDraft.mockResolvedValueOnce('eins').mockResolvedValueOnce('zwei');
+
+    await session.restoreSession();
+    stop();
+
+    expect(heard).toHaveBeenCalledWith(expect.objectContaining({ kind: 'session-restored' }));
+  });
+});
