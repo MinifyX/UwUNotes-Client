@@ -36,7 +36,7 @@ import { GoToLine } from './components/GoToLine';
 import { MacroDialog } from './components/MacroDialog';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsDialog } from './components/SettingsDialog';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar } from './components/sidebar/Sidebar';
 import { SplitContainer } from './components/SplitContainer';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';

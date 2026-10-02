@@ -1,0 +1,25 @@
+/**
+ * The views the sidebar can show, in the order of their buttons.
+ *
+ * One entry per view, and a view brings everything it needs in its own file —
+ * the panel itself knows nothing about files, notes or outlines. Adding a view
+ * is one import and one line here.
+ */
+
+import type { ComponentType } from 'react';
+import { N_ } from '../../lib/i18n';
+import type { IconName } from '../Icon';
+import { FilesView } from './FilesView';
+
+export type SidebarView = {
+  /** Stable: remembered in the page's storage as the last view shown. */
+  id: string;
+  /** German source string, marked with `N_` and translated where it is shown. */
+  label: string;
+  icon: IconName;
+  Component: ComponentType;
+};
+
+export const SIDEBAR_VIEWS: readonly SidebarView[] = [
+  { id: 'files', label: N_('Dateien'), icon: 'folder', Component: FilesView },
+];
