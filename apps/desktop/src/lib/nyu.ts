@@ -290,7 +290,7 @@ export function noticeText(achievements: readonly string[], level: LevelStep | n
     );
   }
   if (unlocked) parts.push(unlocked);
-  return parts.join(' ');
+  return parts.join(' · ');
 }
 
 function count(event: ProgressEvent): void {
