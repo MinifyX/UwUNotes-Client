@@ -175,6 +175,16 @@ export function allCommands(): Command[] {
   ];
 }
 
+/**
+ * Whether a command exists and may run right now. For the keyboard, which
+ * must leave a key to the browser when the command it stands for would do
+ * nothing — see `markdown.togglePreview` in `lib/shortcuts.ts`.
+ */
+export function commandEnabled(id: string): boolean {
+  const command = allCommands().find((entry) => entry.id === id);
+  return command !== undefined && (!command.enabled || command.enabled());
+}
+
 export function runCommand(id: string): void {
   const command = allCommands().find((entry) => entry.id === id);
   if (!command) return;

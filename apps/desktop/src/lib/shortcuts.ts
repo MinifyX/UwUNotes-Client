@@ -19,7 +19,7 @@
  */
 
 import { t } from './i18n';
-import { runCommand } from './commands';
+import { commandEnabled, runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
 import { activateTabAt, cyclePane } from './workspace';
 import { zenActive } from './zen';
@@ -62,8 +62,10 @@ const BINDINGS: readonly Binding[] = [
   { code: 'KeyM', shift: true, command: 'view.moveTabToOtherPane' },
   { code: 'KeyB', shift: false, command: 'view.toggleSidebar' },
   { code: 'KeyC', shift: true, command: 'view.compare' },
-  // VS Code's key for the same thing. It also happens to be "paste as plain
-  // text" in a browser, which in a plain-text editor is every paste anyway.
+  // VS Code's key for the same thing. It is also "paste as plain text" in a
+  // browser — which the text fields of the app still need, and so does the
+  // editor on a file without a preview: `actionFor` only takes the key when
+  // the preview can actually toggle (see `YIELDING`).
   { code: 'KeyV', shift: true, command: 'markdown.togglePreview' },
 
   { code: 'KeyF', shift: false, command: 'find.find' },
@@ -135,6 +137,39 @@ const LABELS: Record<string, readonly string[]> = {
   'app.palette': [CTRL, SHIFT, 'P'],
   'app.settings': [CTRL, ','],
 };
+
+/**
+ * Bound commands that give their key back when they cannot run, or when the
+ * focus is in one of the app's own text fields. Only those whose key means
+ * something to the browser on its own: everywhere else a disabled command
+ * swallowing its key is the quiet no-op it should be — Ctrl+W with nothing
+ * open must not close the webview's page.
+ */
+const YIELDING: ReadonlySet<string> = new Set(['markdown.togglePreview']);
+
+/** Input types a person types text into, where F2 and friends are editing keys. */
+const TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'search',
+  'url',
+  'email',
+  'password',
+  'number',
+  'tel',
+]);
+
+/**
+ * Focus is in a text field of the app's own chrome — the find bar, a rename
+ * box, the palette — rather than in the editor. CodeMirror's content is a
+ * contenteditable too, and must keep every key this file gives it.
+ */
+export function inPlainTextField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest('.cm-content')) return false;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) return TEXT_INPUT_TYPES.has(target.type);
+  return target.isContentEditable;
+}
 
 function renderKeys(keys: readonly string[]): string {
   return keys
@@ -312,9 +347,13 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
 
   // F2 and Shift+F2 walk the bookmarks, Ctrl+F2 sets one — Notepad++'s keys,
   // unchanged, because these are the ones its users reach for blind.
-  // Ctrl+Shift+F2 is left to fall through to the macros.
+  // Ctrl+Shift+F2 is left to fall through to the macros. Not when somebody
+  // else already answered it — F2 renames in the file tree — and not inside a
+  // text field, where the editor's bookmarks are not what anybody meant.
   if (
     event.code === 'F2' &&
+    !event.defaultPrevented &&
+    !inPlainTextField(event.target) &&
     !event.altKey &&
     !event.metaKey &&
     !(event.ctrlKey && event.shiftKey)
@@ -356,6 +395,9 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   );
   if (binding) {
     const { command } = binding;
+    if (YIELDING.has(command) && (inPlainTextField(event.target) || !commandEnabled(command))) {
+      return null;
+    }
     return () => runCommand(command);
   }
 
