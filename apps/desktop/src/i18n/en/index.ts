@@ -8,6 +8,7 @@ import chrome from './chrome.json';
 import editor from './editor.json';
 import files from './files.json';
 import focus from './focus.json';
+import history from './history.json';
 import macros from './macros.json';
 import markdown from './markdown.json';
 import search from './search.json';
@@ -25,4 +26,5 @@ export const EN: Readonly<Record<string, string>> = {
   ...updates,
   ...focus,
   ...markdown,
+  ...history,
 };

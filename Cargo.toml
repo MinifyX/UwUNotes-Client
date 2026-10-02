@@ -11,6 +11,7 @@ rust-version = "1.82"
 
 [workspace.dependencies]
 uwunotes-fs = { path = "crates/uwunotes-fs" }
+uwunotes-history = { path = "crates/uwunotes-history" }
 uwunotes-session = { path = "crates/uwunotes-session" }
 
 anyhow = "1"

@@ -47,6 +47,8 @@ const PATHS = {
   // Two chevrons converging: fold everything back in.
   collapse: 'M4.5 2.5 8 6l3.5-3.5 M4.5 13.5 8 10l3.5 3.5',
   refresh: 'M13.5 8a5.5 5.5 0 1 1-1.6-3.9 M13.5 2.4v3.4h-3.4',
+  // A clock face wound backwards: the Zeitreise.
+  history: 'M2.6 8a5.4 5.4 0 1 0 1.6-3.8 M2.4 2.4v2.8h2.8 M8 5v3.2l2.2 1.4',
   external:
     'M9.5 2.5h4v4 M13.5 2.5 7.8 8.2 M12 9.8v2.7a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h2.7',
   gear: 'M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M8 1.5v1.7 M8 12.8v1.7 M1.5 8h1.7 M12.8 8h1.7 M3.4 3.4 4.6 4.6 M11.4 11.4l1.2 1.2 M12.6 3.4l-1.2 1.2 M4.6 11.4l-1.2 1.2',

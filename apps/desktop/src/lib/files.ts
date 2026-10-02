@@ -47,6 +47,13 @@ import {
   type DocId,
   type DocMeta,
 } from './documents';
+import {
+  afterSave,
+  moveHistoryForRename,
+  snapshotDoc,
+  snapshotFilesOnDisk,
+  startHistoryTimer,
+} from './history';
 import { t } from './i18n';
 import type { PaneId } from './layout';
 import { ask, askText } from './prompt';
@@ -280,6 +287,7 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
       });
       if (encoding !== meta.encoding) patchMeta(id, { encoding });
       markSaved(id, path, await fileNameOf(path), written.stamp);
+      void afterSave(id, meta.path, text, mode.silent);
       rememberFile(path);
       void dropDraft(id).catch(() => undefined);
       if (newPath) await applyDocLanguage(id);
@@ -335,6 +343,8 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
         return false;
       }
       if (answer !== 'overwrite') return false;
+      // The other program's text is about to be overwritten: keep it.
+      await snapshotFilesOnDisk([path], 'external-change');
       expectedStamp = null;
     }
   }
@@ -477,6 +487,7 @@ export async function renameDoc(id: DocId): Promise<boolean> {
     // Still the same document — only the name on the tab and the path the
     // next save goes to have changed.
     patchMeta(id, { path: to, name: clean });
+    void moveHistoryForRename(from, to);
     rememberFile(to);
     await applyDocLanguage(id);
     return true;
@@ -626,12 +637,23 @@ export async function reloadDoc(id: DocId): Promise<void> {
   await reloadFromDisk(id);
 }
 
-/** No questions. For the paths where the user has already answered one. */
-async function reloadFromDisk(id: DocId, encoding?: EncodingLabel): Promise<boolean> {
+/**
+ * No questions. For the paths where the user has already answered one.
+ *
+ * The buffer becomes a Zeitreise version first: `reason` says whether the
+ * user asked for the reload or another program's change forced it.
+ */
+async function reloadFromDisk(
+  id: DocId,
+  encoding?: EncodingLabel,
+  reason: 'before-reload' | 'external-change' = 'before-reload',
+): Promise<boolean> {
   const meta = getMeta(id);
   if (!meta?.path) return false;
   try {
     const file = await readTextFile(meta.path, encoding);
+    // Taken synchronously inside, before the next line replaces the text.
+    void snapshotDoc(id, reason);
     markReloaded(id, file);
     await applyDocLanguage(id);
     return true;
@@ -694,7 +716,7 @@ export async function checkDiskChanges(): Promise<void> {
       if (stamp.mtimeMs === meta.stamp.mtimeMs && stamp.size === meta.stamp.size) continue;
 
       if (!meta.dirty) {
-        await reloadFromDisk(meta.id);
+        await reloadFromDisk(meta.id, undefined, 'external-change');
         continue;
       }
       // Already flagged and already mentioned: alt-tabbing twice is not consent
@@ -803,11 +825,13 @@ export function startFileWatchers(): () => void {
   };
   arm();
   const stopSettings = subscribeSettings(arm);
+  const stopHistory = startHistoryTimer();
 
   return () => {
     window.removeEventListener('focus', onFocus);
     window.clearInterval(timer);
     stopSettings();
+    stopHistory();
   };
 }
 

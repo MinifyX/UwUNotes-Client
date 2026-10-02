@@ -46,6 +46,7 @@ import {
 } from '../lib/documents';
 import { closeDocSafely, describeApiError, newFile } from '../lib/files';
 import { useGitStatus } from '../lib/git';
+import { showHistoryOf } from '../lib/history';
 import { t, useLanguage } from '../lib/i18n';
 import { nextPane, paneCount, type PaneId } from '../lib/layout';
 import { canCloseInPane, closeInPane, setTabColor, togglePinned } from '../lib/tab-actions';
@@ -327,6 +328,7 @@ export function TabBar({ pane }: { pane: PaneId }) {
         disabled: path === null,
         run: () => void reveal(path),
       },
+      { id: 'history', label: t('Zeitreise zeigen'), run: () => showHistoryOf(docId) },
       {
         id: 'moveToPane',
         label: t('In den anderen Bereich verschieben'),

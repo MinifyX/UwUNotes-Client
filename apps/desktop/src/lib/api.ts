@@ -299,6 +299,85 @@ export const readDraft = (docId: string) => invoke<string | null>('read_draft', 
 
 export const dropDraft = (docId: string) => invoke<void>('drop_draft', { docId });
 
+/* ── Zeitreise ─────────────────────────────────────────── */
+
+/**
+ * What a history belongs to: a file by its path, or a buffer that was never
+ * saved by its document id. Rust hashes either into a directory name, so a
+ * key never reaches the disk as written.
+ */
+export type HistoryKey = { kind: 'path'; path: string } | { kind: 'note'; id: string };
+
+/** Why a version was taken. The wire names match `Reason` in `uwunotes-history`. */
+export type HistoryReason =
+  'save' | 'auto' | 'before-reload' | 'before-replace' | 'restore' | 'external-change';
+
+export type HistoryVersion = {
+  id: string;
+  /** Milliseconds since the epoch. */
+  time: number;
+  reason: HistoryReason;
+  /** The text's UTF-8 length. */
+  size: number;
+  lines: number;
+  /** SHA-256 of the text. */
+  hash: string;
+  /** Compressed, on disk. */
+  storedSize: number;
+};
+
+export type HistorySnapshot =
+  | { status: 'created'; version: HistoryVersion }
+  /** The text already is the newest version; nothing was written. */
+  | { status: 'unchanged'; version: HistoryVersion }
+  /** Too large to keep, or a file that was not cleanly text. */
+  | { status: 'skipped' };
+
+export type HistoryStats = { histories: number; versions: number; bytes: number };
+
+/**
+ * Keeps `text` as the newest version of `key` unless it already is, and thins
+ * that history out by `retentionDays` while at it.
+ */
+export const historySnapshot = (
+  key: HistoryKey,
+  text: string,
+  reason: HistoryReason,
+  retentionDays: number,
+) => invoke<HistorySnapshot>('history_snapshot', { key, text, reason, retentionDays });
+
+/**
+ * Keeps what is on disk at each path right now — for files no tab has open,
+ * before "replace in files" rewrites them. Resolves with how many new versions
+ * were written; files that could not be read are skipped, never an error.
+ */
+export const historySnapshotFiles = (
+  paths: string[],
+  reason: HistoryReason,
+  retentionDays: number,
+) => invoke<number>('history_snapshot_files', { paths, reason, retentionDays });
+
+/** Newest first. A key nobody has written to has no versions, not an error. */
+export const historyList = (key: HistoryKey) => invoke<HistoryVersion[]>('history_list', { key });
+
+export const historyRead = (key: HistoryKey, id: string) =>
+  invoke<string>('history_read', { key, id });
+
+export const historyDelete = (key: HistoryKey, id: string) =>
+  invoke<void>('history_delete', { key, id });
+
+export const historyClear = (key: HistoryKey) => invoke<void>('history_clear', { key });
+
+/** A note saved to a file for the first time, or a file renamed: the versions go along. */
+export const historyMove = (from: HistoryKey, to: HistoryKey, retentionDays: number) =>
+  invoke<void>('history_move', { from, to, retentionDays });
+
+/** Thins every history and enforces the store's size cap. */
+export const historyMaintain = (retentionDays: number) =>
+  invoke<HistoryStats>('history_maintain', { retentionDays });
+
+export const historyStats = () => invoke<HistoryStats>('history_stats');
+
 /* ── Git ───────────────────────────────────────────────── */
 
 export type GitFileStatus = 'added' | 'modified' | 'deleted' | 'untracked' | 'conflicted';

@@ -4853,6 +4853,7 @@ dependencies = [
  "tracing-subscriber",
  "trash",
  "uwunotes-fs",
+ "uwunotes-history",
  "uwunotes-session",
  "windows-sys 0.59.0",
 ]
@@ -4875,6 +4876,18 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "uwunotes-history"
+version = "0.4.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "uwunotes-fs",
+ "zstd",
 ]
 
 [[package]]

@@ -59,6 +59,7 @@ import { setSidebarView, toggleSidebar } from './chrome';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
 import { markdownCommands } from './preview';
+import { historyCommands } from './history';
 import { printDoc } from './print';
 import { canCloseInPane, closeAllUnpinned, closeInPane, togglePinned } from './tab-actions';
 import { toggleZen, zenActive } from './zen';
@@ -162,6 +163,7 @@ export function allCommands(): Command[] {
     ...languageCommands(),
     ...macroCommands(),
     ...toolCommands(),
+    ...historyCommands(),
     ...extensionCommands(),
     ...appCommands(),
   ];

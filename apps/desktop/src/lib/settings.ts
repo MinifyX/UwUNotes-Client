@@ -67,6 +67,11 @@ export type Settings = {
   /** Seconds between automatic saves of a file that has a path; 0 is off. */
   autosaveSeconds: number;
 
+  /** Zeitreise: automatic versions of every file and note. See `lib/history.ts`. */
+  history: boolean;
+  /** How many days daily versions are kept for. */
+  historyRetentionDays: number;
+
   /** What a new, never-saved file is written as. */
   defaultEncoding: string;
   defaultEol: 'lf' | 'crlf';
@@ -103,6 +108,7 @@ export const TAB_SIZES = [2, 4, 8] as const;
 export const AUTOSAVE_CHOICES = [0, 30, 60, 300] as const;
 export const ZEN_WIDTH_MIN = 40;
 export const ZEN_WIDTH_MAX = 160;
+export const HISTORY_RETENTION_CHOICES = [7, 30, 90, 365] as const;
 
 /** The monospace faces bundled with the app, plus whatever the system has. */
 export const BUNDLED_FONTS = ['JetBrains Mono Variable', 'Fira Code Variable'] as const;
@@ -141,6 +147,9 @@ export const DEFAULT_SETTINGS: Settings = {
   trimTrailingWhitespaceOnSave: false,
   ensureFinalNewlineOnSave: false,
   autosaveSeconds: 0,
+
+  history: true,
+  historyRetentionDays: 30,
 
   defaultEncoding: 'UTF-8',
   defaultEol: 'crlf',
@@ -227,6 +236,13 @@ export function sanitize(raw: unknown): Settings {
     ),
     ensureFinalNewlineOnSave: bool(input.ensureFinalNewlineOnSave, d.ensureFinalNewlineOnSave),
     autosaveSeconds: oneOf(input.autosaveSeconds, AUTOSAVE_CHOICES, d.autosaveSeconds),
+
+    history: bool(input.history, d.history),
+    historyRetentionDays: oneOf(
+      input.historyRetentionDays,
+      HISTORY_RETENTION_CHOICES,
+      d.historyRetentionDays,
+    ),
 
     defaultEncoding: text(input.defaultEncoding, d.defaultEncoding, 40),
     defaultEol: oneOf(input.defaultEol, ['lf', 'crlf'] as const, d.defaultEol),

@@ -33,6 +33,7 @@ import { closeDialog, getUiState } from './commands';
 import { allDocs, findByPath, getDoc, setDocState, type DocId } from './documents';
 import { checkDiskChanges, describeApiError, openPaths } from './files';
 import { compileSearch } from './find';
+import { snapshotFilesOnDisk } from './history';
 import { t } from './i18n';
 import { ask } from './prompt';
 import { toast } from './toast';
@@ -445,6 +446,10 @@ export async function replaceAllInFiles(): Promise<void> {
     ],
   );
   if (answer !== 'replace') return;
+
+  // "Cannot be undone" with Ctrl+Z — but the Zeitreise keeps every file as it
+  // is right now, closed ones included.
+  await snapshotFilesOnDisk(paths, 'before-replace');
 
   try {
     const summary = await replaceInFiles({
