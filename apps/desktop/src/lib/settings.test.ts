@@ -16,6 +16,7 @@ import {
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   getSettings,
+  POMODORO_LIMITS,
   resetSettings,
   sanitize,
   updateSettings,
@@ -214,5 +215,24 @@ describe('the stored settings', () => {
 
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
     expect(window.localStorage.getItem('uwunotes.settings')).toBeNull();
+  });
+});
+
+describe('the Nyu group', () => {
+  it('keeps switches boolean and the Pomodoro inside its limits', () => {
+    const settings = sanitize({
+      nyuCompanion: 'yes',
+      nyuLevels: false,
+      pomodoroFocusMinutes: 0,
+      pomodoroBreakMinutes: 9000,
+      pomodoroLongBreakMinutes: 'long',
+      pomodoroLongEvery: 3.6,
+    });
+    expect(settings.nyuCompanion).toBe(DEFAULT_SETTINGS.nyuCompanion);
+    expect(settings.nyuLevels).toBe(false);
+    expect(settings.pomodoroFocusMinutes).toBe(POMODORO_LIMITS.focus[0]);
+    expect(settings.pomodoroBreakMinutes).toBe(POMODORO_LIMITS.break[1]);
+    expect(settings.pomodoroLongBreakMinutes).toBe(DEFAULT_SETTINGS.pomodoroLongBreakMinutes);
+    expect(settings.pomodoroLongEvery).toBe(4);
   });
 });
