@@ -27,6 +27,8 @@ import '@uwu/tokens/code.css';
 import './components/nyu/nyu.css';
 import './styles/app.css';
 import './styles/editor.css';
+import './styles/markdown.css';
+import './styles/outline.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

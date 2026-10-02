@@ -61,6 +61,9 @@ const BINDINGS: readonly Binding[] = [
   { code: 'KeyM', shift: true, command: 'view.moveTabToOtherPane' },
   { code: 'KeyB', shift: false, command: 'view.toggleSidebar' },
   { code: 'KeyC', shift: true, command: 'view.compare' },
+  // VS Code's key for the same thing. It also happens to be "paste as plain
+  // text" in a browser, which in a plain-text editor is every paste anyway.
+  { code: 'KeyV', shift: true, command: 'markdown.togglePreview' },
 
   { code: 'KeyF', shift: false, command: 'find.find' },
   { code: 'KeyF', shift: true, command: 'find.inFiles' },
@@ -114,6 +117,13 @@ const LABELS: Record<string, readonly string[]> = {
   'view.zoomIn': [CTRL, '+'],
   'view.zoomOut': [CTRL, '-'],
   'view.zoomReset': [CTRL, '0'],
+  'markdown.togglePreview': [CTRL, SHIFT, 'V'],
+  // Bound in the editor's own keymap (`editor/tasks.ts`), because it only
+  // claims the key on a task line; listed here so the palette shows it.
+  'markdown.toggleTask': [CTRL, 'Enter'],
+  'bookmark.toggle': [CTRL, 'F2'],
+  'bookmark.next': ['F2'],
+  'bookmark.previous': [SHIFT, 'F2'],
   'find.find': [CTRL, 'F'],
   'find.replace': [CTRL, 'H'],
   'find.inFiles': [CTRL, SHIFT, 'F'],
@@ -209,6 +219,9 @@ export function macroShortcutTaken(shortcut: string): boolean {
   if (!key) return true;
   // The digits are zoom reset and the tab jumps, neither of which is in BINDINGS.
   if (/^(?:Digit|Numpad)\d$/.test(key.code)) return true;
+  // Ctrl+F2 toggles a bookmark, and like F6 and F8 it is matched before
+  // BINDINGS, so it is not in that list to be found.
+  if (key.code === 'F2' && !key.shift) return true;
   // Zoom in and out are matched on the printed character, so their keys cannot
   // be named by code — which is the only thing a macro shortcut stores. Every
   // key that prints a `+` or a `-` on a layout this app runs under is therefore
@@ -259,6 +272,23 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   // without the Alt that AltGr would turn into a brace.
   if (event.code === 'F8' && !event.ctrlKey && !event.altKey && !event.metaKey) {
     const command = event.shiftKey ? 'view.previousDifference' : 'view.nextDifference';
+    return () => runCommand(command);
+  }
+
+  // F2 and Shift+F2 walk the bookmarks, Ctrl+F2 sets one — Notepad++'s keys,
+  // unchanged, because these are the ones its users reach for blind.
+  // Ctrl+Shift+F2 is left to fall through to the macros.
+  if (
+    event.code === 'F2' &&
+    !event.altKey &&
+    !event.metaKey &&
+    !(event.ctrlKey && event.shiftKey)
+  ) {
+    const command = event.ctrlKey
+      ? 'bookmark.toggle'
+      : event.shiftKey
+        ? 'bookmark.previous'
+        : 'bookmark.next';
     return () => runCommand(command);
   }
 

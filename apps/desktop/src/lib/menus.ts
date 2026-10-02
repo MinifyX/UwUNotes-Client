@@ -21,6 +21,7 @@ import { sidebarOpen } from './chrome';
 import { HASH_ALGORITHMS } from './hash-tool';
 import { N_, t } from './i18n';
 import { paneCount } from './layout';
+import { previewOpen } from './preview';
 import { getSettings } from './settings';
 import { activeDocId, forgetRecents, getWorkspace } from './workspace';
 import { LANGUAGES, PLAIN_TEXT, resolveLanguage } from '../editor/languages';
@@ -161,6 +162,24 @@ function searchMenu(): MenuEntry[] {
     c('find.inFiles', t('In Dateien suchen…')),
     separator(),
     c('find.gotoLine'),
+    separator(),
+    // Where Notepad++ keeps them, so the hands that know F2 find the rest too.
+    {
+      kind: 'submenu',
+      id: 'search.bookmarksMenu',
+      label: t('Lesezeichen'),
+      items: () => [
+        c('bookmark.toggle'),
+        c('bookmark.next'),
+        c('bookmark.previous'),
+        c('bookmark.clear'),
+        separator(),
+        c('bookmark.copyLines'),
+        c('bookmark.deleteLines'),
+        separator(),
+        c('bookmark.showList', t('Alle Lesezeichen anzeigen')),
+      ],
+    },
   ];
 }
 
@@ -186,6 +205,11 @@ function viewMenu(): MenuEntry[] {
     }),
     c('view.toggleMinimap', { label: t('Minimap'), checked: settings.minimap }),
     c('view.toggleSidebar', { label: t('Seitenleiste'), checked: sidebarOpen() }),
+    c('view.showOutline'),
+    c('markdown.togglePreview', {
+      label: t('Markdown-Vorschau'),
+      checked: previewOpen(activeDocId()),
+    }),
     separator(),
     {
       kind: 'submenu',

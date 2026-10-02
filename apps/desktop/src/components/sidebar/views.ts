@@ -9,7 +9,9 @@
 import type { ComponentType } from 'react';
 import { N_ } from '../../lib/i18n';
 import type { IconName } from '../Icon';
+import { BookmarksView } from './BookmarksView';
 import { FilesView } from './FilesView';
+import { OutlineView } from './OutlineView';
 
 export type SidebarView = {
   /** Stable: remembered in the page's storage as the last view shown. */
@@ -22,4 +24,6 @@ export type SidebarView = {
 
 export const SIDEBAR_VIEWS: readonly SidebarView[] = [
   { id: 'files', label: N_('Dateien'), icon: 'folder', Component: FilesView },
+  { id: 'outline', label: N_('Gliederung'), icon: 'outline', Component: OutlineView },
+  { id: 'bookmarks', label: N_('Lesezeichen'), icon: 'bookmark', Component: BookmarksView },
 ];

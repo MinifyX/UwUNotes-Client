@@ -41,9 +41,11 @@ import {
   subscribeDocuments,
   type DocId,
 } from './documents';
+import { bookmarksForSession, restoreBookmarks, sanitizeBookmarkLines } from './bookmarks';
 import { describeApiError, newFile } from './files';
 import { t } from './i18n';
 import { newPaneId, paneIds, sanitizeLayout, type LayoutNode, type PaneId } from './layout';
+import { previewForSession, setPreviewOpen } from './preview';
 import { getSettings } from './settings';
 import { toast } from './toast';
 import { viewFor } from './views';
@@ -133,6 +135,8 @@ async function restoreOnce(): Promise<void> {
     const id = await restoreDocument(entry);
     if (!id) continue;
     restored.set(entry.docId, id);
+    restoreBookmarks(id, entry.bookmarks);
+    if (entry.preview) setPreviewOpen(id, true);
     placeCaret(id, entry.cursor, entry.scrollTop);
     const untitled = /^Neu (\d+)$/.exec(entry.name);
     if (untitled?.[1]) highestUntitled = Math.max(highestUntitled, Number(untitled[1]));
@@ -368,6 +372,8 @@ export async function persistSession(): Promise<void> {
       scrollTop: scrollTopOf(meta.id),
       dirty: meta.dirty,
       stamp: meta.stamp,
+      bookmarks: bookmarksForSession(meta.id),
+      preview: previewForSession(meta.id),
     });
     try {
       if (meta.dirty) await writeDraft(meta.id, doc.state.doc.toString());
@@ -471,6 +477,8 @@ function sanitizeDocument(raw: unknown): SessionDocument | null {
     scrollTop: finite(entry.scrollTop),
     dirty: entry.dirty === true,
     stamp: sanitizeStamp(entry.stamp),
+    bookmarks: sanitizeBookmarkLines(entry.bookmarks),
+    preview: entry.preview === true ? true : undefined,
   };
 }
 

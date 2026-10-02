@@ -276,6 +276,28 @@ describe('F6', () => {
   });
 });
 
+describe('F2', () => {
+  it('walks the bookmarks, and sets one with Ctrl, as in Notepad++', () => {
+    expect(commandFor({ code: 'F2', key: 'F2' })).toBe('bookmark.next');
+    expect(commandFor({ code: 'F2', key: 'F2', shift: true })).toBe('bookmark.previous');
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true })).toBe('bookmark.toggle');
+  });
+
+  it('leaves Alt+F2 and Ctrl+Shift+F2 alone', () => {
+    expect(commandFor({ code: 'F2', key: 'F2', alt: true })).toBeNull();
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true, shift: true })).toBeNull();
+  });
+});
+
+describe('the Markdown preview', () => {
+  it('is Ctrl+Shift+V, by code', () => {
+    expect(commandFor({ code: 'KeyV', key: 'V', ctrl: true, shift: true })).toBe(
+      'markdown.togglePreview',
+    );
+    expect(commandFor({ code: 'KeyV', key: 'v', ctrl: true })).toBeNull();
+  });
+});
+
 describe('Ctrl and a digit', () => {
   it('jumps straight to that tab, counting from zero', () => {
     press({ code: 'Digit1', key: '1', ctrl: true });
@@ -426,6 +448,8 @@ describe('the keys a macro may not have', () => {
     expect(macroShortcutTaken('Ctrl+Tab')).toBe(true);
     expect(macroShortcutTaken('Ctrl+Comma')).toBe(true);
     expect(macroShortcutTaken('Ctrl+Shift+KeyY')).toBe(true);
+    expect(macroShortcutTaken('Ctrl+Shift+KeyV')).toBe(true);
+    expect(macroShortcutTaken('Ctrl+F2')).toBe(true);
   });
 
   it('refuses the digits, which are zoom and the tab jumps', () => {
@@ -452,6 +476,7 @@ describe('the keys a macro may not have', () => {
     expect(macroShortcutTaken('Ctrl+KeyJ')).toBe(false);
     expect(macroShortcutTaken('Ctrl+Shift+KeyJ')).toBe(false);
     expect(macroShortcutTaken('Ctrl+F8')).toBe(false);
+    expect(macroShortcutTaken('Ctrl+Shift+F2')).toBe(false);
     expect(macroShortcutTaken('Ctrl+KeyE')).toBe(false);
   });
 

@@ -1,0 +1,299 @@
+/* ── Markdown preview ───────────────────────────────────── */
+
+/*
+ * The preview docks to the right of the editor inside the pane's body. The
+ * body is a one-cell grid until a preview opens; then `EditorPane.tsx` sets
+ * three columns inline (editor, divider, preview) from the stored ratio, and
+ * these rules place the two newcomers in the second and third.
+ *
+ * Everything is tokens, so light, dark and every theme follow without a rule
+ * of their own. Reading text is Manrope at a reading size, code is the
+ * editor's monospace: the preview is for reading, the editor is for writing.
+ */
+
+.editorpane-body[data-preview] > .editorpane-host {
+  grid-column: 1;
+}
+
+.mdpreview-divider {
+  grid-column: 2;
+  width: 9px;
+  cursor: col-resize;
+}
+
+.mdpreview-divider .split-divider-line {
+  width: 1px;
+  height: 100%;
+}
+
+.mdpreview {
+  grid-column: 3;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: var(--uwu-surface);
+}
+
+.mdpreview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.mdpreview-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.mdpreview-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.mdpreview-close:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.mdpreview-body {
+  overflow: auto;
+  min-height: 0;
+  padding: 20px 28px 48px;
+  font-family: var(--uwu-font);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--uwu-ink);
+  overflow-wrap: anywhere;
+}
+
+.mdpreview-body:focus-visible {
+  outline-offset: -2px;
+}
+
+.mdpreview-note {
+  color: var(--uwu-muted);
+  font-size: 13px;
+}
+
+/* Readable measure: a preview stretched across a wide pane is a wall of text. */
+.mdpreview-content {
+  max-width: 78ch;
+}
+
+.mdpreview-content > :first-child {
+  margin-top: 0;
+}
+
+.mdpreview-content :is(p, ul, ol, blockquote, pre, table, hr) {
+  margin: 0 0 0.9em;
+}
+
+.mdpreview-content :is(h1, h2, h3, h4, h5, h6) {
+  position: relative;
+  margin: 1.5em 0 0.55em;
+  line-height: 1.3;
+  font-weight: 750;
+  color: var(--uwu-code-heading);
+}
+
+.mdpreview-content h1 {
+  font-size: 1.85em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.mdpreview-content h2 {
+  font-size: 1.45em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.mdpreview-content h3 {
+  font-size: 1.2em;
+}
+
+.mdpreview-content :is(h4, h5, h6) {
+  font-size: 1em;
+}
+
+/* The anchor sits in the margin and shows on hover, as on GitHub. */
+.mdpreview-content .md-heading-anchor {
+  position: absolute;
+  right: 100%;
+  padding-right: 6px;
+  color: var(--uwu-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.mdpreview-content :is(h1, h2, h3, h4, h5, h6):hover .md-heading-anchor,
+.mdpreview-content .md-heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+.mdpreview-content a {
+  color: var(--uwu-code-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.mdpreview-content a:hover {
+  color: var(--uwu-pink);
+}
+
+.mdpreview-content :is(ul, ol) {
+  padding-left: 1.6em;
+}
+
+.mdpreview-content li + li {
+  margin-top: 0.2em;
+}
+
+.mdpreview-content li > :is(ul, ol) {
+  margin: 0.2em 0 0;
+}
+
+/* Task items drop their bullet: the checkbox is the bullet. */
+.mdpreview-content li.md-task-item {
+  list-style: none;
+  margin-left: -1.3em;
+}
+
+.mdpreview-content input.md-task {
+  width: 14px;
+  height: 14px;
+  margin: 0 0.5em 0 0;
+  vertical-align: -2px;
+  accent-color: var(--uwu-pink-solid);
+  cursor: pointer;
+}
+
+.mdpreview-content blockquote {
+  padding: 0.1em 0 0.1em 1em;
+  border-left: 3px solid var(--uwu-pink-tint-strong);
+  color: var(--uwu-muted);
+}
+
+.mdpreview-content hr {
+  height: 1px;
+  border: 0;
+  background: var(--uwu-border);
+}
+
+.mdpreview-content code {
+  padding: 0.12em 0.36em;
+  border-radius: 5px;
+  background: var(--uwu-elevated);
+  font-family: var(--uwu-mono);
+  font-size: 0.88em;
+}
+
+.mdpreview-content pre {
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-deep);
+  line-height: 1.5;
+}
+
+.mdpreview-content pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 0.86em;
+  color: var(--uwu-code-variable);
+  white-space: pre;
+}
+
+.mdpreview-content table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.mdpreview-content :is(th, td) {
+  padding: 6px 12px;
+  border: 1px solid var(--uwu-border);
+}
+
+.mdpreview-content th {
+  background: var(--uwu-elevated);
+  font-weight: 700;
+}
+
+.mdpreview-content .md-align-left {
+  text-align: left;
+}
+
+.mdpreview-content .md-align-center {
+  text-align: center;
+}
+
+.mdpreview-content .md-align-right {
+  text-align: right;
+}
+
+.mdpreview-content img {
+  max-width: 100%;
+}
+
+/* An image that was not loaded: its alt text in a dashed box, never a broken icon. */
+.mdpreview-content .md-image-blocked {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px dashed var(--uwu-border);
+  border-radius: 6px;
+  font-size: 0.9em;
+  color: var(--uwu-muted);
+}
+
+.mdpreview-content .md-image-label {
+  font-weight: 700;
+}
+
+/* ── The switch in the tab bar ─────────────────────────── */
+
+.tabbar-preview {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.tabbar-preview:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.tabbar-preview[aria-pressed='true'] {
+  background: var(--uwu-elevated);
+  color: var(--uwu-pink);
+}
+
+:root[data-motion='reduced'] .mdpreview-content .md-heading-anchor {
+  transition: none;
+}

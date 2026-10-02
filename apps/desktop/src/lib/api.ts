@@ -242,6 +242,10 @@ export type SessionDocument = {
   /** There were unsaved changes, so a draft was written next to the session. */
   dirty: boolean;
   stamp: FileStamp | null;
+  /** Bookmarked lines, 1-based. Left out when there are none; the store carries it verbatim. */
+  bookmarks?: number[];
+  /** The Markdown preview was open next to this document. Left out when it was not. */
+  preview?: boolean;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };

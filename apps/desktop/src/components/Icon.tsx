@@ -62,6 +62,14 @@ const PATHS = {
   wrap: 'M2 3.5h12 M2 8h8.25a2.25 2.25 0 0 1 0 4.5H6 M7.8 10.7 6 12.5l1.8 1.8 M2 12.5h1.6',
   sidebar: 'M1.5 2.5h13v11h-13z M6 2.5v11',
   dots: 'M3.2 8h.01 M8 8h.01 M12.8 8h.01',
+  // A page with text on the left and the same page rendered on the right.
+  preview:
+    'M1.5 2.5h13v11h-13z M8 2.5v11 M3.4 5.5h2.8 M3.4 8h2.8 M3.4 10.5h1.8 M9.8 5.4h2.8 M9.8 7.6h2.8 M9.8 10.5h1.6',
+  // Indented lines, the shape of a table of contents.
+  outline:
+    'M2 3.5h.01 M4.5 3.5h9.5 M4.5 6.5h.01 M7 6.5h7 M4.5 9.5h.01 M7 9.5h7 M2 12.5h.01 M4.5 12.5h9.5',
+  // A ribbon with a notch: Notepad++'s mark, drawn as one.
+  bookmark: 'M4.5 2h7a.5.5 0 0 1 .5.5V14l-4-3-4 3V2.5a.5.5 0 0 1 .5-.5Z',
 } as const;
 
 export type IconName = keyof typeof PATHS;

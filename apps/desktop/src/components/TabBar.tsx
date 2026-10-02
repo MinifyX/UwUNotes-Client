@@ -55,6 +55,7 @@ import {
 } from '../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { Icon } from './Icon';
+import { PreviewToggle } from './PreviewToggle';
 
 /** A press shorter than this much movement is a click, not a drag. */
 const DRAG_THRESHOLD = 5;
@@ -329,6 +330,7 @@ export function TabBar({ pane }: { pane: PaneId }) {
       >
         <Icon name="plus" size={15} />
       </button>
+      <PreviewToggle pane={pane} />
 
       {menu ? (
         <ContextMenu
