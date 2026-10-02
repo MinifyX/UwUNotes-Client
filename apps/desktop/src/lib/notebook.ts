@@ -47,6 +47,7 @@ import {
 } from './documents';
 import { t } from './i18n';
 import { noteTitle } from './note-title';
+import { emitNyu } from './nyu-events';
 import { ask } from './prompt';
 import { toast } from './toast';
 import { activateDoc, showDocNext } from './workspace';
@@ -134,6 +135,7 @@ export async function putInTrash(id: DocId): Promise<TrashSummary> {
   // The new entry on top straight away; Rust may also have swept old ones,
   // which the next refresh picks up.
   setTrash([summary, ...trash.filter((entry) => entry.id !== summary.id)]);
+  emitNyu('note-trashed');
   return summary;
 }
 
@@ -192,6 +194,7 @@ export async function restoreTrashed(id: string): Promise<boolean> {
   await openTrashed(entry);
   forgetEntry(id);
   await deleteTrash(id).catch(() => undefined);
+  emitNyu('note-restored');
   return true;
 }
 

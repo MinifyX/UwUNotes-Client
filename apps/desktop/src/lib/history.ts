@@ -48,6 +48,7 @@ import { setSidebarView } from './chrome';
 import type { Command } from './commands';
 import { allDocs, getDoc, getMeta, openUntitled, setDocState, type DocId } from './documents';
 import { locale, N_, t, translate, type Language } from './i18n';
+import { emitNyu } from './nyu-events';
 import { ask } from './prompt';
 import { getSettings } from './settings';
 import { toast } from './toast';
@@ -380,6 +381,7 @@ export async function restoreVersion(id: DocId, version: HistoryVersion): Promis
     setDocState(id, doc.state.update({ changes, userEvent: 'input.restore' }).state);
   }
   toast('success', t('Version wiederhergestellt. Rückgängig holt den vorherigen Text zurück.'));
+  emitNyu('history-restored');
   return true;
 }
 

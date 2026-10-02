@@ -15,6 +15,7 @@
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useSyncExternalStore } from 'react';
+import { emitNyu } from './nyu-events';
 
 let active = false;
 const listeners = new Set<() => void>();
@@ -69,6 +70,7 @@ export function enterZen(): Promise<void> {
   if (active) return windowQueue;
   active = true;
   announce();
+  emitNyu('zen-entered');
   return queueWindow(async () => {
     const window = getCurrentWindow();
     if (!active || (await window.isFullscreen())) return;
@@ -81,6 +83,7 @@ export function exitZen(): Promise<void> {
   if (!active) return windowQueue;
   active = false;
   announce();
+  emitNyu('zen-left');
   return queueWindow(async () => {
     if (active || !madeFullscreen) return;
     madeFullscreen = false;

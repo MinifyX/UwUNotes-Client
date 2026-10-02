@@ -39,6 +39,7 @@ import {
   type Transaction,
 } from '@codemirror/state';
 import { EditorView, gutter, GutterMarker } from '@codemirror/view';
+import { emitNyu } from '../lib/nyu-events';
 
 class BookmarkMarker extends GutterMarker {
   override eq(other: GutterMarker): boolean {
@@ -139,7 +140,9 @@ export function bookmarkLines(state: EditorState): number[] {
 /* ── Acting on a view ──────────────────────────────────── */
 
 export function toggleBookmark(view: EditorView, position = view.state.selection.main.head): void {
+  const before = bookmarkLines(view.state).length;
   view.dispatch({ effects: toggleBookmarkEffect.of(position) });
+  if (bookmarkLines(view.state).length > before) emitNyu('bookmark-added');
 }
 
 export function clearBookmarks(view: EditorView): void {

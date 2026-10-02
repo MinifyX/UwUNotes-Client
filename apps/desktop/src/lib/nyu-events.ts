@@ -40,7 +40,7 @@ export const NYU_EVENT_KINDS = [
   'pomodoro-done',
   /** A Nyu-Pomodoro round started. */
   'pomodoro-started',
-  // ── For the other 0.5.0 features; nothing in this file's branch emits them. ──
+  // ── From the notebook, Zeitreise, zen mode and bookmarks. ──
   /** A note went into the note trash. */
   'note-trashed',
   /** A note came back out of the trash. */
