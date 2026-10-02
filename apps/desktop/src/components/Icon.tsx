@@ -62,6 +62,13 @@ const PATHS = {
   wrap: 'M2 3.5h12 M2 8h8.25a2.25 2.25 0 0 1 0 4.5H6 M7.8 10.7 6 12.5l1.8 1.8 M2 12.5h1.6',
   sidebar: 'M1.5 2.5h13v11h-13z M6 2.5v11',
   dots: 'M3.2 8h.01 M8 8h.01 M12.8 8h.01',
+  // A spiral-bound pad with two lines on it: the notebook view.
+  notebook:
+    'M4.5 1.5h7.5a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z M2.2 4.5h2.4 M2.2 8h2.4 M2.2 11.5h2.4 M6.8 5.5h3.9 M6.8 8.2h3.9',
+  trash:
+    'M2.5 4h11 M6 4V2.5h4V4 M3.8 4l.7 9.6a.9.9 0 0 0 .9.9h5.2a.9.9 0 0 0 .9-.9L12.2 4 M6.6 6.8v4.6 M9.4 6.8v4.6',
+  // An arrow curling back: bring it back.
+  restore: 'M3.5 6h6.5a3.25 3.25 0 0 1 0 6.5H6 M5.8 3.7 3.5 6l2.3 2.3',
 } as const;
 
 export type IconName = keyof typeof PATHS;

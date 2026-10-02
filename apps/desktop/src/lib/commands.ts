@@ -55,7 +55,8 @@ import { getSettings, updateSettings } from './settings';
 import { macroShortcutText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, focusActiveView } from './views';
-import { toggleSidebar } from './chrome';
+import { setSidebarView, toggleSidebar } from './chrome';
+import { emptyTrashAsked, trashEntries } from './notebook';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
 import { printDoc } from './print';
@@ -156,6 +157,7 @@ export function allCommands(): Command[] {
     ...eolCommands(),
     ...languageCommands(),
     ...macroCommands(),
+    ...notebookCommands(),
     ...toolCommands(),
     ...extensionCommands(),
     ...appCommands(),
@@ -767,6 +769,26 @@ function macroCommands(): Command[] {
  * the selection straight into the clipboard — Notepad++'s three MD5 entries,
  * for every algorithm rather than just the one.
  */
+/** The notebook view and its trash; see `lib/notebook.ts`. */
+function notebookCommands(): Command[] {
+  const group = () => t('Notizbuch');
+  return [
+    {
+      id: 'notes.show',
+      title: () => t('Notizbuch zeigen'),
+      group,
+      run: () => setSidebarView('notebook'),
+    },
+    {
+      id: 'notes.emptyTrash',
+      title: () => t('Papierkorb leeren'),
+      group,
+      enabled: () => trashEntries().length > 0,
+      run: emptyTrashAsked,
+    },
+  ];
+}
+
 function toolCommands(): Command[] {
   const group = () => t('Werkzeuge');
   const commands: Command[] = [

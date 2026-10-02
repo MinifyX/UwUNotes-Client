@@ -147,6 +147,7 @@ function fileMenu(): MenuEntry[] {
     c('file.close', t('Schließen')),
     c('file.closeAll', t('Alle offenen Dateien schließen')),
     c('file.reopenClosed'),
+    c('notes.emptyTrash', t('Papierkorb leeren…')),
   ];
 }
 
@@ -186,6 +187,7 @@ function viewMenu(): MenuEntry[] {
     }),
     c('view.toggleMinimap', { label: t('Minimap'), checked: settings.minimap }),
     c('view.toggleSidebar', { label: t('Seitenleiste'), checked: sidebarOpen() }),
+    c('notes.show', { label: t('Notizbuch') }),
     separator(),
     {
       kind: 'submenu',

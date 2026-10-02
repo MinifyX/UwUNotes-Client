@@ -10,6 +10,7 @@ import type { ComponentType } from 'react';
 import { N_ } from '../../lib/i18n';
 import type { IconName } from '../Icon';
 import { FilesView } from './FilesView';
+import { NotebookView } from './NotebookView';
 
 export type SidebarView = {
   /** Stable: remembered in the page's storage as the last view shown. */
@@ -22,4 +23,5 @@ export type SidebarView = {
 
 export const SIDEBAR_VIEWS: readonly SidebarView[] = [
   { id: 'files', label: N_('Dateien'), icon: 'folder', Component: FilesView },
+  { id: 'notebook', label: N_('Notizbuch'), icon: 'notebook', Component: NotebookView },
 ];
