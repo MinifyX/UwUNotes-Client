@@ -29,6 +29,7 @@ import type { SearchOptions } from './api';
 import { closeDialog, getUiState, openDialog } from './commands';
 import { getDoc, setDocState, type DocId } from './documents';
 import { t } from './i18n';
+import { emitNyu } from './nyu-events';
 import { toast } from './toast';
 import { activeView } from './views';
 import { activeDocId } from './workspace';
@@ -528,8 +529,10 @@ export function findNext(back = false): void {
   const hit = ahead ?? around;
   if (!hit) {
     recount(false);
+    emitNyu('find-empty');
     return;
   }
+  if (current.regex) emitNyu('regex-found', { text: current.query });
 
   select(spot, hit.from, hit.to);
   recount(ahead === null);
@@ -640,5 +643,6 @@ export function replaceAll(): void {
   dispatch(spot, { changes, userEvent: 'input.replace.all' });
   if (scope && scope.doc === spot.id) scope = { ...scope, to: scope.to + delta };
   toast('success', t('{count} Ersetzungen.', { count: changes.length }));
+  emitNyu('replace-done', { count: changes.length });
   recount(false);
 }

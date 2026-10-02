@@ -44,6 +44,7 @@ import { allCommands, runCommand } from './commands';
 import { compileSearch } from './find';
 import { t } from './i18n';
 import { normalizeMacroShortcut } from './shortcuts';
+import { emitNyu } from './nyu-events';
 import { toast } from './toast';
 import { activeView } from './views';
 
@@ -520,6 +521,7 @@ function run(steps: readonly MacroStep[], times: number, untilEnd: boolean): voi
   } else if (runs > 1) {
     toast('success', t('Makro {count}× abgespielt.', { count: runs }));
   }
+  if (!stopped && runs > 0) emitNyu('macro-played', { count: runs });
 }
 
 /** One pass over the steps. Returns why it stopped, or `null` when it did not. */

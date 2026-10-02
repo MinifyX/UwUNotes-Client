@@ -19,6 +19,7 @@ import { t, useLanguage } from '../lib/i18n';
 import type { PaneId } from '../lib/layout';
 import { useWorkspace } from '../lib/workspace';
 import { pickGreeting } from './nyu/greetings';
+import { useNyuHat } from '../lib/nyu-progress';
 import { NyuScene } from './nyu/scenes';
 import { Icon } from './Icon';
 
@@ -35,6 +36,7 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
   // Nyu keeps the same line for the whole run, so a pane that redraws while a
   // neighbour is being typed in does not change the joke mid-sentence.
   const greeting = pickGreeting('empty');
+  const hat = useNyuHat();
 
   // `allCommands()` rebuilds a list of a few hundred entries, most of them one
   // per encoding and one per language. Worth memoising even here, where the
@@ -49,7 +51,7 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
 
   return (
     <div className="emptypane">
-      <NyuScene name="empty" className="emptypane-scene" />
+      <NyuScene name="empty" className="emptypane-scene" hat={hat} />
       {greeting ? <p className="emptypane-greeting">{greeting}</p> : null}
 
       <ul className="emptypane-actions">

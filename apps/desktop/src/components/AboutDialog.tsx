@@ -18,6 +18,8 @@ import { closeDialog, useUiState } from '../lib/commands';
 import { t } from '../lib/i18n';
 import { APP_VERSION } from '../lib/settings';
 import { toast } from '../lib/toast';
+import { useNyuHat } from '../lib/nyu-progress';
+import { hatParts } from './nyu/hats';
 import { Nyu } from './nyu/Nyu';
 import { Modal } from './Modal';
 
@@ -43,6 +45,7 @@ export function AboutDialog() {
 }
 
 function AboutBody() {
+  const hat = useNyuHat();
   const [info, setInfo] = useState<AppInfo | null>(null);
 
   useEffect(() => {
@@ -71,7 +74,7 @@ function AboutBody() {
     <Modal title={t('Über UwUNotes')} onClose={closeDialog}>
       <div className="about">
         <div className="about-mark">
-          <Nyu size={112} mood="uwu" title={t('Nyu, die Notizblock-Katze')} />
+          <Nyu size={112} mood="uwu" title={t('Nyu, die Notizblock-Katze')} {...hatParts(hat)} />
         </div>
 
         <h3 className="about-name">UwUNotes</h3>

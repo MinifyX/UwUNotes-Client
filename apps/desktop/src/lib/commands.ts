@@ -50,6 +50,8 @@ import {
   startRecording,
   stopRecording,
 } from './macros';
+import { dance, petCompanion } from './nyu';
+import { getPomodoro, skipPhase, startFocus, stopFocus, togglePomodoro } from './nyu-pomodoro';
 import { ask } from './prompt';
 import { getSettings, updateSettings } from './settings';
 import { macroShortcutText, shortcutLabel } from './shortcuts';
@@ -102,7 +104,8 @@ export type DialogName =
   | 'macros'
   | 'settings'
   | 'about'
-  | 'hash';
+  | 'hash'
+  | 'nyu';
 
 export type UiState = { readonly dialog: DialogName | null };
 
@@ -158,6 +161,7 @@ export function allCommands(): Command[] {
     ...macroCommands(),
     ...toolCommands(),
     ...extensionCommands(),
+    ...nyuCommands(),
     ...appCommands(),
   ];
 }
@@ -828,6 +832,66 @@ function extensionCommands(): Command[] {
     group,
     run: command.run,
   }));
+}
+
+/**
+ * Nyu's corner of the palette: the Pomodoro, her achievements, and two
+ * commands that exist purely to make her do something.
+ */
+function nyuCommands(): Command[] {
+  const group = () => t('Nyu');
+  const pomodoro = getPomodoro();
+  return [
+    {
+      id: 'nyu.achievements',
+      title: () => t('Nyu-Erfolge'),
+      group,
+      run: () => openDialog('nyu'),
+    },
+    {
+      id: 'nyu.pet',
+      title: () => t('Nyu streicheln'),
+      group,
+      run: petCompanion,
+    },
+    {
+      id: 'nyu.dance',
+      title: () => t('Nyu tanzen lassen'),
+      group,
+      run: dance,
+    },
+    {
+      id: 'pomodoro.start',
+      title: () => t('Nyu-Pomodoro starten'),
+      group,
+      enabled: () => getPomodoro().phase === null,
+      run: () => startFocus(),
+    },
+    {
+      id: 'pomodoro.pause',
+      title: () =>
+        pomodoro.phase !== null && pomodoro.endsAt === null
+          ? t('Nyu-Pomodoro fortsetzen')
+          : t('Nyu-Pomodoro pausieren'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => togglePomodoro(),
+    },
+    {
+      id: 'pomodoro.skip',
+      title: () => t('Nyu-Pomodoro: Abschnitt überspringen'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => skipPhase(),
+    },
+    {
+      id: 'pomodoro.stop',
+      title: () => t('Nyu-Pomodoro beenden'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => stopFocus(),
+    },
+  ];
 }
 
 function appCommands(): Command[] {

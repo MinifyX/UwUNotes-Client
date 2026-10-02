@@ -44,6 +44,7 @@ import {
 import { describeApiError, newFile } from './files';
 import { t } from './i18n';
 import { newPaneId, paneIds, sanitizeLayout, type LayoutNode, type PaneId } from './layout';
+import { emitNyu } from './nyu-events';
 import { getSettings } from './settings';
 import { toast } from './toast';
 import { viewFor } from './views';
@@ -148,7 +149,10 @@ async function restoreOnce(): Promise<void> {
   }
 
   if (restored.size === 0) newFile();
-  else applyRestoredScroll();
+  else {
+    applyRestoredScroll();
+    emitNyu('session-restored', { count: restored.size });
+  }
 
   // Set last, and only here: this is the one path that rebuilt the window from
   // a stored session, so it is the only one that knows what the drafts on disk

@@ -42,6 +42,7 @@ import {
   BUNDLED_FONTS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  POMODORO_LIMITS,
   resetSettings,
   TAB_SIZES,
   updateSettings,
@@ -382,6 +383,99 @@ function SettingsBody() {
               format={(value) => `${Math.round(value * 100)} %`}
               onChange={(soundVolume) => write({ soundVolume })}
             />
+          </Section>
+
+          {/* Everything Nyu does beyond the greetings, in one place, each part
+            switchable on its own: someone who likes the Pomodoro may not want a
+            cat peeking in from the window edge. */}
+          <Section title={t('Nyu')}>
+            <SwitchField
+              label={t('Nyu in der Statusleiste')}
+              hint={t(
+                'Sie tippt mit, schläft ein, wenn du Pause machst, und freut sich übers Speichern.',
+              )}
+              checked={settings.nyuCompanion}
+              onChange={(nyuCompanion) => write({ nyuCompanion })}
+            />
+            <SwitchField
+              label={t('Spielereien')}
+              hint={t('Geheimwörter, Streicheln und ab und zu ein Gastauftritt am Fensterrand.')}
+              checked={settings.nyuGimmicks}
+              onChange={(nyuGimmicks) => write({ nyuGimmicks })}
+            />
+            <SwitchField
+              label={t('Anlässe')}
+              hint={t(
+                'Hüte und kleine Szenen zu Halloween, Weihnachten, Ostern und anderen Tagen.',
+              )}
+              checked={settings.nyuOccasions}
+              onChange={(nyuOccasions) => write({ nyuOccasions })}
+            />
+            <SwitchField
+              label={t('Level und Erfolge')}
+              hint={t('Nyu sammelt beim Schreiben Erfahrung. Alles bleibt auf diesem Rechner.')}
+              checked={settings.nyuLevels}
+              onChange={(nyuLevels) => write({ nyuLevels })}
+            />
+            <SwitchField
+              label={t('Tipps')}
+              hint={t(
+                'Ab und zu ein Tastenkürzel in einer Sprechblase. Nur im verspielten Tonfall.',
+              )}
+              checked={settings.nyuTips}
+              disabled={!settings.nyuCompanion}
+              onChange={(nyuTips) => write({ nyuTips })}
+            />
+            <SwitchField
+              label={t('Pomodoro-Knopf in der Statusleiste')}
+              hint={t('Starten geht auch über die Befehlspalette.')}
+              checked={settings.pomodoroButton}
+              onChange={(pomodoroButton) => write({ pomodoroButton })}
+            />
+            <NumberField
+              label={t('Pomodoro: Fokus')}
+              value={settings.pomodoroFocusMinutes}
+              min={POMODORO_LIMITS.focus[0]}
+              max={POMODORO_LIMITS.focus[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroFocusMinutes) => write({ pomodoroFocusMinutes })}
+            />
+            <NumberField
+              label={t('Pomodoro: kurze Pause')}
+              value={settings.pomodoroBreakMinutes}
+              min={POMODORO_LIMITS.break[0]}
+              max={POMODORO_LIMITS.break[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroBreakMinutes) => write({ pomodoroBreakMinutes })}
+            />
+            <NumberField
+              label={t('Pomodoro: lange Pause')}
+              value={settings.pomodoroLongBreakMinutes}
+              min={POMODORO_LIMITS.longBreak[0]}
+              max={POMODORO_LIMITS.longBreak[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroLongBreakMinutes) => write({ pomodoroLongBreakMinutes })}
+            />
+            <NumberField
+              label={t('Lange Pause nach')}
+              hint={t('So viele Fokusrunden bis zur langen Pause.')}
+              value={settings.pomodoroLongEvery}
+              min={POMODORO_LIMITS.longEvery[0]}
+              max={POMODORO_LIMITS.longEvery[1]}
+              step={1}
+              unit={t('Runden')}
+              onChange={(pomodoroLongEvery) => write({ pomodoroLongEvery })}
+            />
+            <button
+              type="button"
+              className="settings-macro-manage"
+              onClick={() => openDialog('nyu')}
+            >
+              {t('Nyus Erfolge und Hüte…')}
+            </button>
           </Section>
 
           <Section title={t('Makros')}>
