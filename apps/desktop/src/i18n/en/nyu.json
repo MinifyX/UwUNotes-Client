@@ -29,6 +29,8 @@
 
   "Neuer Erfolg: {name} ✧": "New achievement: {name} ✧",
   "Erfolg freigeschaltet: {name}": "Achievement unlocked: {name}",
+  "{count} neue Erfolge: {names} ✧": "{count} new achievements: {names} ✧",
+  "{count} Erfolge freigeschaltet: {names}": "{count} achievements unlocked: {names}",
   "Ansehen": "View",
   "Neues Accessoire: {name}": "New accessory: {name}",
   "Level {level}! Nyu ist stolz auf dich. (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧": "Level {level}! Nyu is proud of you. (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",

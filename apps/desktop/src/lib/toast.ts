@@ -30,6 +30,12 @@ const LIFETIME: Record<Toast['tone'], number> = {
 /** A toast with a button has to outlive the reflex to reach for the mouse. */
 const LIFETIME_WITH_ACTION = 12_000;
 
+/**
+ * A toast whose button is a convenience rather than the way back — "show me"
+ * on a notice that is just good news. It goes about as soon as a plain one.
+ */
+const LIFETIME_BRIEF = 5_000;
+
 /** More than this on screen at once is a wall, not a notification. */
 const MAX_VISIBLE = 4;
 
@@ -55,7 +61,21 @@ export function useToasts(): readonly Toast[] {
   return useSyncExternalStore(subscribe, getToasts);
 }
 
-export function toast(tone: Toast['tone'], text: string, action?: Toast['action']): number {
+/**
+ * Whether an error is on screen. Nyu stays quiet while one is: she is never
+ * next to bad news.
+ */
+export function errorShowing(): boolean {
+  return toasts.some((entry) => entry.tone === 'error');
+}
+
+/** `brief`: gone after {@link LIFETIME_BRIEF} even with a button. */
+export function toast(
+  tone: Toast['tone'],
+  text: string,
+  action?: Toast['action'],
+  options?: { brief?: boolean },
+): number {
   counter += 1;
   const id = counter;
   const next = [...toasts, { id, tone, text, action }];
@@ -65,9 +85,14 @@ export function toast(tone: Toast['tone'], text: string, action?: Toast['action'
     clearTimer(dropped.id);
   }
   toasts = next.slice(-MAX_VISIBLE);
+  const lifetime = options?.brief
+    ? Math.max(LIFETIME[tone], LIFETIME_BRIEF)
+    : action
+      ? LIFETIME_WITH_ACTION
+      : LIFETIME[tone];
   timers.set(
     id,
-    window.setTimeout(() => dismissToast(id), action ? LIFETIME_WITH_ACTION : LIFETIME[tone]),
+    window.setTimeout(() => dismissToast(id), lifetime),
   );
   announce();
   return id;

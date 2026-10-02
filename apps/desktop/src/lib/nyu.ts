@@ -15,7 +15,13 @@
  * - **Tone.** Speech bubbles and playful toasts only in the playful tone. The
  *   neutral tone keeps the cat and drops the chatter.
  * - **Never on bad news.** Nothing here listens for errors, and the event kinds
- *   are all harmless ones (see `nyu-events.ts`).
+ *   are all harmless ones (see `nyu-events.ts`). While an error toast or a
+ *   question (`lib/prompt.ts`) is on screen she does not react, speak or
+ *   appear at all.
+ * - **Good news in one breath.** Achievements and level steps that arrive
+ *   together — the first start hands out several at once — become one short
+ *   toast, never a stack of them, and none at all in zen mode: they wait
+ *   until it is left.
  * - **Nothing leaves the machine.** The progress is in the page's storage.
  *
  * The listeners are cheap on purpose: a keystroke into the editor costs a few
@@ -65,10 +71,11 @@ import {
   type PomodoroPhase,
   type PomodoroState,
 } from './nyu-pomodoro';
+import { promptOpen } from './prompt';
 import { getSettings } from './settings';
 import { shortcutLabel } from './shortcuts';
 import { playChime } from './sound';
-import { toast } from './toast';
+import { dismissToast, errorShowing, toast } from './toast';
 import { activeView } from './views';
 import { localDay, occasionsOn, type Occasion } from '../components/nyu/occasions';
 
@@ -106,12 +113,21 @@ function typedWithin(ms: number, now = Date.now()): boolean {
   return now - lastKeyAt < ms;
 }
 
+/**
+ * Something on screen that she must not stand next to: a question waiting for
+ * an answer (an "empty the trash?", say) or an error toast.
+ */
+function badNewsShowing(): boolean {
+  return promptOpen() || errorShowing();
+}
+
 /** A moment where something decorative may appear without being in the way. */
 function quietMoment(now = Date.now()): boolean {
   return (
     !document.hidden &&
     !zenShowing() &&
     getUiState().dialog === null &&
+    !badNewsShowing() &&
     !typedWithin(15 * SECOND, now)
   );
 }
@@ -126,7 +142,7 @@ const cooldowns = new Cooldowns();
  */
 function companionReact(key: string, cooldownMs: number, reaction: Omit<Reaction, 'id'>): boolean {
   const settings = getSettings();
-  if (!settings.nyuCompanion || zenShowing()) return false;
+  if (!settings.nyuCompanion || zenShowing() || badNewsShowing()) return false;
   if (!cooldowns.allow(`react:${key}`, cooldownMs, Date.now())) return false;
   const still = !motionOk();
   react({
@@ -139,7 +155,7 @@ function companionReact(key: string, cooldownMs: number, reaction: Omit<Reaction
 
 /** A line in her speech bubble — the playful tone only, and only when she is there. */
 function companionSay(text: string, ms?: number): void {
-  if (!playful() || !getSettings().nyuCompanion || zenShowing()) return;
+  if (!playful() || !getSettings().nyuCompanion || zenShowing() || badNewsShowing()) return;
   say(text, ms);
 }
 
@@ -163,19 +179,18 @@ function commitGain(next: NyuProgress, before: NyuProgress, announce = true): vo
     final.stats.maxTabs !== before.stats.maxTabs;
   setProgress(final, visible);
 
-  for (const id of unlocked.unlocked) {
-    const achievement = ACHIEVEMENTS.find((entry) => entry.id === id);
-    if (!achievement) continue;
-    const name = t(achievement.title);
-    toast(
-      'success',
-      playful()
-        ? t('Neuer Erfolg: {name} ✧', { name })
-        : t('Erfolg freigeschaltet: {name}', { name }),
-      { label: t('Ansehen'), run: () => openDialog('nyu') },
-    );
+  // Judged on the final value: the achievements' XP can carry a level step of
+  // its own.
+  const levelBefore = levelForXp(before.xp);
+  const levelAfter = levelForXp(final.xp);
+  const stepped = levelAfter > levelBefore;
+  if (unlocked.unlocked.length > 0 || stepped) {
+    queueNotice(unlocked.unlocked, stepped ? { from: levelBefore, to: levelAfter } : null);
   }
-  if (unlocked.unlocked.length > 0) {
+
+  if (stepped) {
+    companionReact('level', 0, { mood: 'cheer', motion: 'dance', burst: 'confetti', ms: 2_400 });
+  } else if (unlocked.unlocked.length > 0) {
     companionReact('achievement', 2 * SECOND, {
       mood: 'sparkle',
       motion: 'hop',
@@ -183,27 +198,99 @@ function commitGain(next: NyuProgress, before: NyuProgress, announce = true): vo
       ms: 1_600,
     });
   }
-
-  // Judged on the final value: the achievements' XP can carry a level step of
-  // its own.
-  const levelBefore = levelForXp(before.xp);
-  const levelAfter = levelForXp(final.xp);
-  if (levelAfter > levelBefore) celebrateLevel(levelBefore, levelAfter);
 }
 
-function celebrateLevel(before: number, after: number): void {
-  const hats = LEVEL_HATS.filter((entry) => entry.level > before && entry.level <= after);
-  const extra = hats.length
-    ? ' ' +
-      t('Neues Accessoire: {name}', { name: hats.map((h) => t(HAT_LABELS[h.hat])).join(', ') })
-    : '';
-  toast(
+/* ── Notices: achievements and levels, gathered ────────── */
+
+/**
+ * How long after an unlock more may join it. The first start unlocks the
+ * first day, the occasion of the season and maybe a level within a second or
+ * two; one toast for all of them is good news, four stacked ones are a wall.
+ */
+export const NOTICE_GATHER_MS = 2_000;
+/** However busy it gets, a notice waits no longer than this for company. */
+const NOTICE_MAX_WAIT_MS = 6_000;
+
+type LevelStep = { from: number; to: number };
+
+let pendingAchievements: string[] = [];
+let pendingLevel: LevelStep | null = null;
+let noticeTimer = 0;
+let noticeSince = 0;
+/** The notice on screen, so a newer one replaces it instead of joining it. */
+let noticeToast = 0;
+
+function queueNotice(achievements: readonly string[], level: LevelStep | null): void {
+  for (const id of achievements)
+    if (!pendingAchievements.includes(id)) pendingAchievements.push(id);
+  if (level) {
+    pendingLevel = pendingLevel
+      ? { from: Math.min(pendingLevel.from, level.from), to: Math.max(pendingLevel.to, level.to) }
+      : level;
+  }
+  const now = Date.now();
+  if (!noticeTimer) noticeSince = now;
+  window.clearTimeout(noticeTimer);
+  const wait = Math.max(0, Math.min(NOTICE_GATHER_MS, noticeSince + NOTICE_MAX_WAIT_MS - now));
+  noticeTimer = window.setTimeout(flushNotices, wait);
+}
+
+/**
+ * Shows what has gathered as one toast. In zen mode nothing pops up: the
+ * notices stay queued and `zen-left` shows them — they are on Nyu's page in
+ * the meantime anyway.
+ */
+function flushNotices(): void {
+  noticeTimer = 0;
+  if (pendingAchievements.length === 0 && !pendingLevel) return;
+  if (zenShowing()) return;
+  const text = noticeText(pendingAchievements, pendingLevel);
+  pendingAchievements = [];
+  pendingLevel = null;
+  if (!text) return;
+  dismissToast(noticeToast);
+  noticeToast = toast(
     'success',
-    (playful()
-      ? t('Level {level}! Nyu ist stolz auf dich. (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧', { level: after })
-      : t('Level {level} erreicht.', { level: after })) + extra,
+    text,
+    { label: t('Ansehen'), run: () => openDialog('nyu') },
+    { brief: true },
   );
-  companionReact('level', 0, { mood: 'cheer', motion: 'dance', burst: 'confetti', ms: 2_400 });
+}
+
+/** The one sentence for a level step and the achievements that came with it. */
+export function noticeText(achievements: readonly string[], level: LevelStep | null): string {
+  const names = achievements
+    .map((id) => ACHIEVEMENTS.find((entry) => entry.id === id))
+    .filter((entry) => entry !== undefined)
+    .map((entry) => t(entry.title));
+  const fun = playful();
+  let unlocked = '';
+  if (names.length === 1) {
+    const name = names[0] ?? '';
+    unlocked = fun
+      ? t('Neuer Erfolg: {name} ✧', { name })
+      : t('Erfolg freigeschaltet: {name}', { name });
+  } else if (names.length > 1) {
+    const list = names.join(', ');
+    unlocked = fun
+      ? t('{count} neue Erfolge: {names} ✧', { count: names.length, names: list })
+      : t('{count} Erfolge freigeschaltet: {names}', { count: names.length, names: list });
+  }
+  if (!level) return unlocked;
+
+  const hats = LEVEL_HATS.filter((entry) => entry.level > level.from && entry.level <= level.to);
+  const parts = [
+    fun
+      ? t('Level {level}! Nyu ist stolz auf dich. (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧', { level: level.to })
+      : t('Level {level} erreicht.', { level: level.to }),
+  ];
+  if (hats.length > 0) {
+    parts.push(
+      t('Neues Accessoire: {name}', { name: hats.map((h) => t(HAT_LABELS[h.hat])).join(', ') }),
+    );
+  }
+  if (unlocked) parts.push(unlocked);
+  return parts.join(' ');
 }
 
 function count(event: ProgressEvent): void {
@@ -502,6 +589,12 @@ function onEvent(event: NyuEvent): void {
       return;
     case 'zen-left':
       companionReact('zen', 0, { mood: 'happy', motion: 'wave', burst: null, ms: 1_200 });
+      // What was unlocked while the room was quiet, in one toast. A moment
+      // later, so it does not land in the same frame the furniture returns in.
+      if (!noticeTimer && (pendingAchievements.length > 0 || pendingLevel)) {
+        noticeSince = Date.now();
+        noticeTimer = window.setTimeout(flushNotices, NOTICE_GATHER_MS);
+      }
       return;
     case 'bookmark-added':
       companionReact('bookmark', 3 * SECOND, {
@@ -725,6 +818,8 @@ export function startNyu(): () => void {
     window.clearTimeout(greetTimer);
     window.clearTimeout(cameoTimer);
     window.clearTimeout(tipTimer);
+    window.clearTimeout(noticeTimer);
+    noticeTimer = 0;
     if (lookFrame) cancelAnimationFrame(lookFrame);
     lookFrame = 0;
     flushProgress();

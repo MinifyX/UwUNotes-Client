@@ -50,6 +50,14 @@ function current(): PromptRequest | null {
   return queue[0] ?? null;
 }
 
+/**
+ * Whether a question is waiting for an answer. Nyu asks before she does
+ * anything decorative: a cat waving next to "delete for good?" is not calm.
+ */
+export function promptOpen(): boolean {
+  return queue.length > 0;
+}
+
 /** The question to show right now, or `null` when there is nothing to ask. */
 export function usePrompt(): PromptRequest | null {
   return useSyncExternalStore(subscribe, current);
