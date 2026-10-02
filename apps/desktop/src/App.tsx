@@ -20,9 +20,11 @@ import { useSidebarOpen } from './lib/chrome';
 import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
 import { documentsVersion, subscribeDocuments } from './lib/documents';
-import { closeAllSafely, openPaths, startFileWatchers } from './lib/files';
+import { openPaths, startFileWatchers } from './lib/files';
 import { startGitWatch } from './lib/git';
 import { t, useLanguage } from './lib/i18n';
+import { startNotebook } from './lib/notebook';
+import { ask } from './lib/prompt';
 import { persistSession, restoreSession, startSessionAutosave } from './lib/session';
 import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
@@ -70,6 +72,7 @@ export function App() {
 
   useEffect(() => installShortcuts(), []);
   useEffect(() => startSessionAutosave(), []);
+  useEffect(() => startNotebook(), []);
   useEffect(() => startFileWatchers(), []);
   useEffect(() => startGitWatch(), []);
   useEffect(() => startUpdateCheck(), []);
@@ -105,16 +108,18 @@ export function App() {
   }, []);
 
   /**
-   * The close guard.
+   * The close guard, which asks nothing.
    *
-   * Tauri's close request is preventable, so the window stays up until every
-   * dirty file has been answered for. `destroy()` rather than `close()` on the
-   * way out, because `close()` would come straight back here and ask again.
+   * Closing the window is not a decision about unsaved text: the session and
+   * every draft go to disk, the window goes away, and the next start puts all
+   * of it back — unsaved notes included, even with the restore setting off.
+   * Tauri's close request is preventable, so the window stays up exactly as
+   * long as that write takes. `destroy()` rather than `close()` on the way out,
+   * because `close()` would come straight back here.
    *
-   * The session is written *before* the questions, not after: by the time
-   * `closeAllSafely` resolves there are no documents left to write down, and a
-   * session file recording an empty window is how "restore my tabs" quietly
-   * stops working.
+   * The one question left is for the one case where that promise cannot be
+   * kept: a draft or the session that did not reach the disk. Then closing
+   * would cost text, and that is said plainly, never decided silently.
    */
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -123,8 +128,21 @@ export function App() {
     void appWindow
       .onCloseRequested(async (event) => {
         event.preventDefault();
-        await persistSession().catch(() => undefined);
-        if (await closeAllSafely()) await appWindow.destroy();
+        const saved = await persistSession().catch(() => false);
+        if (!saved) {
+          const answer = await ask(
+            t('Ungespeicherte Texte nicht gesichert'),
+            t(
+              'Nicht alle ungespeicherten Texte ließen sich neben der Sitzung ablegen. Wenn du jetzt schließt, gehen sie verloren.',
+            ),
+            [
+              { id: 'close', label: t('Trotzdem schließen'), tone: 'danger' },
+              { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+            ],
+          );
+          if (answer !== 'close') return;
+        }
+        await appWindow.destroy();
       })
       .then((stop) => {
         if (gone) stop();

@@ -20,7 +20,8 @@
  * through props, and which has no business re-rendering because a pointer
  * passed over it.
  *
- * This bar asks nothing before closing a tab. `closeDocSafely` does that.
+ * Nothing here asks before closing a tab, and neither does `closeDocSafely`:
+ * unsaved changes go to the note trash on the way out.
  */
 
 import {
@@ -39,7 +40,7 @@ import {
   type DocId,
   type DocMeta,
 } from '../lib/documents';
-import { closeDocSafely, describeApiError, newFile } from '../lib/files';
+import { closeDocSafely, closeDocsSafely, describeApiError, newFile } from '../lib/files';
 import { useGitStatus } from '../lib/git';
 import { t, useLanguage } from '../lib/i18n';
 import { nextPane, paneCount, type PaneId } from '../lib/layout';
@@ -261,12 +262,12 @@ export function TabBar({ pane }: { pane: PaneId }) {
         id: 'closeOthers',
         label: t('Andere schließen'),
         disabled: others.length === 0,
-        run: () => void closeEach(others),
+        run: () => void closeDocsSafely(others),
       },
       {
         id: 'closeAll',
         label: t('Alle schließen'),
-        run: () => void closeEach([...tabs]),
+        run: () => void closeDocsSafely([...tabs]),
       },
       {
         id: 'copyPath',
@@ -452,13 +453,6 @@ function Tab({
 /** What the close button calls this tab out loud. */
 function tabLabel(meta: DocMeta): string {
   return meta.dirty ? t('{name} (ungespeichert)', { name: meta.name }) : meta.name;
-}
-
-/** Closes a list of tabs one at a time, stopping at the first Cancel. */
-async function closeEach(ids: DocId[]): Promise<void> {
-  for (const id of ids) {
-    if (!(await closeDocSafely(id))) return;
-  }
 }
 
 async function copyPath(path: string | null): Promise<void> {

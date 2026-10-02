@@ -1,0 +1,21 @@
+{
+  "Ungespeicherte Texte nicht gesichert": "Unsaved text not backed up",
+  "Nicht alle ungespeicherten Texte ließen sich neben der Sitzung ablegen. Wenn du jetzt schließt, gehen sie verloren.": "Not all unsaved text could be stored next to the session. If you close now, it will be lost.",
+  "Trotzdem schließen": "Close anyway",
+  "Tabs, Splitlayout, Ordner und Cursorpositionen. Ungespeicherte Notizen kommen immer zurück, auch wenn das hier aus ist.": "Tabs, split layout, folder and cursor positions. Unsaved notes always come back, even with this switched off.",
+  "Hab deinen Entwurf aufgehoben (๑˃ᴗ˂)ﻭ": "Kept your draft safe (๑˃ᴗ˂)ﻭ",
+  "1 nicht gespeicherte Datei zurück": "1 unsaved file restored",
+  "Hab deine {count} Entwürfe aufgehoben (๑˃ᴗ˂)ﻭ": "Kept your {count} drafts safe (๑˃ᴗ˂)ﻭ",
+  "{count} nicht gespeicherte Dateien zurück": "{count} unsaved files restored",
+  "Wiederherstellen": "Restore",
+  "Endgültig löschen": "Delete permanently",
+  "Papierkorb leeren?": "Empty the trash?",
+  "Eine Notiz wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.": "One note will be deleted permanently. This cannot be undone.",
+  "{count} Notizen werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.": "{count} notes will be deleted permanently. This cannot be undone.",
+  "Der Papierkorb ließ sich nicht vollständig leeren.": "The trash could not be emptied completely.",
+  "„{name}“ liegt im Papierkorb": "\"{name}\" is in the trash",
+  "{count} ungespeicherte Notizen liegen im Papierkorb": "{count} unsaved notes are in the trash",
+  "„{name}“ ließ sich nicht im Papierkorb ablegen. Der Tab bleibt offen.": "\"{name}\" could not be moved to the trash. The tab stays open.",
+  "Die Notiz ließ sich nicht aus dem Papierkorb holen.": "The note could not be taken out of the trash.",
+  "Die Notiz ließ sich nicht löschen.": "The note could not be deleted."
+}

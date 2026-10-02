@@ -14,7 +14,9 @@
  * React subscribes to {@link subscribeDocuments}, which fires when *metadata*
  * changes — a name, the dirty flag, an encoding — and not when text does. The
  * one exception is the dirty flag itself, which is recomputed on every edit;
- * see {@link setDocState}.
+ * see {@link setDocState}. Whoever does need to hear about typing — the draft
+ * flush, an untitled note's title — subscribes to {@link subscribeText}, which
+ * names the document and costs a listener call, not a render.
  */
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
@@ -28,8 +30,17 @@ export type DocMeta = {
   id: DocId;
   /** `null` until the buffer is saved somewhere. */
   path: string | null;
-  /** The file name, or `Neu 1` for a buffer that has none yet. */
+  /**
+   * The file name. For a buffer that was never saved, the title its first line
+   * gives it, or `Neu n` while it has none — see `lib/note-title.ts`.
+   */
   name: string;
+  /**
+   * The `Neu n` number of a buffer that was never saved, `null` once it has a
+   * file. Kept separately because the tab shows a title instead, and the
+   * counter must still know which numbers are taken.
+   */
+  untitled: number | null;
   encoding: EncodingLabel;
   bom: boolean;
   eol: Eol;
@@ -56,10 +67,16 @@ export type Doc = {
   state: EditorState;
   /** The text as it is on disk. The dirty flag is `state.doc` against this. */
   savedDoc: Text;
+  /**
+   * Bumped whenever the text changes. Lets the draft flush tell "this draft is
+   * already on disk" from "this one changed" without comparing whole texts.
+   */
+  textVersion: number;
 };
 
 const docs = new Map<DocId, Doc>();
 const listeners = new Set<() => void>();
+const textListeners = new Set<(id: DocId) => void>();
 /** Bumped on every metadata change, so `useSyncExternalStore` has a snapshot to compare. */
 let version = 0;
 let docCounter = 0;
@@ -73,6 +90,20 @@ function announce() {
 export function subscribeDocuments(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/**
+ * Called with the document's id whenever its text changes — on every
+ * keystroke, so a listener should do no more than start a timer.
+ */
+export function subscribeText(listener: (id: DocId) => void): () => void {
+  textListeners.add(listener);
+  return () => textListeners.delete(listener);
+}
+
+function textChanged(doc: Doc) {
+  doc.textVersion += 1;
+  for (const listener of textListeners) listener(doc.meta.id);
 }
 
 export function documentsVersion(): number {
@@ -96,10 +127,20 @@ export function newDocId(): DocId {
   return `doc-${docCounter}-${version}`;
 }
 
+/** The next free `Neu n` number. */
+export function nextUntitledNumber(): number {
+  untitledCounter += 1;
+  return untitledCounter;
+}
+
+/** `Neu 1`, `Neu 2`, … — the name of an untitled buffer with nothing in it yet. */
+export function untitledName(number: number): string {
+  return `Neu ${number}`;
+}
+
 /** `Neu 1`, `Neu 2`, … The German name is what `t()` translates in the tab. */
 export function nextUntitledName(): string {
-  untitledCounter += 1;
-  return `Neu ${untitledCounter}`;
+  return untitledName(nextUntitledNumber());
 }
 
 /**
@@ -135,6 +176,8 @@ type OpenInit = {
   binary?: boolean;
   /** For a restored draft: the text differs from disk from the first moment. */
   dirty?: boolean;
+  /** The `Neu n` number, for a buffer without a path. */
+  untitled?: number | null;
 };
 
 /** Puts a document in the store and returns its id. */
@@ -147,6 +190,7 @@ export function openDoc(init: OpenInit): DocId {
       id,
       path: init.path,
       name: init.name,
+      untitled: init.path === null ? (init.untitled ?? null) : null,
       encoding: init.encoding ?? settings.defaultEncoding,
       bom: init.bom ?? false,
       eol: init.eol ?? settings.defaultEol,
@@ -163,6 +207,7 @@ export function openDoc(init: OpenInit): DocId {
     // A document that starts dirty (a restored draft) has no disk text to
     // compare against, so an empty document stands in: anything is different.
     savedDoc: init.dirty ? Text.empty : state.doc,
+    textVersion: 0,
   };
   docs.set(id, doc);
   announce();
@@ -188,7 +233,8 @@ export function openLoadedFile(file: LoadedFile, name: string, id?: DocId): DocI
 
 /** An empty buffer with no path, named `Neu n`. */
 export function openUntitled(text = ''): DocId {
-  return openDoc({ path: null, name: nextUntitledName(), text });
+  const untitled = nextUntitledNumber();
+  return openDoc({ path: null, name: untitledName(untitled), text, untitled });
 }
 
 /**
@@ -206,7 +252,9 @@ export function openUntitled(text = ''): DocId {
 export function setDocState(id: DocId, state: EditorState) {
   const doc = docs.get(id);
   if (!doc) return;
+  const changed = state.doc !== doc.state.doc;
   doc.state = state;
+  if (changed) textChanged(doc);
   const dirty = !state.doc.eq(doc.savedDoc);
   if (dirty !== doc.meta.dirty) {
     doc.meta = { ...doc.meta, dirty };
@@ -221,6 +269,7 @@ export function replaceDocText(id: DocId, text: string) {
   doc.state = doc.state.update({
     changes: { from: 0, to: doc.state.doc.length, insert: text },
   }).state;
+  textChanged(doc);
   announce();
 }
 
@@ -240,6 +289,7 @@ export function markSaved(id: DocId, path: string, name: string, stamp: FileStam
     ...doc.meta,
     path,
     name,
+    untitled: null,
     stamp,
     dirty: false,
     staleOnDisk: false,

@@ -348,7 +348,9 @@ function SettingsBody() {
           <Section title={t('Verhalten')}>
             <SwitchField
               label={t('Sitzung wiederherstellen')}
-              hint={t('Tabs, Splitlayout, Cursorpositionen und ungespeicherte Texte.')}
+              hint={t(
+                'Tabs, Splitlayout, Ordner und Cursorpositionen. Ungespeicherte Notizen kommen immer zurück, auch wenn das hier aus ist.',
+              )}
               checked={settings.restoreSession}
               onChange={(restoreSession) => write({ restoreSession })}
             />
