@@ -40,8 +40,6 @@
   "Neu laden": "Reload",
   "{count} Dateien gespeichert.": "{count} files saved.",
   "Nicht gespeichert: {names}": "Not saved: {names}",
-  "Ungespeicherte Änderungen": "Unsaved changes",
-  "{name} wurde geändert. Vor dem Schließen speichern?": "{name} has changed. Save it before closing?",
   "Verwerfen": "Discard",
   "Neu laden und Änderungen verwerfen?": "Reload and discard the changes?",
   "{name} hat ungespeicherte Änderungen, die dabei verloren gehen.": "{name} has unsaved changes, and they will be lost.",

@@ -9,7 +9,7 @@
 //! - [`files`] — reading, writing, the file tree, the recycle bin
 //! - [`dialogs`] — the native open and save pickers
 //! - [`search`] — find in files, streamed, and replace in files
-//! - [`session`] — what was open last time, and the drafts beside it
+//! - [`session`] — what was open last time, the drafts beside it, the note trash
 //! - [`history`] — Zeitreise, the automatic versions of every file and note
 //! - [`git`] — the letters next to file names, when the folder is a repository
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
@@ -129,6 +129,11 @@ pub fn run() {
             history::history_move,
             history::history_maintain,
             history::history_stats,
+            session::trash_note,
+            session::list_trash,
+            session::read_trash,
+            session::delete_trash,
+            session::empty_trash,
             git::git_statuses,
             git::git_file_diff,
             system::app_info,

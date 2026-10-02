@@ -255,6 +255,12 @@ export type SessionDocument = {
   bookmarks?: number[];
   /** The Markdown preview was open next to this document. Left out when it was not. */
   preview?: boolean;
+  /**
+   * The stable `Neu n` number of a buffer that was never saved. Its tab shows
+   * a title taken from its first line instead, so the number cannot be read
+   * back from `name`. Optional: Rust carries it without knowing it.
+   */
+  untitled?: number | null;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };
@@ -377,6 +383,57 @@ export const historyMaintain = (retentionDays: number) =>
   invoke<HistoryStats>('history_maintain', { retentionDays });
 
 export const historyStats = () => invoke<HistoryStats>('history_stats');
+
+/* ── Note trash ────────────────────────────────────────── */
+
+/**
+ * The unsaved text of a tab that was closed without saving. Closing never asks
+ * "save or discard?" — the text goes here, next to the session, and comes back
+ * from the sidebar or with Ctrl+Shift+T. See `crates/uwunotes-session/src/trash.rs`.
+ */
+export type TrashNote = {
+  name: string;
+  path: string | null;
+  text: string;
+  encoding: EncodingLabel;
+  bom: boolean;
+  eol: Eol;
+  language: string | null;
+  /** The `Neu n` number of an untitled note, carried by Rust untouched. */
+  untitled?: number | null;
+};
+
+export type TrashEntry = TrashNote & {
+  /** Minted by Rust; the only thing the page may hand back to name an entry. */
+  id: string;
+  /** Milliseconds since the epoch. */
+  trashedAt: number;
+};
+
+/** An entry as the trash lists it: no full text, just the start of it. */
+export type TrashSummary = {
+  id: string;
+  trashedAt: number;
+  name: string;
+  path: string | null;
+  language: string | null;
+  /** The text's size in UTF-8 bytes. */
+  bytes: number;
+  /** The first few thousand characters, for the preview and the search. */
+  excerpt: string;
+};
+
+/** Only a resolved promise means the text is safe; the tab stays open otherwise. */
+export const trashNote = (note: TrashNote) => invoke<TrashSummary>('trash_note', { note });
+
+/** Newest first. Rust sweeps entries past 30 days, 200 entries or its size cap. */
+export const listTrash = () => invoke<TrashSummary[]>('list_trash');
+
+export const readTrash = (id: string) => invoke<TrashEntry | null>('read_trash', { id });
+
+export const deleteTrash = (id: string) => invoke<void>('delete_trash', { id });
+
+export const emptyTrash = () => invoke<void>('empty_trash');
 
 /* ── Git ───────────────────────────────────────────────── */
 

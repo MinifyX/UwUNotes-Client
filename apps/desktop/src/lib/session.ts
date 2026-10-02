@@ -10,8 +10,12 @@
  *
  * Unsaved text lives in drafts next to the session (`writeDraft` in
  * `lib/api.ts`), so closing the app with a scratch buffer full of notes costs
- * nothing. Documents that are clean get their draft dropped, because a stale
- * draft is a copy of a file that quietly disagrees with the file.
+ * nothing — the window closes without a single question and the next start
+ * carries on where this one stopped ("hot exit"). Drafts are flushed a moment
+ * after the typing, not only on the way out, so a crash or a killed process
+ * loses a second of text at most. Documents that are clean get their draft
+ * dropped, because a stale draft is a copy of a file that quietly disagrees
+ * with the file.
  *
  * This module does NOT own preferences. Those are `lib/settings.ts` and they
  * live in the page's own storage.
@@ -33,12 +37,14 @@ import {
   allDocs,
   clearDocuments,
   getDoc,
+  nextUntitledNumber,
   openDoc,
   openLoadedFile,
   patchMeta,
   seedUntitledCounter,
   setDocState,
   subscribeDocuments,
+  subscribeText,
   type DocId,
 } from './documents';
 import { bookmarksForSession, restoreBookmarks, sanitizeBookmarkLines } from './bookmarks';
@@ -57,6 +63,7 @@ import {
   paneOf,
   replaceWorkspace,
   resetWorkspace,
+  showDoc,
   subscribeWorkspace,
   type Pane,
 } from './workspace';
@@ -92,6 +99,9 @@ let pruneAllowed = false;
  */
 let draftUnreadable = false;
 
+/** How many documents came back from a draft, for the toast after the restore. */
+let draftsRestored = 0;
+
 /**
  * Rebuilds the last window, or opens one empty buffer.
  *
@@ -110,11 +120,13 @@ export function restoreSession(): Promise<void> {
 async function restoreOnce(): Promise<void> {
   pruneAllowed = false;
   draftUnreadable = false;
+  draftsRestored = 0;
 
-  if (!getSettings().restoreSession) {
-    newFile();
-    return;
-  }
+  // With "restore the session" switched off the clean files, the splits and
+  // the folder stay closed — but unsaved text still comes back. Closing never
+  // asks any more, so a setting about tab layout must not be what quietly
+  // throws a note away at the next start.
+  const fullRestore = getSettings().restoreSession;
 
   const stored = await loadSession().catch(() => null);
   if (!stored || stored.version !== SESSION_VERSION) {
@@ -131,10 +143,26 @@ async function restoreOnce(): Promise<void> {
   const restored = new Map<string, DocId>();
   let highestUntitled = 0;
 
-  for (const raw of Array.isArray(stored.documents) ? stored.documents : []) {
-    const entry = sanitizeDocument(raw);
-    if (!entry) continue;
-    const id = await restoreDocument(entry);
+  const entries = (Array.isArray(stored.documents) ? stored.documents : [])
+    .map(sanitizeDocument)
+    .filter((entry): entry is SessionDocument => entry !== null);
+
+  // Every number first, then the documents: a document from a session older
+  // than the `untitled` field gets a fresh number below, and that must not be
+  // one a later entry in the list still holds.
+  for (const entry of entries) {
+    if (entry.untitled) highestUntitled = Math.max(highestUntitled, entry.untitled);
+  }
+  // Otherwise the next new file would be `Neu 1` again, next to the `Neu 1`
+  // that just came back.
+  seedUntitledCounter(highestUntitled);
+
+  for (const entry of entries) {
+    // Without the full restore only unsaved text comes back. A dirty entry is
+    // exactly one that has a draft; a clean one has nothing to lose.
+    if (!fullRestore && !entry.dirty) continue;
+    if (!entry.path && !entry.untitled) entry.untitled = nextUntitledNumber();
+    const id = await restoreDocument(entry, fullRestore);
     if (!id) continue;
     restored.set(entry.docId, id);
     // Before the panes are rebuilt below, so the workspace sees the pins when
@@ -145,17 +173,19 @@ async function restoreOnce(): Promise<void> {
     restoreBookmarks(id, entry.bookmarks);
     if (entry.preview) setPreviewOpen(id, true);
     placeCaret(id, entry.cursor, entry.scrollTop);
-    const untitled = /^Neu (\d+)$/.exec(entry.name);
-    if (untitled?.[1]) highestUntitled = Math.max(highestUntitled, Number(untitled[1]));
   }
-  // Otherwise the next new file would be `Neu 1` again, next to the `Neu 1`
-  // that just came back.
-  seedUntitledCounter(highestUntitled);
 
-  if (!rebuildWorkspace(stored, restored)) {
-    resetWorkspace();
-    newFile();
-    return;
+  if (fullRestore) {
+    if (!rebuildWorkspace(stored, restored)) {
+      resetWorkspace();
+      newFile();
+      return;
+    }
+  } else {
+    // One pane with the notes in it, in the order they were listed. The rest
+    // of the stored window — splits, folder, recent lists — is what the
+    // switched-off setting asked not to bring back.
+    for (const id of restored.values()) showDoc(id);
   }
 
   if (restored.size === 0) newFile();
@@ -164,15 +194,52 @@ async function restoreOnce(): Promise<void> {
     emitNyu('session-restored', { count: restored.size });
   }
 
-  // Set last, and only here: this is the one path that rebuilt the window from
-  // a stored session, so it is the only one that knows what the drafts on disk
-  // belong to. Every other way out of this function has already returned with
-  // the flag still false.
+  announceDrafts();
+
+  // Set last, and only here: these are the paths that rebuilt documents from a
+  // stored session, so they are the only ones that know what the drafts on
+  // disk belong to. Every other way out of this function has already returned
+  // with the flag still false.
+  //
+  // The reduced restore counts too. A draft only ever belongs to a document
+  // the session marks dirty, and every one of those was brought back above or
+  // set `draftUnreadable` trying — so the open documents account for every
+  // draft the session names, which is the whole condition for the sweep. The
+  // clean documents it skipped never had a draft to lose.
   pruneAllowed = !draftUnreadable && restored.size > 0;
 }
 
-/** One document, from its draft when it was dirty and from disk otherwise. */
-async function restoreDocument(entry: SessionDocument): Promise<DocId | null> {
+/**
+ * Says that unsaved text came back. Only when some did: a window of clean
+ * files coming back is what everybody expects, and needs no announcement.
+ */
+function announceDrafts() {
+  const count = draftsRestored;
+  if (count === 0) return;
+  const playful = getSettings().tone === 'playful';
+  let text: string;
+  if (count === 1) {
+    text = playful
+      ? t('Hab deinen Entwurf aufgehoben (๑˃ᴗ˂)ﻭ')
+      : t('1 nicht gespeicherte Datei zurück');
+  } else {
+    text = playful
+      ? t('Hab deine {count} Entwürfe aufgehoben (๑˃ᴗ˂)ﻭ', { count })
+      : t('{count} nicht gespeicherte Dateien zurück', { count });
+  }
+  toast('success', text);
+}
+
+/**
+ * One document, from its draft when it was dirty and from disk otherwise.
+ *
+ * `fullRestore` false is the restore setting switched off: only drafts come
+ * back, and a dirty file whose draft is missing is not reopened from disk.
+ */
+async function restoreDocument(
+  entry: SessionDocument,
+  fullRestore: boolean,
+): Promise<DocId | null> {
   if (entry.dirty) {
     let draft: string | null = null;
     try {
@@ -192,10 +259,12 @@ async function restoreDocument(entry: SessionDocument): Promise<DocId | null> {
       return null;
     }
     if (draft !== null) {
+      draftsRestored += 1;
       return openDoc({
         id: entry.docId,
         path: entry.path,
         name: entry.name,
+        untitled: entry.untitled,
         text: draft,
         encoding: entry.encoding,
         bom: entry.bom,
@@ -208,7 +277,7 @@ async function restoreDocument(entry: SessionDocument): Promise<DocId | null> {
     // The draft is gone. For a file on disk that means losing the edits, which
     // is bad; for a buffer that was never saved it means losing everything,
     // and an empty tab named `Neu 3` is not worth restoring.
-    if (!entry.path) return null;
+    if (!entry.path || !fullRestore) return null;
   }
 
   if (!entry.path) {
@@ -216,6 +285,7 @@ async function restoreDocument(entry: SessionDocument): Promise<DocId | null> {
       id: entry.docId,
       path: null,
       name: entry.name,
+      untitled: entry.untitled,
       text: '',
       encoding: entry.encoding,
       bom: entry.bom,
@@ -363,10 +433,54 @@ export function takeRestoredScroll(id: DocId): number | null {
 
 /* ── Persisting ────────────────────────────────────────── */
 
-/** Writes the session and the drafts. Safe to call as often as you like. */
-export async function persistSession(): Promise<void> {
+/** The run in progress, and the one queued behind it. */
+let persisting: Promise<boolean> | null = null;
+let queued: Promise<boolean> | null = null;
+
+/**
+ * Writes the session and the drafts. Safe to call as often as you like.
+ *
+ * Resolves `true` when everything reached the disk — the window's close
+ * handler destroys the window on that and only asks when it is `false`.
+ *
+ * One run at a time. Two overlapping runs could finish their draft writes in
+ * either order and leave the older text on disk; so a call that arrives while
+ * a run is going waits for it and then runs once more, and every call that
+ * arrives in the meantime shares that one follow-up run.
+ */
+export function persistSession(): Promise<boolean> {
+  if (persisting) {
+    queued ??= persisting
+      .catch(() => false)
+      .then(() => {
+        queued = null;
+        return persistSession();
+      });
+    return queued;
+  }
+  const run = persistOnce().finally(() => {
+    persisting = null;
+  });
+  persisting = run;
+  return run;
+}
+
+/**
+ * The `textVersion` of each document whose draft is on disk, or {@link NO_DRAFT}
+ * once its draft is known to be gone.
+ *
+ * So a flush writes only the drafts whose text changed since the last one and
+ * drops a clean document's draft once instead of on every save. A document
+ * missing from the map is unknown and gets written (or dropped) on the next
+ * run — which is what happens to everything after a restart.
+ */
+const draftsOnDisk = new Map<DocId, number>();
+const NO_DRAFT = -1;
+
+async function persistOnce(): Promise<boolean> {
   const workspace = getWorkspace();
   const documents: SessionDocument[] = [];
+  let complete = true;
 
   for (const doc of allDocs()) {
     const meta = doc.meta;
@@ -388,14 +502,35 @@ export async function persistSession(): Promise<void> {
       color: meta.color,
       bookmarks: bookmarksForSession(meta.id),
       preview: previewForSession(meta.id),
+      untitled: meta.untitled,
     });
+    const onDisk = draftsOnDisk.get(meta.id);
     try {
-      if (meta.dirty) await writeDraft(meta.id, doc.state.doc.toString());
-      else await dropDraft(meta.id);
+      if (meta.dirty) {
+        if (onDisk !== doc.textVersion) {
+          // The version is read before the await: typing during the write
+          // bumps it, and the next run must see that as a change.
+          const version = doc.textVersion;
+          await writeDraft(meta.id, doc.state.doc.toString());
+          draftsOnDisk.set(meta.id, version);
+        }
+      } else if (onDisk !== NO_DRAFT) {
+        await dropDraft(meta.id);
+        draftsOnDisk.set(meta.id, NO_DRAFT);
+      }
     } catch {
       // A draft that cannot be written is not worth failing the whole session
-      // over — the tab list is still worth having.
+      // over — the tab list is still worth having. It is worth telling the
+      // close handler about, though: that draft is now the only thing between
+      // this text and the window going away.
+      draftsOnDisk.delete(meta.id);
+      if (meta.dirty) complete = false;
     }
+  }
+  // Closed documents: their tab is gone, and whoever closed it dealt with the
+  // draft. Forgetting them keeps the map the size of the window.
+  for (const id of [...draftsOnDisk.keys()]) {
+    if (!getDoc(id)) draftsOnDisk.delete(id);
   }
 
   const panes: Record<string, { tabs: string[]; active: string | null }> = {};
@@ -413,7 +548,13 @@ export async function persistSession(): Promise<void> {
     recentFiles: [...workspace.recentFiles],
     recentFolders: [...workspace.recentFolders],
   };
-  await saveSession(session, pruneAllowed).catch(() => undefined);
+  try {
+    await saveSession(session, pruneAllowed);
+  } catch {
+    // Drafts without a session naming them are drafts nothing will restore.
+    complete = false;
+  }
+  return complete;
 }
 
 /**
@@ -433,10 +574,11 @@ function scrollTopOf(id: DocId): number {
 const DEBOUNCE_MS = 1_500;
 
 /**
- * Typing does not announce — `subscribeDocuments` fires on metadata, and the
- * dirty flag only flips once — so drafts are also flushed on a plain clock.
+ * How soon typing reaches the draft. Typing does not announce through
+ * `subscribeDocuments` — that fires on metadata — so the text has its own
+ * signal, `subscribeText`, and its own timer.
  */
-const DRAFT_INTERVAL_MS = 20_000;
+const DRAFT_FLUSH_MS = 1_000;
 
 /** Persists after changes and on the way out. Returns the teardown. */
 export function startSessionAutosave(): () => void {
@@ -451,9 +593,18 @@ export function startSessionAutosave(): () => void {
   const stopDocuments = subscribeDocuments(schedule);
   const stopWorkspace = subscribeWorkspace(schedule);
 
-  const interval = window.setInterval(() => {
-    if (allDocs().some((doc) => doc.meta.dirty)) void persistSession();
-  }, DRAFT_INTERVAL_MS);
+  // Not a debounce: a timer that restarted on every key would never fire while
+  // somebody types without pausing, and that is exactly the text worth having.
+  // The first change starts it, later ones ride along, and the flush writes
+  // only the drafts whose text actually changed.
+  let flush = 0;
+  const stopText = subscribeText(() => {
+    if (flush) return;
+    flush = window.setTimeout(() => {
+      flush = 0;
+      void persistSession();
+    }, DRAFT_FLUSH_MS);
+  });
 
   const onUnload = () => {
     void persistSession();
@@ -462,10 +613,11 @@ export function startSessionAutosave(): () => void {
 
   return () => {
     window.clearTimeout(debounce);
-    window.clearInterval(interval);
+    window.clearTimeout(flush);
     window.removeEventListener('beforeunload', onUnload);
     stopDocuments();
     stopWorkspace();
+    stopText();
   };
 }
 
@@ -495,7 +647,22 @@ function sanitizeDocument(raw: unknown): SessionDocument | null {
     color: sanitizeTabColor(entry.color),
     bookmarks: sanitizeBookmarkLines(entry.bookmarks),
     preview: entry.preview === true ? true : undefined,
+    untitled: entry.path == null ? untitledNumber(entry) : null,
   };
+}
+
+/**
+ * The `Neu n` number of an untitled entry: the stored field, or — for a
+ * session written before it existed — the number in a name like `Neu 3`.
+ * `null` when there is neither; the restore hands out a fresh one then.
+ */
+function untitledNumber(entry: Record<string, unknown>): number | null {
+  const stored = entry.untitled;
+  if (typeof stored === 'number' && Number.isInteger(stored) && stored > 0 && stored < 1e9) {
+    return stored;
+  }
+  const legacy = typeof entry.name === 'string' ? /^Neu (\d+)$/.exec(entry.name) : null;
+  return legacy?.[1] ? Number(legacy[1]) : null;
 }
 
 function sanitizeStamp(raw: unknown): FileStamp | null {

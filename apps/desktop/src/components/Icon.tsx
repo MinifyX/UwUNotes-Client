@@ -74,6 +74,13 @@ const PATHS = {
     'M2 3.5h.01 M4.5 3.5h9.5 M4.5 6.5h.01 M7 6.5h7 M4.5 9.5h.01 M7 9.5h7 M2 12.5h.01 M4.5 12.5h9.5',
   // A ribbon with a notch: Notepad++'s mark, drawn as one.
   bookmark: 'M4.5 2h7a.5.5 0 0 1 .5.5V14l-4-3-4 3V2.5a.5.5 0 0 1 .5-.5Z',
+  // A spiral-bound pad with two lines on it: the notebook view.
+  notebook:
+    'M4.5 1.5h7.5a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z M2.2 4.5h2.4 M2.2 8h2.4 M2.2 11.5h2.4 M6.8 5.5h3.9 M6.8 8.2h3.9',
+  trash:
+    'M2.5 4h11 M6 4V2.5h4V4 M3.8 4l.7 9.6a.9.9 0 0 0 .9.9h5.2a.9.9 0 0 0 .9-.9L12.2 4 M6.6 6.8v4.6 M9.4 6.8v4.6',
+  // An arrow curling back: bring it back.
+  restore: 'M3.5 6h6.5a3.25 3.25 0 0 1 0 6.5H6 M5.8 3.7 3.5 6l2.3 2.3',
 } as const;
 
 export type IconName = keyof typeof PATHS;

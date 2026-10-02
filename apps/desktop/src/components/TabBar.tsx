@@ -20,7 +20,8 @@
  * through props, and which has no business re-rendering because a pointer
  * passed over it.
  *
- * This bar asks nothing before closing a tab. `closeDocSafely` does that.
+ * Nothing here asks before closing a tab, and neither does `closeDocSafely`:
+ * unsaved changes go to the note trash on the way out.
  *
  * Pinned tabs sit at the left and show only a pin and a short name; the order
  * is kept by `lib/workspace.ts`, and the drop marker here is clamped by the

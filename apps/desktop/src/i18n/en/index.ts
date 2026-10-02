@@ -12,6 +12,7 @@ import history from './history.json';
 import macros from './macros.json';
 import markdown from './markdown.json';
 import nyu from './nyu.json';
+import notes from './notes.json';
 import search from './search.json';
 import settings from './settings.json';
 import updates from './updates.json';
@@ -29,4 +30,5 @@ export const EN: Readonly<Record<string, string>> = {
   ...markdown,
   ...history,
   ...nyu,
+  ...notes,
 };

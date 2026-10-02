@@ -3,24 +3,21 @@
  *
  * The rules are in `lib/tabs.ts`, where they can be tested on strings; this is
  * the thin layer that applies them to the real stores and goes through
- * `closeDocSafely` for anything that closes, so a bulk close still asks about
- * every unsaved file on its way through.
+ * `closeDocsSafely` for anything that closes, so a bulk close puts every
+ * unsaved file in the note trash and says so in one toast.
  */
 
 import { getMeta, patchMeta, type DocId } from './documents';
-import { closeDocSafely } from './files';
+import { closeDocsSafely } from './files';
 import type { PaneId } from './layout';
 import { tabsToClose, type CloseScope, type TabColor } from './tabs';
 import { getWorkspace, paneOf, setTabPinned, tabsIn } from './workspace';
 
 const isPinned = (doc: DocId) => getMeta(doc)?.pinned === true;
 
-/** Closes a list of tabs one at a time, stopping at the first Cancel. */
-export async function closeEach(ids: readonly DocId[]): Promise<boolean> {
-  for (const id of ids) {
-    if (!(await closeDocSafely(id))) return false;
-  }
-  return true;
+/** Closes a list of tabs; unsaved ones go to the note trash, nothing asks. */
+export function closeEach(ids: readonly DocId[]): Promise<boolean> {
+  return closeDocsSafely(ids);
 }
 
 /** "Alle/Andere/Rechts schließen" in one pane, pinned tabs excepted. */

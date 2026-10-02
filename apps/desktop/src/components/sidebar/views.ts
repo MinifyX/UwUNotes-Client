@@ -13,6 +13,7 @@ import { BookmarksView } from './BookmarksView';
 import { FilesView } from './FilesView';
 import { OutlineView } from './OutlineView';
 import { HistoryView } from './HistoryView';
+import { NotebookView } from './NotebookView';
 
 export type SidebarView = {
   /** Stable: remembered in the page's storage as the last view shown. */
@@ -28,4 +29,5 @@ export const SIDEBAR_VIEWS: readonly SidebarView[] = [
   { id: 'outline', label: N_('Gliederung'), icon: 'outline', Component: OutlineView },
   { id: 'bookmarks', label: N_('Lesezeichen'), icon: 'bookmark', Component: BookmarksView },
   { id: 'history', label: N_('Zeitreise'), icon: 'history', Component: HistoryView },
+  { id: 'notebook', label: N_('Notizbuch'), icon: 'notebook', Component: NotebookView },
 ];

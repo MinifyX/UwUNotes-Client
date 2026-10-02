@@ -152,6 +152,7 @@ function fileMenu(): MenuEntry[] {
     c('file.close', t('Schließen')),
     c('file.closeAll', t('Alle offenen Dateien schließen')),
     c('file.reopenClosed'),
+    c('notes.emptyTrash', t('Papierkorb leeren…')),
   ];
 }
 
@@ -220,6 +221,7 @@ function viewMenu(): MenuEntry[] {
       label: t('Schreibmaschinen-Scrollen'),
       checked: settings.typewriterScrolling,
     }),
+    c('notes.show', { label: t('Notizbuch') }),
     separator(),
     {
       kind: 'submenu',

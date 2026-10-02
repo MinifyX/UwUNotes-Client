@@ -4,8 +4,9 @@
  * This is the only module in the app allowed to ask the user a question, and it
  * asks a lot of them, because every one of them is a place where a text editor
  * can silently destroy work: a file that changed on disk between opening and
- * saving, a buffer with unsaved changes about to be closed, a "text" file that
- * is actually a JPEG. The stores in `lib/documents.ts` and `lib/workspace.ts`
+ * saving, a "text" file that is actually a JPEG. Closing is the exception: it
+ * never asks, because the note trash keeps whatever a closed tab had not saved
+ * (`lib/notebook.ts`). The stores in `lib/documents.ts` and `lib/workspace.ts`
  * stay dumb on purpose — a store that can open a dialog is a store that cannot
  * be tested — and every guard lives here instead.
  *
@@ -30,6 +31,7 @@ import {
   type EncodingLabel,
   type Eol,
   type FileStamp,
+  type TrashSummary,
 } from './api';
 import { COMMON_ENCODINGS, encodingName, EOL_LABELS } from './encodings';
 import {
@@ -44,6 +46,7 @@ import {
   openUntitled,
   patchMeta,
   setDocState,
+  untitledName,
   type DocId,
   type DocMeta,
 } from './documents';
@@ -56,6 +59,15 @@ import {
 } from './history';
 import { t } from './i18n';
 import type { PaneId } from './layout';
+import { suggestedFileName } from './note-title';
+import {
+  announceTrashed,
+  closedTabs,
+  needsTrash,
+  putInTrash,
+  restoreTrashed,
+  trashEntries,
+} from './notebook';
 import { ask, askText } from './prompt';
 import { getSettings, subscribeSettings, type Settings } from './settings';
 import { emitNyu } from './nyu-events';
@@ -504,10 +516,20 @@ export async function renameDoc(id: DocId): Promise<boolean> {
   }
 }
 
+/**
+ * The name "Save as" offers. A file keeps its own; an untitled note offers its
+ * title as a file name, with `.md` when it is markdown and `.txt` otherwise.
+ */
+function suggestedNameFor(meta: DocMeta): string {
+  if (meta.path) return meta.name;
+  const fallback = meta.untitled === null ? meta.name : untitledName(meta.untitled);
+  return suggestedFileName(meta.name, meta.languageOverride, fallback);
+}
+
 async function pickPathFor(meta: DocMeta): Promise<string | null> {
   const startIn = meta.path ? await parentOf(meta.path) : getWorkspace().folder;
   try {
-    return await pickSavePath(meta.name, startIn);
+    return await pickSavePath(suggestedNameFor(meta), startIn);
   } catch (error) {
     reportFileError(error, null);
     return null;
@@ -573,66 +595,86 @@ function viewForDoc(id: DocId) {
 
 /* ── Closing ───────────────────────────────────────────── */
 
-export async function closeDocSafely(id: DocId): Promise<boolean> {
-  const meta = getMeta(id);
-  if (!meta) return true;
-
-  if (meta.dirty) {
-    const answer = await ask(
-      t('Ungespeicherte Änderungen'),
-      t('{name} wurde geändert. Vor dem Schließen speichern?', { name: meta.name }),
-      [
-        { id: 'save', label: t('Speichern'), tone: 'primary' },
-        { id: 'discard', label: t('Verwerfen'), tone: 'danger' },
-        { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
-      ],
-    );
-    if (answer === 'cancel') return false;
-    if (answer === 'save' && !(await save(id, { saveAs: false, silent: false }))) return false;
-  }
-
-  rememberClosed(id);
-  // Closing on purpose is the one moment a draft becomes garbage: the user
-  // either saved it or said to throw it away.
-  void dropDraft(id).catch(() => undefined);
-  closeTab(id);
-  return true;
+/**
+ * Closes one tab. Never asks: unsaved changes go to the note trash first.
+ *
+ * Resolves `false` only when the text could not be put in the trash, in which
+ * case the tab stays open — it is the only copy left.
+ */
+export function closeDocSafely(id: DocId): Promise<boolean> {
+  return closeDocsSafely([id]);
 }
 
 /**
- * Closes everything, asking once per dirty file.
+ * Closes tabs, one after the other, without a single question.
  *
- * The first Cancel stops the whole run — half a "close all" is not what anyone
- * meant by it, and the tabs already closed are gone either way.
+ * Saying "save or discard?" at the moment somebody only wanted a tab gone is
+ * how text gets thrown away by reflex. A tab with unsaved changes hands its
+ * text to the note trash (`lib/notebook.ts`) instead, and one toast at the end
+ * says where it went and offers it back. A tab whose text cannot reach the
+ * trash stays open, with an error, and the rest still close.
  */
-export async function closeAllSafely(): Promise<boolean> {
-  for (const doc of [...allDocs()]) {
-    if (!(await closeDocSafely(doc.meta.id))) return false;
+export async function closeDocsSafely(ids: readonly DocId[]): Promise<boolean> {
+  const trashed: TrashSummary[] = [];
+  let allClosed = true;
+  for (const id of ids) {
+    const meta = getMeta(id);
+    if (!meta) continue;
+    if (needsTrash(id)) {
+      const entry = await putInTrash(id).catch(() => null);
+      if (!entry) {
+        allClosed = false;
+        toast(
+          'error',
+          t('„{name}“ ließ sich nicht im Papierkorb ablegen. Der Tab bleibt offen.', {
+            name: meta.name,
+          }),
+        );
+        continue;
+      }
+      trashed.push(entry);
+    } else if (meta.path) {
+      // A clean file is reopened from disk; an untitled tab without text has
+      // nothing worth bringing back.
+      closedTabs.push({ kind: 'path', path: meta.path });
+    }
+    // The trash holds the text now, so the draft is garbage either way.
+    void dropDraft(id).catch(() => undefined);
+    closeTab(id);
   }
-  return true;
+  announceTrashed(trashed);
+  return allClosed;
 }
 
-/** Closed tabs that could be brought back, most recent last. Paths only. */
-const closedPaths: string[] = [];
-const CLOSED_LIMIT = 20;
-
-function rememberClosed(id: DocId) {
-  const path = getMeta(id)?.path;
-  // An untitled buffer has nothing on disk to reopen from; its draft is the
-  // session's problem, not this stack's.
-  if (!path) return;
-  closedPaths.push(path);
-  if (closedPaths.length > CLOSED_LIMIT) closedPaths.shift();
+/** Closes everything; unsaved changes go to the note trash, nothing is asked. */
+export function closeAllSafely(): Promise<boolean> {
+  return closeDocsSafely(allDocs().map((doc) => doc.meta.id));
 }
 
 export function hasClosedTabs(): boolean {
-  return closedPaths.length > 0;
+  return closedTabs.size() > 0 || trashEntries().length > 0;
 }
 
-/** Ctrl+Shift+T, the shortcut everybody learns by accident and then relies on. */
+/**
+ * Ctrl+Shift+T, the shortcut everybody learns by accident and then relies on.
+ *
+ * Takes the most recently closed tab, whether it was a clean file or a note
+ * that went to the trash. Once this run's stack is empty it keeps going into
+ * the trash itself, newest first — so the note closed yesterday comes back
+ * too, and not only the one closed a minute ago.
+ */
 export async function reopenClosedTab(): Promise<void> {
-  const path = closedPaths.pop();
-  if (path) await openPaths([path]);
+  for (let entry = closedTabs.pop(); entry; entry = closedTabs.pop()) {
+    if (entry.kind === 'path') {
+      await openPaths([entry.path]);
+      return;
+    }
+    // A trash entry that is gone by now (restored from the sidebar, swept)
+    // is skipped rather than ending the shortcut on nothing.
+    if (await restoreTrashed(entry.id)) return;
+  }
+  const newest = trashEntries()[0];
+  if (newest) await restoreTrashed(newest.id);
 }
 
 /* ── Reloading and disk changes ────────────────────────── */
