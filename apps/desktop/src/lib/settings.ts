@@ -84,6 +84,9 @@ export type Settings = {
 
   /** Folded-away folders in the file tree, as absolute paths. */
   collapsedFolders: string[];
+
+  /** Word count in the status bar, with a popover of the rest. */
+  statusWordCount: boolean;
 };
 
 export const FONT_SIZE_MIN = 8;
@@ -140,6 +143,8 @@ export const DEFAULT_SETTINGS: Settings = {
   soundVolume: 0.35,
 
   collapsedFolders: [],
+
+  statusWordCount: true,
 };
 
 const KEY = 'uwunotes.settings';
@@ -224,6 +229,8 @@ export function sanitize(raw: unknown): Settings {
           .map((path) => path.slice(0, 400))
           .slice(0, 500)
       : [],
+
+    statusWordCount: bool(input.statusWordCount, d.statusWordCount),
   };
 }
 

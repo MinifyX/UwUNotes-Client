@@ -382,6 +382,12 @@ function SettingsBody() {
               format={(value) => `${Math.round(value * 100)} %`}
               onChange={(soundVolume) => write({ soundVolume })}
             />
+            <SwitchField
+              label={t('Wortzahl in der Statusleiste')}
+              hint={t('Ein Klick darauf zeigt Zeichen, Absätze und die Lesezeit.')}
+              checked={settings.statusWordCount}
+              onChange={(statusWordCount) => write({ statusWordCount })}
+            />
           </Section>
 
           <Section title={t('Makros')}>

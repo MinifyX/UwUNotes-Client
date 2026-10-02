@@ -38,6 +38,7 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
 import { Icon } from './Icon';
 import { LanguagePicker } from './LanguagePicker';
+import { TextStatsPopover, useTextStats, wordCountLabel } from './TextStats';
 
 /** Long enough to read, short enough to be gone before it is in the way. */
 const SAVED_MESSAGE_MS = 4_000;
@@ -154,7 +155,7 @@ function useSavedMessage(docId: DocId | null, dirty: boolean): string | null {
   return message;
 }
 
-type Popover = 'language' | 'encoding' | 'eol' | 'indent' | null;
+type Popover = 'language' | 'encoding' | 'eol' | 'indent' | 'stats' | null;
 
 export function StatusBar() {
   useLanguage();
@@ -163,6 +164,7 @@ export function StatusBar() {
   const settings = useSettings();
   const branch = useGitBranch();
   const caret = useCaret();
+  const stats = useTextStats(settings.statusWordCount);
 
   const docId = activeDocId();
   const meta = docId ? getMeta(docId) : undefined;
@@ -224,8 +226,23 @@ export function StatusBar() {
           disabled={!caret}
           title={t('Gehe zu Zeile…')}
         >
-          {caret ? caretLabel(caret) : NOTHING}
+          {/* The word count says what is selected in more detail; with it on,
+              the caret item goes back to being just the position. */}
+          {caret ? caretLabel(caret, stats !== null) : NOTHING}
         </button>
+
+        {stats ? (
+          <button
+            type="button"
+            className="statusbar-item statusbar-words"
+            aria-haspopup="dialog"
+            aria-expanded={popover === 'stats'}
+            onClick={(event) => toggle('stats', event.currentTarget)}
+            title={t('Textstatistik')}
+          >
+            {wordCountLabel(stats)}
+          </button>
+        ) : null}
 
         <button
           type="button"
@@ -320,6 +337,9 @@ export function StatusBar() {
       {popover === 'encoding' && docId ? (
         <EncodingMenu docId={docId} anchor={anchor} onClose={() => close('encoding')} />
       ) : null}
+      {popover === 'stats' && stats ? (
+        <TextStatsPopover stats={stats} anchor={anchor} onClose={() => close('stats')} />
+      ) : null}
       {popover === 'language' && docId ? (
         <LanguagePicker docId={docId} anchor={anchor} onClose={() => close('language')} />
       ) : null}
@@ -334,8 +354,8 @@ export function StatusBar() {
  * needs to see the comma and the middle dot in context to punctuate the other
  * language correctly, and German and English do not agree about either.
  */
-function caretLabel(caret: Caret): string {
-  if (caret.selected === 0) {
+function caretLabel(caret: Caret, positionOnly = false): string {
+  if (caret.selected === 0 || positionOnly) {
     return t('Z. {line}, Sp. {column}', { line: caret.line, column: caret.column });
   }
   if (caret.selectedLines > 1) {

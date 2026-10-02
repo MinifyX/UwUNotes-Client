@@ -73,6 +73,7 @@ describe('sanitising nonsense', () => {
       sounds: 'loud',
       soundVolume: 'quiet',
       collapsedFolders: 'C:/one',
+      statusWordCount: 'yes',
     };
 
     expect(sanitize(garbage)).toEqual(DEFAULT_SETTINGS);
@@ -194,6 +195,13 @@ describe('sanitising nonsense', () => {
     };
 
     expect(sanitize(chosen)).toEqual(chosen);
+  });
+});
+
+describe('the word count', () => {
+  it('is on by default and stays off once switched off', () => {
+    expect(sanitize({}).statusWordCount).toBe(true);
+    expect(sanitize({ statusWordCount: false }).statusWordCount).toBe(false);
   });
 });
 
