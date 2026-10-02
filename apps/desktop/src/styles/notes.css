@@ -1,0 +1,168 @@
+/* The sidebar's notebook view: open notes and the note trash.
+   Same rhythm as the file view — 11 px small caps for headings, 6–8 px row
+   padding, the elevated surface on hover — so switching views does not feel
+   like switching apps. */
+
+.notebook-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 6px 12px;
+}
+
+.notebook-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0 2px 6px;
+}
+
+.notebook-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--uwu-muted);
+  pointer-events: none;
+}
+
+.notebook-search-input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px 5px 27px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+  font-size: 12.5px;
+}
+
+.notebook-section {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.notebook-section-title {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.notebook-none {
+  padding: 2px 8px 6px;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+.notebook-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.notebook-row {
+  position: relative;
+}
+
+.notebook-item {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--uwu-radius-control);
+  background: transparent;
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+/* Room for the delete button, which sits over the row's right edge. */
+.notebook-row .notebook-item {
+  padding-right: 32px;
+}
+
+.notebook-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+/* Pink means "this one": the note whose tab is in front. */
+.notebook-item[aria-current='true'] {
+  background: var(--uwu-pink-tint);
+  box-shadow: inset 2px 0 0 var(--uwu-pink);
+}
+
+.notebook-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Amber, like the tab's dot: changed, not chosen. */
+.notebook-dirty {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--uwu-code-modified);
+}
+
+.notebook-item-preview,
+.notebook-item-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--uwu-muted);
+}
+
+.notebook-item-preview {
+  color: var(--uwu-ink);
+  opacity: 0.75;
+}
+
+.notebook-delete {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.notebook-row:hover .notebook-delete,
+.notebook-delete:focus-visible {
+  opacity: 1;
+}
+
+/* Red on hover only: it deletes for good, and says so before the click. */
+.notebook-delete:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-alarm);
+}
+
+.notebook-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 10px 16px;
+}
+
+html[data-motion='reduced'] .notebook-item,
+html[data-motion='reduced'] .notebook-delete {
+  transition: none;
+}

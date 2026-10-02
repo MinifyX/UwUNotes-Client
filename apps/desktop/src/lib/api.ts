@@ -242,6 +242,25 @@ export type SessionDocument = {
   /** There were unsaved changes, so a draft was written next to the session. */
   dirty: boolean;
   stamp: FileStamp | null;
+  /**
+   * Tab flags from the tab menu. Optional and left out when off: the Rust
+   * store does not name them and carries them through verbatim (`extra` in
+   * `crates/uwunotes-session/src/model.rs`), so an older build that never
+   * heard of them still writes them back unchanged.
+   */
+  pinned?: boolean;
+  /** One of `TAB_COLORS` in `lib/tabs.ts`. */
+  color?: string;
+  /** Bookmarked lines, 1-based. Left out when there are none; the store carries it verbatim. */
+  bookmarks?: number[];
+  /** The Markdown preview was open next to this document. Left out when it was not. */
+  preview?: boolean;
+  /**
+   * The stable `Neu n` number of a buffer that was never saved. Its tab shows
+   * a title taken from its first line instead, so the number cannot be read
+   * back from `name`. Optional: Rust carries it without knowing it.
+   */
+  untitled?: number | null;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };
@@ -285,6 +304,145 @@ export const writeDraft = (docId: string, text: string) =>
 export const readDraft = (docId: string) => invoke<string | null>('read_draft', { docId });
 
 export const dropDraft = (docId: string) => invoke<void>('drop_draft', { docId });
+
+/* ── Zeitreise ─────────────────────────────────────────── */
+
+/**
+ * What a history belongs to: a file by its path, or a buffer that was never
+ * saved by its document id. Rust hashes either into a directory name, so a
+ * key never reaches the disk as written.
+ */
+export type HistoryKey = { kind: 'path'; path: string } | { kind: 'note'; id: string };
+
+/** Why a version was taken. The wire names match `Reason` in `uwunotes-history`. */
+export type HistoryReason =
+  'save' | 'auto' | 'before-reload' | 'before-replace' | 'restore' | 'external-change';
+
+export type HistoryVersion = {
+  id: string;
+  /** Milliseconds since the epoch. */
+  time: number;
+  reason: HistoryReason;
+  /** The text's UTF-8 length. */
+  size: number;
+  lines: number;
+  /** SHA-256 of the text. */
+  hash: string;
+  /** Compressed, on disk. */
+  storedSize: number;
+};
+
+export type HistorySnapshot =
+  | { status: 'created'; version: HistoryVersion }
+  /** The text already is the newest version; nothing was written. */
+  | { status: 'unchanged'; version: HistoryVersion }
+  /** Too large to keep, or a file that was not cleanly text. */
+  | { status: 'skipped' };
+
+export type HistoryStats = { histories: number; versions: number; bytes: number };
+
+/**
+ * Keeps `text` as the newest version of `key` unless it already is, and thins
+ * that history out by `retentionDays` while at it.
+ */
+export const historySnapshot = (
+  key: HistoryKey,
+  text: string,
+  reason: HistoryReason,
+  retentionDays: number,
+) => invoke<HistorySnapshot>('history_snapshot', { key, text, reason, retentionDays });
+
+/**
+ * Keeps what is on disk at each path right now — for files no tab has open,
+ * before "replace in files" rewrites them. Resolves with how many new versions
+ * were written; files that could not be read are skipped, never an error.
+ */
+export const historySnapshotFiles = (
+  paths: string[],
+  reason: HistoryReason,
+  retentionDays: number,
+) => invoke<number>('history_snapshot_files', { paths, reason, retentionDays });
+
+/** Newest first. A key nobody has written to has no versions, not an error. */
+export const historyList = (key: HistoryKey) => invoke<HistoryVersion[]>('history_list', { key });
+
+export const historyRead = (key: HistoryKey, id: string) =>
+  invoke<string>('history_read', { key, id });
+
+export const historyDelete = (key: HistoryKey, id: string) =>
+  invoke<void>('history_delete', { key, id });
+
+export const historyClear = (key: HistoryKey) => invoke<void>('history_clear', { key });
+
+/** A note saved to a file for the first time, or a file renamed: the versions go along. */
+export const historyMove = (from: HistoryKey, to: HistoryKey, retentionDays: number) =>
+  invoke<void>('history_move', { from, to, retentionDays });
+
+/** Thins every history and enforces the store's size cap. */
+export const historyMaintain = (retentionDays: number) =>
+  invoke<HistoryStats>('history_maintain', { retentionDays });
+
+export const historyStats = () => invoke<HistoryStats>('history_stats');
+
+/* ── Note trash ────────────────────────────────────────── */
+
+/**
+ * The unsaved text of a tab that was closed without saving. Closing never asks
+ * "save or discard?" — the text goes here, next to the session, and comes back
+ * from the sidebar or with Ctrl+Shift+T. See `crates/uwunotes-session/src/trash.rs`.
+ */
+export type TrashNote = {
+  name: string;
+  path: string | null;
+  text: string;
+  encoding: EncodingLabel;
+  bom: boolean;
+  eol: Eol;
+  language: string | null;
+  /** The `Neu n` number of an untitled note, carried by Rust untouched. */
+  untitled?: number | null;
+  /**
+   * The tab's document id. An untitled note's Zeitreise history is keyed by
+   * it, so the restore reuses it — or moves the versions to the new id.
+   */
+  docId?: string;
+  /** The tab's pin, colour and bookmarks, so they come back with the text. */
+  pinned?: boolean;
+  color?: string;
+  bookmarks?: number[];
+};
+
+export type TrashEntry = TrashNote & {
+  /** Minted by Rust; the only thing the page may hand back to name an entry. */
+  id: string;
+  /** Milliseconds since the epoch. */
+  trashedAt: number;
+};
+
+/** An entry as the trash lists it: no full text, just the start of it. */
+export type TrashSummary = {
+  id: string;
+  trashedAt: number;
+  name: string;
+  path: string | null;
+  language: string | null;
+  /** The text's size in UTF-8 bytes. */
+  bytes: number;
+  /** The first few thousand characters, for the preview and the search. */
+  excerpt: string;
+};
+
+/** Only a resolved promise means the text is safe; the tab stays open otherwise. */
+export const trashNote = (note: TrashNote) => invoke<TrashSummary>('trash_note', { note });
+
+/** Newest first. Rust sweeps entries past 30 days, 200 entries or its size cap. */
+export const listTrash = () => invoke<TrashSummary[]>('list_trash');
+
+export const readTrash = (id: string) => invoke<TrashEntry | null>('read_trash', { id });
+
+export const deleteTrash = (id: string) => invoke<void>('delete_trash', { id });
+
+export const emptyTrash = () => invoke<void>('empty_trash');
 
 /* ── Git ───────────────────────────────────────────────── */
 

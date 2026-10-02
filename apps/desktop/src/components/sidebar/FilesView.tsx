@@ -1,5 +1,5 @@
 /**
- * The panel the file tree lives in.
+ * The sidebar's file view: the tree of the open folder.
  *
  * A folder is a convenience and not a project: the app is perfectly happy with
  * four loose files and no folder at all, which is why this component has a
@@ -13,18 +13,19 @@
  * half moving.
  *
  * Showing and hiding the panel is not its business — `TitleBar.tsx` has that
- * switch, and two of them would be two answers to the same question.
+ * switch, and two of them would be two answers to the same question. Which
+ * view the panel shows is `Sidebar.tsx`'s.
  */
 
 import { useRef, useState } from 'react';
-import { openFolder, openFolderDialog } from '../lib/files';
-import { useGitBranch } from '../lib/git';
-import { t } from '../lib/i18n';
-import { setFolder, useWorkspace } from '../lib/workspace';
-import { NyuScene } from './nyu/scenes';
-import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { FileTree, type FileTreeHandle } from './FileTree';
-import { Icon } from './Icon';
+import { openFolder, openFolderDialog } from '../../lib/files';
+import { useGitBranch } from '../../lib/git';
+import { t } from '../../lib/i18n';
+import { setFolder, useWorkspace } from '../../lib/workspace';
+import { NyuScene } from '../nyu/scenes';
+import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
+import { FileTree, type FileTreeHandle } from '../FileTree';
+import { Icon } from '../Icon';
 
 /** How long the overflow button refuses to reopen a menu it just closed. */
 const REOPEN_GUARD_MS = 300;
@@ -34,7 +35,7 @@ function folderName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }
 
-export function Sidebar() {
+export function FilesView() {
   const { folder, recentFolders } = useWorkspace();
   const branch = useGitBranch();
   const tree = useRef<FileTreeHandle | null>(null);
@@ -51,7 +52,7 @@ export function Sidebar() {
 
   if (!folder) {
     return (
-      <aside className="sidebar sidebar-empty" aria-label={t('Ordner')}>
+      <div className="sidebar-view sidebar-empty">
         <NyuScene name="empty" className="sidebar-empty-scene" />
         <p className="sidebar-empty-text">
           {t('Kein Ordner geöffnet. Einzelne Dateien gehen trotzdem.')}
@@ -84,7 +85,7 @@ export function Sidebar() {
             </ul>
           </nav>
         )}
-      </aside>
+      </div>
     );
   }
 
@@ -95,7 +96,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="sidebar" aria-label={t('Ordner')}>
+    <div className="sidebar-view">
       <header className="sidebar-header">
         <h2 className="sidebar-title" title={folder}>
           {folderName(folder)}
@@ -171,6 +172,6 @@ export function Sidebar() {
           }}
         />
       )}
-    </aside>
+    </div>
   );
 }

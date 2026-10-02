@@ -67,6 +67,11 @@ export type Settings = {
   /** Seconds between automatic saves of a file that has a path; 0 is off. */
   autosaveSeconds: number;
 
+  /** Zeitreise: automatic versions of every file and note. See `lib/history.ts`. */
+  history: boolean;
+  /** How many days daily versions are kept for. */
+  historyRetentionDays: number;
+
   /** What a new, never-saved file is written as. */
   defaultEncoding: string;
   defaultEol: 'lf' | 'crlf';
@@ -82,14 +87,53 @@ export type Settings = {
   sounds: boolean;
   soundVolume: number;
 
+  /** The little Nyu at the left end of the status bar. */
+  nyuCompanion: boolean;
+  /** Easter eggs, petting reactions and cameos: the parts of Nyu that are pure play. */
+  nyuGimmicks: boolean;
+  /** Seasonal hats and the cameos that go with an occasion. */
+  nyuOccasions: boolean;
+  /** XP, levels and achievements. Off stops counting and hides them. */
+  nyuLevels: boolean;
+  /** Now and then a tip in a speech bubble — only in the playful tone. */
+  nyuTips: boolean;
+  /** The tomato in the status bar. The palette commands work either way. */
+  pomodoroButton: boolean;
+  pomodoroFocusMinutes: number;
+  pomodoroBreakMinutes: number;
+  pomodoroLongBreakMinutes: number;
+  /** A long break after this many focus rounds. */
+  pomodoroLongEvery: number;
+
   /** Folded-away folders in the file tree, as absolute paths. */
   collapsedFolders: string[];
+
+  /** Zen mode's text column, in characters of the editor font. */
+  zenWidth: number;
+  /** In zen mode, the caret line stays in the middle of the screen. */
+  zenTypewriter: boolean;
+  /** In zen mode, everything but the paragraph or block under the caret fades back. */
+  zenFocusDim: boolean;
+  /** Typewriter scrolling everywhere, not only in zen mode. */
+  typewriterScrolling: boolean;
+  /** Word count in the status bar, with a popover of the rest. */
+  statusWordCount: boolean;
 };
 
 export const FONT_SIZE_MIN = 8;
 export const FONT_SIZE_MAX = 36;
 export const TAB_SIZES = [2, 4, 8] as const;
 export const AUTOSAVE_CHOICES = [0, 30, 60, 300] as const;
+export const ZEN_WIDTH_MIN = 40;
+export const ZEN_WIDTH_MAX = 160;
+export const HISTORY_RETENTION_CHOICES = [7, 30, 90, 365] as const;
+/** Minutes (and rounds) the Nyu-Pomodoro accepts, as [min, max]. */
+export const POMODORO_LIMITS = {
+  focus: [5, 120],
+  break: [1, 60],
+  longBreak: [5, 90],
+  longEvery: [2, 8],
+} as const;
 
 /** The monospace faces bundled with the app, plus whatever the system has. */
 export const BUNDLED_FONTS = ['JetBrains Mono Variable', 'Fira Code Variable'] as const;
@@ -129,6 +173,9 @@ export const DEFAULT_SETTINGS: Settings = {
   ensureFinalNewlineOnSave: false,
   autosaveSeconds: 0,
 
+  history: true,
+  historyRetentionDays: 30,
+
   defaultEncoding: 'UTF-8',
   defaultEol: 'crlf',
 
@@ -139,7 +186,25 @@ export const DEFAULT_SETTINGS: Settings = {
   sounds: false,
   soundVolume: 0.35,
 
+  nyuCompanion: true,
+  nyuGimmicks: true,
+  nyuOccasions: true,
+  nyuLevels: true,
+  nyuTips: true,
+  pomodoroButton: true,
+  pomodoroFocusMinutes: 25,
+  pomodoroBreakMinutes: 5,
+  pomodoroLongBreakMinutes: 15,
+  pomodoroLongEvery: 4,
+
   collapsedFolders: [],
+
+  // A line of a printed book, give or take; the width prose is easiest to read at.
+  zenWidth: 80,
+  zenTypewriter: true,
+  zenFocusDim: true,
+  typewriterScrolling: false,
+  statusWordCount: true,
 };
 
 const KEY = 'uwunotes.settings';
@@ -208,6 +273,13 @@ export function sanitize(raw: unknown): Settings {
     ensureFinalNewlineOnSave: bool(input.ensureFinalNewlineOnSave, d.ensureFinalNewlineOnSave),
     autosaveSeconds: oneOf(input.autosaveSeconds, AUTOSAVE_CHOICES, d.autosaveSeconds),
 
+    history: bool(input.history, d.history),
+    historyRetentionDays: oneOf(
+      input.historyRetentionDays,
+      HISTORY_RETENTION_CHOICES,
+      d.historyRetentionDays,
+    ),
+
     defaultEncoding: text(input.defaultEncoding, d.defaultEncoding, 40),
     defaultEol: oneOf(input.defaultEol, ['lf', 'crlf'] as const, d.defaultEol),
 
@@ -218,12 +290,49 @@ export function sanitize(raw: unknown): Settings {
     sounds: bool(input.sounds, d.sounds),
     soundVolume: num(input.soundVolume, 0, 1, d.soundVolume),
 
+    nyuCompanion: bool(input.nyuCompanion, d.nyuCompanion),
+    nyuGimmicks: bool(input.nyuGimmicks, d.nyuGimmicks),
+    nyuOccasions: bool(input.nyuOccasions, d.nyuOccasions),
+    nyuLevels: bool(input.nyuLevels, d.nyuLevels),
+    nyuTips: bool(input.nyuTips, d.nyuTips),
+    pomodoroButton: bool(input.pomodoroButton, d.pomodoroButton),
+    pomodoroFocusMinutes: int(
+      input.pomodoroFocusMinutes,
+      POMODORO_LIMITS.focus[0],
+      POMODORO_LIMITS.focus[1],
+      d.pomodoroFocusMinutes,
+    ),
+    pomodoroBreakMinutes: int(
+      input.pomodoroBreakMinutes,
+      POMODORO_LIMITS.break[0],
+      POMODORO_LIMITS.break[1],
+      d.pomodoroBreakMinutes,
+    ),
+    pomodoroLongBreakMinutes: int(
+      input.pomodoroLongBreakMinutes,
+      POMODORO_LIMITS.longBreak[0],
+      POMODORO_LIMITS.longBreak[1],
+      d.pomodoroLongBreakMinutes,
+    ),
+    pomodoroLongEvery: int(
+      input.pomodoroLongEvery,
+      POMODORO_LIMITS.longEvery[0],
+      POMODORO_LIMITS.longEvery[1],
+      d.pomodoroLongEvery,
+    ),
+
     collapsedFolders: Array.isArray(input.collapsedFolders)
       ? input.collapsedFolders
           .filter((path): path is string => typeof path === 'string')
           .map((path) => path.slice(0, 400))
           .slice(0, 500)
       : [],
+
+    zenWidth: int(input.zenWidth, ZEN_WIDTH_MIN, ZEN_WIDTH_MAX, d.zenWidth),
+    zenTypewriter: bool(input.zenTypewriter, d.zenTypewriter),
+    zenFocusDim: bool(input.zenFocusDim, d.zenFocusDim),
+    typewriterScrolling: bool(input.typewriterScrolling, d.typewriterScrolling),
+    statusWordCount: bool(input.statusWordCount, d.statusWordCount),
   };
 }
 

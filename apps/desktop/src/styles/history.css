@@ -1,0 +1,264 @@
+/*
+ * Zeitreise: the timeline in the sidebar and the diff dialog.
+ *
+ * Colours follow the house rules: pink is the version you are looking at,
+ * mint is a save, amber is the moment just before something replaced the
+ * text, red is lines that went away. Nothing here is pink unless it is the
+ * one row that is selected.
+ */
+
+/* ── The timeline ──────────────────────────────────────── */
+
+.history-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0 10px;
+}
+
+.history-note,
+.history-empty {
+  margin: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--uwu-muted);
+}
+
+.history-note {
+  padding: 7px 9px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-elevated);
+}
+
+.history-day + .history-day {
+  margin-top: 6px;
+}
+
+.history-day-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 12px 4px;
+  background: var(--uwu-surface);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--uwu-muted);
+}
+
+.history-list {
+  margin: 0;
+  padding: 0 6px;
+  list-style: none;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'time badge'
+    'meta meta';
+  gap: 2px 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+}
+
+.history-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.history-item[aria-current='true'] {
+  background: var(--uwu-pink-tint);
+  box-shadow: inset 2px 0 0 var(--uwu-pink);
+}
+
+.history-item-time {
+  grid-area: time;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--uwu-ink);
+}
+
+.history-item-meta {
+  grid-area: meta;
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--uwu-muted);
+}
+
+.history-delta[data-trend='up'] {
+  color: var(--uwu-online);
+}
+
+.history-delta[data-trend='down'] {
+  color: var(--uwu-code-deleted);
+}
+
+.history-footer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Why a version exists ──────────────────────────────── */
+
+.history-badge {
+  grid-area: badge;
+  align-self: center;
+  padding: 1px 7px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--uwu-muted);
+}
+
+.history-badge-save {
+  border-color: color-mix(in srgb, var(--uwu-online) 45%, transparent);
+  background: color-mix(in srgb, var(--uwu-online) 12%, transparent);
+  color: var(--uwu-online);
+}
+
+.history-badge-before-reload,
+.history-badge-before-replace,
+.history-badge-external-change {
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+  background: color-mix(in srgb, var(--uwu-alarm) 12%, transparent);
+  color: var(--uwu-alarm);
+}
+
+/* ── The diff ──────────────────────────────────────────── */
+
+/* The wide modal is sized for settings. Two editors side by side need the
+   window, so this one takes nearly all of it. */
+.modal[data-size='wide']:has(.history-diff) {
+  width: min(1240px, 100%);
+  height: min(900px, 100%);
+}
+
+.modal-body:has(.history-diff) {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+}
+
+.history-diff {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.history-diff-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--uwu-hairline);
+  font-size: 12.5px;
+}
+
+.history-diff-status {
+  color: var(--uwu-muted);
+}
+
+.history-diff-spacer {
+  flex: 1;
+}
+
+.history-diff-step {
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.history-diff-heads,
+.history-diff-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 0;
+}
+
+.history-diff-head {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--uwu-hairline);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.history-diff-head-a {
+  color: var(--uwu-code-deleted);
+}
+
+.history-diff-head-b {
+  color: var(--uwu-code-added);
+  border-left: 1px solid var(--uwu-hairline);
+}
+
+.history-diff-pane {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  background: var(--uwu-deep);
+}
+
+.history-diff-pane + .history-diff-pane {
+  border-left: 1px solid var(--uwu-hairline);
+}
+
+.history-diff-pane > .cm-editor {
+  height: 100%;
+  min-height: 0;
+}
+
+.history-diff-action[data-tone='primary'] {
+  background: var(--uwu-pink-solid);
+  border-color: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.history-diff-action[data-tone='primary']:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.history-diff-action[data-tone='danger'] {
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.history-diff-action[data-tone='danger']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+html[data-motion='reduced'] .history-item,
+html[data-motion='reduced'] .history-diff-action {
+  transition: none;
+}
+
+/* Two editors side by side stop making sense on a narrow window; stack them. */
+@media (max-width: 720px) {
+  .history-diff-heads {
+    display: none;
+  }
+
+  .history-diff-panes {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .history-diff-pane + .history-diff-pane {
+    border-left: 0;
+    border-top: 1px solid var(--uwu-hairline);
+  }
+}

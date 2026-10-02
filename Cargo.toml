@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*", "apps/desktop/src-tauri", "apps/setup/src-tauri"]
 
 [workspace.package]
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 license = "GPL-3.0-only"
 repository = "https://github.com/MinifyX/UwUNotes-Client"
@@ -11,6 +11,7 @@ rust-version = "1.82"
 
 [workspace.dependencies]
 uwunotes-fs = { path = "crates/uwunotes-fs" }
+uwunotes-history = { path = "crates/uwunotes-history" }
 uwunotes-session = { path = "crates/uwunotes-session" }
 
 anyhow = "1"

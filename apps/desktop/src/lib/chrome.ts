@@ -54,3 +54,44 @@ export function setSidebarOpen(next: boolean): void {
 export function toggleSidebar(): void {
   setSidebarOpen(!open);
 }
+
+/* ── Which view the sidebar shows ──────────────────────── */
+
+const VIEW_KEY = 'uwunotes.sidebarView';
+
+function loadView(): string {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) ?? 'files';
+  } catch {
+    return 'files';
+  }
+}
+
+/**
+ * The id of a view from `components/sidebar/views.ts`. Kept as a plain string
+ * rather than a union: an id a later version no longer knows falls back to the
+ * first view in `Sidebar.tsx`, which is cheaper than a migration.
+ */
+let view = loadView();
+
+export function sidebarView(): string {
+  return view;
+}
+
+export function useSidebarView(): string {
+  return useSyncExternalStore(subscribe, sidebarView);
+}
+
+/** Shows a view, and the sidebar with it: asking for a view means wanting to see it. */
+export function setSidebarView(next: string): void {
+  if (next !== view) {
+    view = next;
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Lost on restart, correct now.
+    }
+    for (const listener of listeners) listener();
+  }
+  setSidebarOpen(true);
+}

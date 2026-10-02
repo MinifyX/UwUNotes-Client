@@ -1,0 +1,167 @@
+/* ── Sidebar: outline and bookmarks ─────────────────────── */
+
+/*
+ * Two lists of "places in a document", drawn alike: a row is a button with a
+ * label and a muted line number, indented by depth in the outline. The
+ * current section is pink — "this one" — and nothing else in the list is.
+ */
+
+.outline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px 6px 12px;
+  overflow-y: auto;
+}
+
+.outline-filter {
+  flex: none;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.outline-empty {
+  padding: 12px 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--uwu-muted);
+}
+
+.outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 8px 3px 10px;
+  border: 0;
+  border-radius: var(--uwu-radius-control);
+  background: transparent;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--uwu-ink);
+}
+
+.outline-item:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+}
+
+.outline-item[aria-current='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.outline-mark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--uwu-code-heading);
+}
+
+.outline-item[data-kind='function'] .outline-mark {
+  border-radius: 999px;
+  background: var(--uwu-code-function);
+}
+
+.outline-item[data-kind='class'] .outline-mark {
+  background: var(--uwu-code-type);
+}
+
+.outline-item[data-kind='key'] .outline-mark,
+.outline-item[data-kind='section'] .outline-mark {
+  background: var(--uwu-code-attribute);
+}
+
+.outline-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-line {
+  flex: none;
+  font-family: var(--uwu-mono);
+  font-size: 10.5px;
+  color: var(--uwu-muted);
+}
+
+/* ── Bookmarks ─────────────────────────────────────────── */
+
+.bookmarks-group + .bookmarks-group {
+  margin-top: 8px;
+}
+
+.bookmarks-file {
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--uwu-muted);
+}
+
+.bookmarks-row {
+  display: flex;
+  align-items: center;
+}
+
+.bookmarks-item {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The line number leads here, in the bookmark's own pink, like the gutter dot. */
+.bookmarks-line {
+  min-width: 3ch;
+  text-align: right;
+  color: var(--uwu-pink);
+}
+
+.bookmarks-item .outline-label {
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+}
+
+.bookmarks-remove {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.bookmarks-row:hover .bookmarks-remove,
+.bookmarks-remove:focus-visible {
+  opacity: 1;
+}
+
+.bookmarks-remove:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+:root[data-motion='reduced'] .bookmarks-remove {
+  transition: none;
+}

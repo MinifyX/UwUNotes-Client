@@ -320,6 +320,37 @@ alte Datei heil, nicht eine halbe.
   weiterhin abgelehnt. Was damit delegiert ist, steht in
   [`docs/security-review-2026-09.md`](docs/security-review-2026-09.md).
 
+### 0.5.0 — gebaut
+
+- **Schließen fragt nie.** Weder das Fenster noch ein Tab fragt „Speichern oder
+  verwerfen?“. Beim Beenden werden Sitzung und Entwürfe geschrieben und das
+  Fenster geht zu; Entwürfe landen etwa eine Sekunde nach dem Tippen auf der
+  Platte. Ungespeicherte Notizen kommen auch mit ausgeschalteter
+  Sitzungswiederherstellung zurück. Nur wenn ein Entwurf nicht geschrieben
+  werden konnte, fragt das Fenster — schmucklos.
+- **Notiz-Papierkorb.** Ein Tab mit ungespeicherten Änderungen geht ohne Frage
+  zu, sein Text liegt danach im Papierkorb neben der Sitzung (30 Tage, 200
+  Einträge). `Strg+Umschalt+T` holt in echter Schließreihenfolge zurück, auch
+  nach einem Neustart.
+- **Notizbuch.** Seitenleisten-Ansicht mit offenen Notizen und Papierkorb,
+  durchsuchbar. Unbenannte Notizen heißen nach ihrer ersten Zeile; die interne
+  Nummer `Neu n` bleibt stabil.
+- **Zeitreise.** Eigenes Crate `uwunotes-history`: zstd-komprimierte Versionen
+  pro Datei bzw. Notiz, dedupliziert, ausgedünnt (Stunde, Tag, Aufbewahrung
+  7–365 Tage), 200 MB Obergrenze. Versionen beim Speichern, vor Neuladen, vor
+  „In Dateien ersetzen“, vor externen Änderungen und beim Tippen. Vergleich,
+  Wiederherstellen als rückgängig machbare Bearbeitung.
+- **Markdown-Vorschau, Gliederung, Lesezeichen.** Vorschau im Editor-Pane
+  (markdown-it, ohne rohes HTML, DOMPurify, keine Netzinhalte, Links nur über
+  den System-Browser), klickbare Aufgaben. Gliederung aus Überschriften und
+  Syntaxbaum. Lesezeichen mit Notepad++-Tasten.
+- **Zen-Modus, angeheftete und farbige Tabs, Wortzahl.**
+- **Die Seitenleiste hat Ansichten**: Dateien, Gliederung, Lesezeichen,
+  Zeitreise, Notizbuch — jede bringt sich in `components/sidebar/views.ts`
+  selbst mit.
+- **Nyu lebt** (siehe §7): Begleiterin in der Statusleiste, Hüte und Anlässe,
+  Level und Erfolge, Easter Eggs, Nyu-Pomodoro.
+
 ### Was aus Phase 2 offen bleibt
 
 - **Makros im Menü.** Ein Makro hat ein Kürzel und steht in der Palette. Was
@@ -390,6 +421,18 @@ Pflaumen-Kachel** mit pinkem Notizblock, Ohren, einer Linierung, einem gelben
 Stift und einem Funkeln — damit man sie in der Taskleiste bei 16 px nicht mit
 UwUMail verwechselt. Quellen in `brand/` und
 `apps/desktop/src/components/nyu/`.
+
+**Seit 0.5.0 lebt sie.** Unten links in der Statusleiste sitzt eine kleine
+Nyu: sie blinzelt, tippt mit, wenn schnell geschrieben wird, schläft nach ein
+paar Minuten Ruhe ein, folgt mit den Augen dem Cursor und schaut alle 20–40
+Minuten vom Fensterrand herein — nie beim Tippen, nie in Dialogen, nie im
+Zen-Modus, nie neben einer Warnung. Dazu Hüte nach Anlass (Halloween,
+Advent, Neujahr, Valentinstag, Ostern, der Geburtstag der App am 19.
+September, Freitag der 13., nach Mitternacht), Level und Erfolge aus dem
+Schreiben (gedeckelt, Taste-gedrückt-Halten zählt nicht, alles lokal),
+freischaltbare Accessoires, Easter Eggs („uwu“, Konami-Code, Streicheln) und
+ein Nyu-Pomodoro. Jeder Teil ist unter Einstellungen → Nyu einzeln
+abschaltbar; im Leerlauf läuft kein Timer außer dem Schlaf-Timer.
 
 **Bewegung:** Einstellungen → Darstellung → Animationen (System / An / Aus) löst
 nach `<html data-motion="reduced">` auf; dann fällt jede Transition auf 1 ms und
@@ -473,7 +516,7 @@ Repo, nichts, was betrieben werden müsste.
 
 ## 10. Stand und offene Punkte
 
-**Stand: 0.2.0, veröffentlicht.** Das Setup liegt auf der Releases-Seite, mit
+**Stand: 0.5.0.** Das Setup liegt auf der Releases-Seite, mit
 Prüfsumme daneben und ohne Windows-Zertifikat dahinter, und ab dieser Version
 hält sich eine Installation selbst aktuell. Phase 1 ist vollständig, Phase 2 bis
 auf die oben genannten Punkte ebenfalls. Im Baum liegt inzwischen auch das

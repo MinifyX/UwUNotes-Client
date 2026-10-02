@@ -15,18 +15,24 @@
  */
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { useSidebarOpen } from './lib/chrome';
 import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
 import { documentsVersion, subscribeDocuments } from './lib/documents';
-import { closeAllSafely, openPaths, startFileWatchers } from './lib/files';
+import { openPaths, startFileWatchers } from './lib/files';
 import { startGitWatch } from './lib/git';
 import { t, useLanguage } from './lib/i18n';
+import { startNotebook } from './lib/notebook';
+import { ask } from './lib/prompt';
 import { persistSession, restoreSession, startSessionAutosave } from './lib/session';
+import { startNyu } from './lib/nyu';
+import { useNyuHat } from './lib/nyu-progress';
 import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
+import { useSettings } from './lib/settings';
+import { useZen } from './lib/zen';
 import { AboutDialog } from './components/AboutDialog';
 import { CompareBar } from './components/CompareBar';
 import { HashDialog } from './components/HashDialog';
@@ -36,7 +42,7 @@ import { GoToLine } from './components/GoToLine';
 import { MacroDialog } from './components/MacroDialog';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsDialog } from './components/SettingsDialog';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar } from './components/sidebar/Sidebar';
 import { SplitContainer } from './components/SplitContainer';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
@@ -44,12 +50,20 @@ import { Toasts } from './components/Toasts';
 import { UpdateHint } from './components/UpdateHint';
 import { PromptHost } from './components/PromptHost';
 import { Nyu } from './components/nyu/Nyu';
+import { ZenEdge, ZenHint } from './components/Zen';
+import { hatParts } from './components/nyu/hats';
+import { NyuCameos } from './components/nyu/companion/NyuCameos';
+import { NyuDialog } from './components/nyu/companion/NyuDialog';
 import { pickGreeting } from './components/nyu/greetings';
 
 export function App() {
   useLanguage();
   const [ready, setReady] = useState(false);
-  const sidebarOpen = useSidebarOpen();
+  // Zen mode does not close the sidebar, it just does not draw it — so
+  // leaving zen finds the sidebar exactly as it was. See `lib/zen.ts`.
+  const zen = useZen();
+  const sidebarOpen = useSidebarOpen() && !zen;
+  const { zenWidth } = useSettings();
   const { dialog } = useUiState();
   const workspace = useWorkspace();
   const version = useSyncExternalStore(subscribeDocuments, documentsVersion);
@@ -70,10 +84,12 @@ export function App() {
 
   useEffect(() => installShortcuts(), []);
   useEffect(() => startSessionAutosave(), []);
+  useEffect(() => startNotebook(), []);
   useEffect(() => startFileWatchers(), []);
   useEffect(() => startGitWatch(), []);
   useEffect(() => startUpdateCheck(), []);
   useEffect(() => installWheelZoom(), []);
+  useEffect(() => startNyu(), []);
 
   // `version` and `workspace` are not read, only depended on: between them they
   // cover every change the title is built from — the active tab, the file name,
@@ -105,16 +121,18 @@ export function App() {
   }, []);
 
   /**
-   * The close guard.
+   * The close guard, which asks nothing.
    *
-   * Tauri's close request is preventable, so the window stays up until every
-   * dirty file has been answered for. `destroy()` rather than `close()` on the
-   * way out, because `close()` would come straight back here and ask again.
+   * Closing the window is not a decision about unsaved text: the session and
+   * every draft go to disk, the window goes away, and the next start puts all
+   * of it back — unsaved notes included, even with the restore setting off.
+   * Tauri's close request is preventable, so the window stays up exactly as
+   * long as that write takes. `destroy()` rather than `close()` on the way out,
+   * because `close()` would come straight back here.
    *
-   * The session is written *before* the questions, not after: by the time
-   * `closeAllSafely` resolves there are no documents left to write down, and a
-   * session file recording an empty window is how "restore my tabs" quietly
-   * stops working.
+   * The one question left is for the one case where that promise cannot be
+   * kept: a draft or the session that did not reach the disk. Then closing
+   * would cost text, and that is said plainly, never decided silently.
    */
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -123,8 +141,24 @@ export function App() {
     void appWindow
       .onCloseRequested(async (event) => {
         event.preventDefault();
-        await persistSession().catch(() => undefined);
-        if (await closeAllSafely()) await appWindow.destroy();
+        // A window closed while its tabs are still coming back must not write
+        // a session that lists only the ones that made it so far.
+        await restoreSession().catch(() => undefined);
+        const saved = await persistSession().catch(() => false);
+        if (!saved) {
+          const answer = await ask(
+            t('Ungespeicherte Texte nicht gesichert'),
+            t(
+              'Nicht alle ungespeicherten Texte ließen sich neben der Sitzung ablegen. Wenn du jetzt schließt, gehen sie verloren.',
+            ),
+            [
+              { id: 'close', label: t('Trotzdem schließen'), tone: 'danger' },
+              { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
+            ],
+          );
+          if (answer !== 'close') return;
+        }
+        await appWindow.destroy();
       })
       .then((stop) => {
         if (gone) stop();
@@ -140,7 +174,15 @@ export function App() {
   if (!ready) return <Startup />;
 
   return (
-    <div className="app" data-sidebar={sidebarOpen ? 'open' : 'closed'}>
+    <div
+      className="app"
+      data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      data-zen={zen ? true : undefined}
+      style={zen ? ({ '--zen-columns': zenWidth } as CSSProperties) : undefined}
+    >
+      {/* Before the title bar on purpose: `styles/focus.css` reveals the bar
+          from the edge strip with a sibling selector. */}
+      {zen ? <ZenEdge edge="top" /> : null}
       <TitleBar />
 
       <div className="app-body">
@@ -160,10 +202,13 @@ export function App() {
       {/* Between the text and the status bar, and nothing at all when there is
           no update to mention: a new version is worth a row of the window and
           never a dialog over the file somebody is writing. */}
-      <UpdateHint />
+      {zen ? null : <UpdateHint />}
 
+      {zen ? <ZenEdge edge="bottom" /> : null}
       <StatusBar />
+      {zen ? <ZenHint /> : null}
 
+      <NyuCameos />
       <Toasts />
       <PromptHost />
 
@@ -173,6 +218,7 @@ export function App() {
       {dialog === 'settings' ? <SettingsDialog /> : null}
       {dialog === 'about' ? <AboutDialog /> : null}
       {dialog === 'hash' ? <HashDialog /> : null}
+      {dialog === 'nyu' ? <NyuDialog /> : null}
     </div>
   );
 }
@@ -188,9 +234,10 @@ function Startup() {
   // Empty when the tone is set to neutral, which is that setting asking for the
   // cat without the chatter.
   const greeting = pickGreeting('startup');
+  const hat = useNyuHat();
   return (
     <div className="startup" role="status" aria-label={t('UwUNotes wird geladen')}>
-      <Nyu size={96} mood="sparkle" />
+      <Nyu size={96} mood="sparkle" {...hatParts(hat)} />
       {greeting ? <p className="startup-greeting">{greeting}</p> : null}
     </div>
   );

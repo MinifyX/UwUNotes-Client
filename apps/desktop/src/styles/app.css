@@ -409,10 +409,52 @@ input[type='radio'] {
 
 .sidebar {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   background: var(--uwu-surface);
   border-right: 1px solid var(--uwu-hairline);
+}
+
+/* With a single view there is no switcher, and the view takes the first row.
+   The grid stays the same shape so a second view needs no other rule. */
+.sidebar > .sidebar-view:first-child {
+  grid-row: 1 / -1;
+}
+
+.sidebar-switcher {
+  display: flex;
+  gap: 2px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-switch {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.sidebar-switch:hover:not(:disabled) {
+  background: var(--uwu-elevated);
+  color: var(--uwu-ink);
+}
+
+.sidebar-switch[aria-selected='true'] {
+  background: var(--uwu-elevated);
+  color: var(--uwu-pink);
+  box-shadow: inset 0 -2px 0 var(--uwu-pink);
+}
+
+/* One view of the panel: a header, a body that scrolls, an optional footer. */
+.sidebar-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
 }
 
 .sidebar-header {

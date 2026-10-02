@@ -9,7 +9,8 @@
 //! - [`files`] — reading, writing, the file tree, the recycle bin
 //! - [`dialogs`] — the native open and save pickers
 //! - [`search`] — find in files, streamed, and replace in files
-//! - [`session`] — what was open last time, and the drafts beside it
+//! - [`session`] — what was open last time, the drafts beside it, the note trash
+//! - [`history`] — Zeitreise, the automatic versions of every file and note
 //! - [`git`] — the letters next to file names, when the folder is a repository
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
 //! - [`updates`] — whether there is a newer UwUNotes, and installing it
@@ -21,6 +22,7 @@
 mod dialogs;
 mod files;
 mod git;
+mod history;
 mod search;
 mod session;
 mod system;
@@ -78,6 +80,10 @@ pub fn run() {
                 None => app.path().app_data_dir()?,
             };
             tracing::info!(path = %directory.display(), "session directory");
+            // Next to the session, so UWUNOTES_DIR moves the versions too.
+            app.manage(history::History::new(uwunotes_history::HistoryStore::new(
+                directory.join("history"),
+            )));
 
             app.manage(AppState {
                 session: Arc::new(SessionStore::new(&directory)),
@@ -114,6 +120,20 @@ pub fn run() {
             session::write_draft,
             session::read_draft,
             session::drop_draft,
+            history::history_snapshot,
+            history::history_snapshot_files,
+            history::history_list,
+            history::history_read,
+            history::history_delete,
+            history::history_clear,
+            history::history_move,
+            history::history_maintain,
+            history::history_stats,
+            session::trash_note,
+            session::list_trash,
+            session::read_trash,
+            session::delete_trash,
+            session::empty_trash,
             git::git_statuses,
             git::git_file_diff,
             system::app_info,

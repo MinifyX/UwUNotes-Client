@@ -1,0 +1,25 @@
+[package]
+name = "uwunotes-history"
+description = "Zeitreise: automatic versions of every file and every unsaved note"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# The atomic write, the SHA-256 the versions are deduplicated by, reading a
+# closed file before "replace in files" rewrites it, and the error shape the
+# page already knows.
+uwunotes-fs.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+# Text compresses five- to tenfold, and a hundred versions of a source file are
+# a hundred near-copies. The setup already builds zstd, so the workspace gains
+# no new third-party code by using it here too.
+zstd.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

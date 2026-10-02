@@ -42,10 +42,14 @@ import {
   BUNDLED_FONTS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  HISTORY_RETENTION_CHOICES,
+  POMODORO_LIMITS,
   resetSettings,
   TAB_SIZES,
   updateSettings,
   useSettings,
+  ZEN_WIDTH_MAX,
+  ZEN_WIDTH_MIN,
   type Settings,
 } from '../lib/settings';
 import { macroShortcutText, shortcutLabel } from '../lib/shortcuts';
@@ -345,10 +349,35 @@ function SettingsBody() {
             />
           </Section>
 
+          <Section title={t('Zeitreise')}>
+            <SwitchField
+              label={t('Zeitreise')}
+              hint={t(
+                'Hebt automatisch Versionen jeder Datei und jeder ungespeicherten Notiz auf: beim Speichern, vor dem Neuladen und Ersetzen und alle paar Minuten beim Tippen.',
+              )}
+              checked={settings.history}
+              onChange={(history) => write({ history })}
+            />
+            <SelectField
+              label={t('Tägliche Versionen aufheben')}
+              hint={t(
+                'Die letzte Stunde bleibt ganz, der letzte Tag stündlich, danach eine pro Tag.',
+              )}
+              value={settings.historyRetentionDays}
+              options={HISTORY_RETENTION_CHOICES.map((days) => ({
+                value: days,
+                label: t('{count} Tage', { count: days }),
+              }))}
+              onChange={(historyRetentionDays) => write({ historyRetentionDays })}
+            />
+          </Section>
+
           <Section title={t('Verhalten')}>
             <SwitchField
               label={t('Sitzung wiederherstellen')}
-              hint={t('Tabs, Splitlayout, Cursorpositionen und ungespeicherte Texte.')}
+              hint={t(
+                'Tabs, Splitlayout, Ordner und Cursorpositionen. Ungespeicherte Notizen kommen immer zurück, auch wenn das hier aus ist.',
+              )}
               checked={settings.restoreSession}
               onChange={(restoreSession) => write({ restoreSession })}
             />
@@ -382,6 +411,140 @@ function SettingsBody() {
               format={(value) => `${Math.round(value * 100)} %`}
               onChange={(soundVolume) => write({ soundVolume })}
             />
+            <SwitchField
+              label={t('Wortzahl in der Statusleiste')}
+              hint={t('Ein Klick darauf zeigt Zeichen, Absätze und die Lesezeit.')}
+              checked={settings.statusWordCount}
+              onChange={(statusWordCount) => write({ statusWordCount })}
+            />
+          </Section>
+
+          <Section title={t('Zen-Modus')}>
+            <NumberField
+              label={t('Spaltenbreite')}
+              hint={t(
+                'In Zeichen der Editorschrift. Zen-Modus mit F11 oder über das Menü Ansicht.',
+              )}
+              value={settings.zenWidth}
+              min={ZEN_WIDTH_MIN}
+              max={ZEN_WIDTH_MAX}
+              step={4}
+              unit={t('Zeichen')}
+              onChange={(zenWidth) => write({ zenWidth })}
+            />
+            <SwitchField
+              label={t('Schreibmaschinen-Scrollen im Zen-Modus')}
+              hint={t('Die Zeile mit dem Cursor bleibt in der Mitte des Bildschirms.')}
+              checked={settings.zenTypewriter}
+              onChange={(zenTypewriter) => writeEditor({ zenTypewriter })}
+            />
+            <SwitchField
+              label={t('Fokus-Abdunklung')}
+              hint={t(
+                'Alles außer dem Absatz mit dem Cursor tritt zurück. Bei Code: der Block bis zur nächsten Leerzeile.',
+              )}
+              checked={settings.zenFocusDim}
+              onChange={(zenFocusDim) => writeEditor({ zenFocusDim })}
+            />
+            <SwitchField
+              label={t('Schreibmaschinen-Scrollen überall')}
+              hint={t('Auch außerhalb des Zen-Modus.')}
+              checked={settings.typewriterScrolling}
+              onChange={(typewriterScrolling) => writeEditor({ typewriterScrolling })}
+            />
+          </Section>
+
+          {/* Everything Nyu does beyond the greetings, in one place, each part
+            switchable on its own: someone who likes the Pomodoro may not want a
+            cat peeking in from the window edge. */}
+          <Section title={t('Nyu')}>
+            <SwitchField
+              label={t('Nyu in der Statusleiste')}
+              hint={t(
+                'Sie tippt mit, schläft ein, wenn du Pause machst, und freut sich übers Speichern.',
+              )}
+              checked={settings.nyuCompanion}
+              onChange={(nyuCompanion) => write({ nyuCompanion })}
+            />
+            <SwitchField
+              label={t('Spielereien')}
+              hint={t('Geheimwörter, Streicheln und ab und zu ein Gastauftritt am Fensterrand.')}
+              checked={settings.nyuGimmicks}
+              onChange={(nyuGimmicks) => write({ nyuGimmicks })}
+            />
+            <SwitchField
+              label={t('Anlässe')}
+              hint={t(
+                'Hüte und kleine Szenen zu Halloween, Weihnachten, Ostern und anderen Tagen.',
+              )}
+              checked={settings.nyuOccasions}
+              onChange={(nyuOccasions) => write({ nyuOccasions })}
+            />
+            <SwitchField
+              label={t('Level und Erfolge')}
+              hint={t('Nyu sammelt beim Schreiben Erfahrung. Alles bleibt auf diesem Rechner.')}
+              checked={settings.nyuLevels}
+              onChange={(nyuLevels) => write({ nyuLevels })}
+            />
+            <SwitchField
+              label={t('Tipps')}
+              hint={t(
+                'Ab und zu ein Tastenkürzel in einer Sprechblase. Nur im verspielten Tonfall.',
+              )}
+              checked={settings.nyuTips}
+              disabled={!settings.nyuCompanion}
+              onChange={(nyuTips) => write({ nyuTips })}
+            />
+            <SwitchField
+              label={t('Pomodoro-Knopf in der Statusleiste')}
+              hint={t('Starten geht auch über die Befehlspalette.')}
+              checked={settings.pomodoroButton}
+              onChange={(pomodoroButton) => write({ pomodoroButton })}
+            />
+            <NumberField
+              label={t('Pomodoro: Fokus')}
+              value={settings.pomodoroFocusMinutes}
+              min={POMODORO_LIMITS.focus[0]}
+              max={POMODORO_LIMITS.focus[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroFocusMinutes) => write({ pomodoroFocusMinutes })}
+            />
+            <NumberField
+              label={t('Pomodoro: kurze Pause')}
+              value={settings.pomodoroBreakMinutes}
+              min={POMODORO_LIMITS.break[0]}
+              max={POMODORO_LIMITS.break[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroBreakMinutes) => write({ pomodoroBreakMinutes })}
+            />
+            <NumberField
+              label={t('Pomodoro: lange Pause')}
+              value={settings.pomodoroLongBreakMinutes}
+              min={POMODORO_LIMITS.longBreak[0]}
+              max={POMODORO_LIMITS.longBreak[1]}
+              step={1}
+              unit="min"
+              onChange={(pomodoroLongBreakMinutes) => write({ pomodoroLongBreakMinutes })}
+            />
+            <NumberField
+              label={t('Lange Pause nach')}
+              hint={t('So viele Fokusrunden bis zur langen Pause.')}
+              value={settings.pomodoroLongEvery}
+              min={POMODORO_LIMITS.longEvery[0]}
+              max={POMODORO_LIMITS.longEvery[1]}
+              step={1}
+              unit={t('Runden')}
+              onChange={(pomodoroLongEvery) => write({ pomodoroLongEvery })}
+            />
+            <button
+              type="button"
+              className="settings-macro-manage"
+              onClick={() => openDialog('nyu')}
+            >
+              {t('Nyus Erfolge und Hüte…')}
+            </button>
           </Section>
 
           <Section title={t('Makros')}>

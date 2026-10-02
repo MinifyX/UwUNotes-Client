@@ -19,9 +19,10 @@
  */
 
 import { t } from './i18n';
-import { runCommand } from './commands';
+import { commandEnabled, runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
 import { activateTabAt, cyclePane } from './workspace';
+import { zenActive } from './zen';
 
 /** German source names for the modifiers; {@link renderKeys} translates them. */
 const CTRL = 'Strg';
@@ -61,6 +62,11 @@ const BINDINGS: readonly Binding[] = [
   { code: 'KeyM', shift: true, command: 'view.moveTabToOtherPane' },
   { code: 'KeyB', shift: false, command: 'view.toggleSidebar' },
   { code: 'KeyC', shift: true, command: 'view.compare' },
+  // VS Code's key for the same thing. It is also "paste as plain text" in a
+  // browser — which the text fields of the app still need, and so does the
+  // editor on a file without a preview: `actionFor` only takes the key when
+  // the preview can actually toggle (see `YIELDING`).
+  { code: 'KeyV', shift: true, command: 'markdown.togglePreview' },
 
   { code: 'KeyF', shift: false, command: 'find.find' },
   { code: 'KeyF', shift: true, command: 'find.inFiles' },
@@ -104,6 +110,7 @@ const LABELS: Record<string, readonly string[]> = {
   'view.splitDown': [CTRL, SHIFT, 'D'],
   'view.closePane': [CTRL, SHIFT, 'Q'],
   'view.nextPane': ['F6'],
+  'view.zen': ['F11'],
   'view.moveTabToOtherPane': [CTRL, SHIFT, 'M'],
   'view.toggleSidebar': [CTRL, 'B'],
   'view.columns2': [CTRL, SHIFT, '2'],
@@ -114,6 +121,13 @@ const LABELS: Record<string, readonly string[]> = {
   'view.zoomIn': [CTRL, '+'],
   'view.zoomOut': [CTRL, '-'],
   'view.zoomReset': [CTRL, '0'],
+  'markdown.togglePreview': [CTRL, SHIFT, 'V'],
+  // Bound in the editor's own keymap (`editor/tasks.ts`), because it only
+  // claims the key on a task line; listed here so the palette shows it.
+  'markdown.toggleTask': [CTRL, 'Enter'],
+  'bookmark.toggle': [CTRL, 'F2'],
+  'bookmark.next': ['F2'],
+  'bookmark.previous': [SHIFT, 'F2'],
   'find.find': [CTRL, 'F'],
   'find.replace': [CTRL, 'H'],
   'find.inFiles': [CTRL, SHIFT, 'F'],
@@ -123,6 +137,39 @@ const LABELS: Record<string, readonly string[]> = {
   'app.palette': [CTRL, SHIFT, 'P'],
   'app.settings': [CTRL, ','],
 };
+
+/**
+ * Bound commands that give their key back when they cannot run, or when the
+ * focus is in one of the app's own text fields. Only those whose key means
+ * something to the browser on its own: everywhere else a disabled command
+ * swallowing its key is the quiet no-op it should be — Ctrl+W with nothing
+ * open must not close the webview's page.
+ */
+const YIELDING: ReadonlySet<string> = new Set(['markdown.togglePreview']);
+
+/** Input types a person types text into, where F2 and friends are editing keys. */
+const TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'search',
+  'url',
+  'email',
+  'password',
+  'number',
+  'tel',
+]);
+
+/**
+ * Focus is in a text field of the app's own chrome — the find bar, a rename
+ * box, the palette — rather than in the editor. CodeMirror's content is a
+ * contenteditable too, and must keep every key this file gives it.
+ */
+export function inPlainTextField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest('.cm-content')) return false;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) return TEXT_INPUT_TYPES.has(target.type);
+  return target.isContentEditable;
+}
 
 function renderKeys(keys: readonly string[]): string {
   return keys
@@ -209,6 +256,9 @@ export function macroShortcutTaken(shortcut: string): boolean {
   if (!key) return true;
   // The digits are zoom reset and the tab jumps, neither of which is in BINDINGS.
   if (/^(?:Digit|Numpad)\d$/.test(key.code)) return true;
+  // Ctrl+F2 toggles a bookmark, and like F6 and F8 it is matched before
+  // BINDINGS, so it is not in that list to be found.
+  if (key.code === 'F2' && !key.shift) return true;
   // Zoom in and out are matched on the printed character, so their keys cannot
   // be named by code — which is the only thing a macro shortcut stores. Every
   // key that prints a `+` or a `-` on a layout this app runs under is therefore
@@ -262,6 +312,60 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
     return () => runCommand(command);
   }
 
+  // F11 is zen mode. It is the fullscreen key in every browser and in
+  // Notepad++, and zen mode is fullscreen with the furniture taken out, so the
+  // finger that knows one finds the other. No chord with Ctrl was free that
+  // meant anything: Ctrl+Shift+Z is redo on Linux, and VS Code's Ctrl+K Z is a
+  // two-step chord this listener does not do.
+  if (
+    event.code === 'F11' &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  ) {
+    return () => runCommand('view.zen');
+  }
+
+  // Escape leaves zen mode — but only an Escape nobody else wanted. Every bar,
+  // menu and dialog in the app handles its own Escape and prevents the default
+  // (the modal ones even stop it in the capture phase), and CodeMirror does
+  // the same when Escape closed its autocomplete or collapsed a multi-caret
+  // selection. This listener runs last, on the way up, so a closed find bar
+  // costs one Escape and leaving zen a second one, never both at once.
+  if (
+    event.key === 'Escape' &&
+    !event.defaultPrevented &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    zenActive()
+  ) {
+    return () => runCommand('view.zen');
+  }
+
+  // F2 and Shift+F2 walk the bookmarks, Ctrl+F2 sets one — Notepad++'s keys,
+  // unchanged, because these are the ones its users reach for blind.
+  // Ctrl+Shift+F2 is left to fall through to the macros. Not when somebody
+  // else already answered it — F2 renames in the file tree — and not inside a
+  // text field, where the editor's bookmarks are not what anybody meant.
+  if (
+    event.code === 'F2' &&
+    !event.defaultPrevented &&
+    !inPlainTextField(event.target) &&
+    !event.altKey &&
+    !event.metaKey &&
+    !(event.ctrlKey && event.shiftKey)
+  ) {
+    const command = event.ctrlKey
+      ? 'bookmark.toggle'
+      : event.shiftKey
+        ? 'bookmark.previous'
+        : 'bookmark.next';
+    return () => runCommand(command);
+  }
+
   if (!event.ctrlKey || event.altKey || event.metaKey) return null;
 
   // Ctrl+Shift+2 and Ctrl+Shift+3: two or three files side by side. By code,
@@ -291,6 +395,9 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   );
   if (binding) {
     const { command } = binding;
+    if (YIELDING.has(command) && (inPlainTextField(event.target) || !commandEnabled(command))) {
+      return null;
+    }
     return () => runCommand(command);
   }
 

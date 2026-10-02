@@ -77,9 +77,16 @@ today.
 - **Macros, the way Notepad++ meant them.** Record a bit of editing, play it
   back, play it back two hundred times, play it back until the end of the file.
   One Ctrl+Z undoes the whole run.
-- **Nothing is lost when the app closes.** Unsaved buffers are written as drafts
-  next to the session, so the window comes back the way you left it, split
-  layout and caret positions included.
+- **Nothing is lost when the app closes, and closing never asks.** No "save or
+  discard?" — you just close it. Unsaved buffers are written as drafts next to
+  the session about a second after you type, so the window comes back the way
+  you left it, split layout, caret positions and unsaved notes included. A tab
+  with unsaved changes closes without a question too; its text goes to the note
+  trash and comes back with Ctrl+Shift+T.
+- **Time travel.** Every file and every note keeps versions on its own: on
+  save, before a reload or a replace across a folder, and every few minutes
+  while you type. Compare any of them with what is on screen, restore one, or
+  open it in a tab.
 - **Private by default.** No telemetry, no account, no cloud. Since 0.2.0 it
   asks GitHub once per start whether a newer version exists, and that one
   request for a file is everything it sends anywhere. Otherwise it reads and
@@ -88,7 +95,7 @@ today.
   Settings → Tone → Neutral. Warnings and errors are never playful, in either
   tone.
 
-> **Status: 0.4.0 is the release you can download, for Windows, macOS and
+> **Status: 0.5.0 is the release you can download, for Windows, macOS and
 > Linux.** What is on the
 > [releases page](https://github.com/MinifyX/UwUNotes-Client/releases) has a
 > checksum beside it and is signed by neither Microsoft nor Apple — what that
@@ -128,6 +135,16 @@ today.
 >   icon row under them, two or three files next to each other, and two of them
 >   compared line by line with the scrolling kept together. Ctrl+wheel zooms the
 >   view, and Tools makes MD5 and SHA checksums of text or files.
+> - **Notes that stay, and a cat that lives.** New in 0.5.0. Closing never asks
+>   any more and unsaved text survives everything, a closed tab included (the
+>   note trash, Ctrl+Shift+T). A notebook in the sidebar lists the open notes
+>   and the trash, untitled notes name themselves after their first line, and
+>   Zeitreise keeps versions of every file and note. Markdown gets a live
+>   preview with clickable checkboxes (Ctrl+Shift+V), the sidebar an outline
+>   and Notepad++ bookmarks (Ctrl+F2, F2). Zen mode (F11) is just the text,
+>   tabs can be pinned and coloured, the status bar counts words. And Nyu sits
+>   in the status bar now: she types along, falls asleep, wears a witch hat in
+>   October, levels up, has a Pomodoro timer and a few secrets.
 >
 > The [roadmap](docs/roadmap.md) is what is left, and it still has no dates on
 > purpose.
@@ -179,7 +196,8 @@ are a Tauri build target away in theory and untried in practice.
 | `apps/setup`              | The installer: the same Tauri and React, one window, the editor in it |
 | `packages/uwu-tokens`     | `@uwu/tokens` — the palette the whole UwU Suite shares                |
 | `crates/uwunotes-fs`      | Bytes: encoding detection, atomic writes, the tree, find in files     |
-| `crates/uwunotes-session` | The session file, the drafts beside it, the recent lists              |
+| `crates/uwunotes-session` | The session file, the drafts beside it, the note trash                |
+| `crates/uwunotes-history` | Zeitreise: compressed, thinned-out versions of every file and note    |
 | `brand/`                  | Nyu in her notepad body: app icon, symbol, mono symbol                |
 | `docs/`                   | Vision, architecture, design, roadmap                                 |
 | `scripts/`                | The translation check, the setup build, the update feed               |

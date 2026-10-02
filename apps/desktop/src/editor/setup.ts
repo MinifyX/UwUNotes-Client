@@ -52,8 +52,11 @@ import { allDocs, getDoc, setBaseExtensions, setDocState, type DocId } from '../
 import { getSettings, subscribeSettings, type Settings } from '../lib/settings';
 import { viewFor } from '../lib/views';
 import { getWorkspace } from '../lib/workspace';
+import { subscribeZen, zenActive } from '../lib/zen';
+import { bookmarks } from './bookmarks';
 import { compareExtension } from './compare';
 import { indentGuides, printMargin, whitespaceMarkers } from './decorations';
+import { focusExtensions } from './focus';
 import { registerBuiltinPlugins } from './extensions/builtin';
 import { enabledPluginIds, pluginExtensions, subscribePlugins } from './extensions/registry';
 import { editorKeymap } from './keymap';
@@ -95,6 +98,9 @@ export function baseExtensions(): Extension {
     editorKeymap,
     // Empty until two files are compared; see `lib/compare.ts`.
     compareExtension,
+    // Base rather than settings: the marks are part of the document, written
+    // into the session, and must survive every reconfigure untouched.
+    bookmarks,
     languageCompartment.of([]),
     settingsCompartment.of(settingsExtensions(getSettings())),
   ];
@@ -120,6 +126,8 @@ function fontStack(family: string): string {
  * compartment means switching it back on is one transaction away.
  */
 export function settingsExtensions(settings: Settings): Extension {
+  // Zen mode reconfigures like a setting does; see `editor/focus.ts`.
+  const zen = zenActive();
   const extensions: Extension[] = [
     themeById(settings.editorTheme).extension,
     EditorState.tabSize.of(settings.tabSize),
@@ -152,7 +160,9 @@ export function settingsExtensions(settings: Settings): Extension {
   if (settings.indentGuides) extensions.push(indentGuides);
   if (settings.showWhitespace) extensions.push(whitespaceMarkers);
   if (settings.printMargin) extensions.push(printMargin(settings.printMarginColumn));
-  if (settings.minimap) extensions.push(minimap);
+  // The map is the opposite of what zen mode is for.
+  if (settings.minimap && !zen) extensions.push(minimap);
+  extensions.push(focusExtensions(settings, zen));
 
   extensions.push(pluginExtensions(enabledPluginIds()));
   return extensions;
@@ -336,6 +346,9 @@ function editorSignature(settings: Settings): string {
     settings.closeBrackets,
     settings.autocomplete,
     settings.highlightSelectionMatches,
+    settings.zenTypewriter,
+    settings.zenFocusDim,
+    settings.typewriterScrolling,
   ].join('\u0000');
 }
 
@@ -363,10 +376,12 @@ export function startEditorConfigSync(): () => void {
   // A plugin toggle has no signature to compare: the registry only announces
   // when something actually changed.
   const stopPlugins = subscribePlugins(reconfigureAllDocs);
+  const stopZen = subscribeZen(reconfigureAllDocs);
 
   return () => {
     stopSettings();
     stopPlugins();
+    stopZen();
     syncing = false;
   };
 }

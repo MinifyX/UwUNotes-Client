@@ -8,6 +8,11 @@
 //!
 //! Every optional field has a serde default, so a session written by an older
 //! build loses at most the fields it never had — never the whole session.
+//!
+//! Fields this crate does not name — a tab's pin, its colour, its bookmarks —
+//! land in `extra` and are written back untouched. The page owns what they
+//! mean, the same way it owns `layout`, and a new per-tab detail then needs
+//! no Rust change to survive a restart.
 
 use std::collections::BTreeMap;
 
@@ -42,6 +47,9 @@ pub struct SessionDocument {
     pub dirty: bool,
     #[serde(default)]
     pub stamp: Option<FileStamp>,
+    /// Everything else the page stored on this document, carried verbatim.
+    #[serde(flatten, default)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -73,6 +81,9 @@ pub struct StoredSession {
     pub recent_files: Vec<String>,
     #[serde(default)]
     pub recent_folders: Vec<String>,
+    /// Everything else the page stored on the session, carried verbatim.
+    #[serde(flatten, default)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 impl Default for StoredSession {
@@ -86,6 +97,7 @@ impl Default for StoredSession {
             folder: None,
             recent_files: Vec::new(),
             recent_folders: Vec::new(),
+            extra: serde_json::Map::new(),
         }
     }
 }

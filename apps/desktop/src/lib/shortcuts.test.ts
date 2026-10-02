@@ -21,7 +21,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runCommand } from './commands';
+import { commandEnabled, runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
 import type { Macro } from './macros';
 import {
@@ -32,23 +32,29 @@ import {
   normalizeMacroShortcut,
 } from './shortcuts';
 import { activateTabAt, cyclePane } from './workspace';
+import { zenActive } from './zen';
 
-vi.mock('./commands', () => ({ runCommand: vi.fn() }));
+vi.mock('./commands', () => ({ runCommand: vi.fn(), commandEnabled: vi.fn() }));
 vi.mock('./workspace', () => ({ activateTabAt: vi.fn(), cyclePane: vi.fn() }));
 // `macroWithShortcut` reading the stored list is `macros.test.ts`'s ground to
 // cover; here it is the knob that says whether a macro claims these keys.
 vi.mock('./macros', () => ({ macroWithShortcut: vi.fn(), playMacro: vi.fn() }));
+// Whether zen mode is on decides what a bare Escape means, and nothing else.
+vi.mock('./zen', () => ({ zenActive: vi.fn() }));
 
 const command = vi.mocked(runCommand);
+const enabled = vi.mocked(commandEnabled);
 const macroFor = vi.mocked(macroWithShortcut);
 const play = vi.mocked(playMacro);
 const tabAt = vi.mocked(activateTabAt);
 const pane = vi.mocked(cyclePane);
+const zen = vi.mocked(zenActive);
 
 let uninstall: (() => void) | null = null;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  enabled.mockReturnValue(true);
   uninstall = installShortcuts();
 });
 
@@ -73,7 +79,7 @@ type Combo = {
   meta?: boolean;
 };
 
-function press(combo: Combo): KeyboardEvent {
+function press(combo: Combo, target: EventTarget = window): KeyboardEvent {
   const event = new KeyboardEvent('keydown', {
     code: combo.code ?? '',
     key: combo.key ?? '',
@@ -84,16 +90,26 @@ function press(combo: Combo): KeyboardEvent {
     bubbles: true,
     cancelable: true,
   });
-  window.dispatchEvent(event);
+  target.dispatchEvent(event);
   return event;
 }
 
 /** The command a combination asks for, or `null` when it asks for nothing. */
-function commandFor(combo: Combo): string | null {
+function commandFor(combo: Combo, target?: EventTarget): string | null {
   command.mockClear();
-  press(combo);
+  press(combo, target);
   return command.mock.calls[0]?.[0] ?? null;
 }
+
+/** An element in the page for a key to start from; removed after the test. */
+function mounted<T extends HTMLElement>(element: T): T {
+  document.body.append(element);
+  return element;
+}
+
+afterEach(() => {
+  document.body.replaceChildren();
+});
 
 /** A macro under a known id, built fresh so no test can edit another's. */
 function macroOf(shortcut: string): Macro {
@@ -276,6 +292,113 @@ describe('F6', () => {
   });
 });
 
+describe('zen mode', () => {
+  it('toggles on F11, with no modifier at all', () => {
+    expect(commandFor({ code: 'F11', key: 'F11' })).toBe('view.zen');
+    expect(commandFor({ code: 'F11', key: 'F11', ctrl: true })).toBe(null);
+    expect(commandFor({ code: 'F11', key: 'F11', shift: true })).toBe(null);
+  });
+
+  it('leaves Escape alone when zen mode is off', () => {
+    zen.mockReturnValue(false);
+    const event = press({ code: 'Escape', key: 'Escape' });
+    expect(command).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves zen mode on an Escape nobody else wanted', () => {
+    zen.mockReturnValue(true);
+    expect(commandFor({ code: 'Escape', key: 'Escape' })).toBe('view.zen');
+  });
+
+  it('does not take an Escape that a bar or the editor already answered', () => {
+    zen.mockReturnValue(true);
+    // A handler earlier on the way up, as the find bar or CodeMirror would be.
+    const answer = (event: KeyboardEvent) => event.preventDefault();
+    window.addEventListener('keydown', answer, true);
+    try {
+      expect(commandFor({ code: 'Escape', key: 'Escape' })).toBe(null);
+    } finally {
+      window.removeEventListener('keydown', answer, true);
+    }
+  });
+});
+
+describe('F2', () => {
+  it('walks the bookmarks, and sets one with Ctrl, as in Notepad++', () => {
+    expect(commandFor({ code: 'F2', key: 'F2' })).toBe('bookmark.next');
+    expect(commandFor({ code: 'F2', key: 'F2', shift: true })).toBe('bookmark.previous');
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true })).toBe('bookmark.toggle');
+  });
+
+  it('leaves Alt+F2 and Ctrl+Shift+F2 alone', () => {
+    expect(commandFor({ code: 'F2', key: 'F2', alt: true })).toBeNull();
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true, shift: true })).toBeNull();
+  });
+
+  it('leaves an F2 alone that the file tree already used to rename', () => {
+    const tree = mounted(document.createElement('div'));
+    const rename = (event: KeyboardEvent) => event.preventDefault();
+    tree.addEventListener('keydown', rename);
+    expect(commandFor({ code: 'F2', key: 'F2' }, tree)).toBeNull();
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true }, tree)).toBeNull();
+  });
+
+  it('leaves F2 to a text field, but not to the editor', () => {
+    const field = mounted(document.createElement('input'));
+    const area = mounted(document.createElement('textarea'));
+    expect(commandFor({ code: 'F2', key: 'F2' }, field)).toBeNull();
+    expect(commandFor({ code: 'F2', key: 'F2', shift: true }, area)).toBeNull();
+    expect(press({ code: 'F2', key: 'F2', ctrl: true }, field).defaultPrevented).toBe(false);
+
+    // CodeMirror's content is contenteditable, and its bookmarks are the point.
+    const editor = mounted(document.createElement('div'));
+    editor.className = 'cm-content';
+    editor.contentEditable = 'true';
+    const line = document.createElement('div');
+    editor.append(line);
+    expect(commandFor({ code: 'F2', key: 'F2' }, line)).toBe('bookmark.next');
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true }, editor)).toBe('bookmark.toggle');
+  });
+
+  it('still answers from a checkbox', () => {
+    const box = mounted(document.createElement('input'));
+    box.type = 'checkbox';
+    expect(commandFor({ code: 'F2', key: 'F2' }, box)).toBe('bookmark.next');
+  });
+});
+
+describe('the Markdown preview', () => {
+  it('is Ctrl+Shift+V, by code', () => {
+    expect(commandFor({ code: 'KeyV', key: 'V', ctrl: true, shift: true })).toBe(
+      'markdown.togglePreview',
+    );
+    expect(commandFor({ code: 'KeyV', key: 'v', ctrl: true })).toBeNull();
+  });
+
+  it('leaves the key to paste-as-plain-text when there is no preview to toggle', () => {
+    enabled.mockReturnValue(false);
+    const event = press({ code: 'KeyV', key: 'V', ctrl: true, shift: true });
+    expect(command).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+    expect(enabled).toHaveBeenCalledWith('markdown.togglePreview');
+  });
+
+  it('leaves the key to a text field even on a Markdown file', () => {
+    const field = mounted(document.createElement('input'));
+    const event = press({ code: 'KeyV', key: 'V', ctrl: true, shift: true }, field);
+    expect(command).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('is the only binding that gives its key back when disabled', () => {
+    // Ctrl+S with nothing to save stays a quiet no-op rather than the
+    // browser's "save page".
+    enabled.mockReturnValue(false);
+    expect(press({ code: 'KeyS', key: 's', ctrl: true }).defaultPrevented).toBe(true);
+  });
+});
+
 describe('Ctrl and a digit', () => {
   it('jumps straight to that tab, counting from zero', () => {
     press({ code: 'Digit1', key: '1', ctrl: true });
@@ -426,6 +549,8 @@ describe('the keys a macro may not have', () => {
     expect(macroShortcutTaken('Ctrl+Tab')).toBe(true);
     expect(macroShortcutTaken('Ctrl+Comma')).toBe(true);
     expect(macroShortcutTaken('Ctrl+Shift+KeyY')).toBe(true);
+    expect(macroShortcutTaken('Ctrl+Shift+KeyV')).toBe(true);
+    expect(macroShortcutTaken('Ctrl+F2')).toBe(true);
   });
 
   it('refuses the digits, which are zoom and the tab jumps', () => {
@@ -452,6 +577,7 @@ describe('the keys a macro may not have', () => {
     expect(macroShortcutTaken('Ctrl+KeyJ')).toBe(false);
     expect(macroShortcutTaken('Ctrl+Shift+KeyJ')).toBe(false);
     expect(macroShortcutTaken('Ctrl+F8')).toBe(false);
+    expect(macroShortcutTaken('Ctrl+Shift+F2')).toBe(false);
     expect(macroShortcutTaken('Ctrl+KeyE')).toBe(false);
   });
 

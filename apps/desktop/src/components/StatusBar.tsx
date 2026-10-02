@@ -13,13 +13,12 @@
  *
  * ## How it follows the caret
  *
- * By polling `activeView()` on an animation frame, and only while the window
- * has focus. The alternative — a `EditorView.updateListener` pushed in through
- * the plugin registry — means every open document carries an extension whose
- * only purpose is to feed one line of chrome, and it fires on every keystroke
- * whether or not anything in the selection changed. The poll reads five numbers
- * off a state that is already in memory, compares them to the last five, and
- * does nothing at all the vast majority of frames. It is the smaller thing.
+ * By listening to the store: every editor transaction is written back to
+ * `lib/documents.ts`, which says so through `subscribeDocState`, and switching
+ * tabs or panes goes through the workspace. Each time the active document's
+ * state is read, five numbers compared to the last five, and React only hears
+ * about it when one of them moved. No extension in every document, and no
+ * loop: a window nobody types into does no work at all.
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -30,14 +29,22 @@ import { setDocEol } from '../lib/files';
 import { refreshGitStatus, useGitBranch } from '../lib/git';
 import { t, useLanguage } from '../lib/i18n';
 import { TAB_SIZES, updateSettings, useSettings } from '../lib/settings';
-import { activeView } from '../lib/views';
 import { activeDocId, useWorkspace } from '../lib/workspace';
 import { PLAIN_TEXT, resolveLanguage } from '../editor/languages';
+import { NyuCompanion } from './nyu/companion/NyuCompanion';
+import { PomodoroItem } from './nyu/companion/PomodoroItem';
 import { pickGreeting } from './nyu/greetings';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
 import { Icon } from './Icon';
 import { LanguagePicker } from './LanguagePicker';
+import {
+  activeState,
+  followActiveState,
+  TextStatsPopover,
+  useTextStats,
+  wordCountLabel,
+} from './TextStats';
 
 /** Long enough to read, short enough to be gone before it is in the way. */
 const SAVED_MESSAGE_MS = 4_000;
@@ -74,17 +81,11 @@ function useCaret(): Caret | null {
   const [caret, setCaret] = useState<Caret | null>(null);
 
   useEffect(() => {
-    let frame = 0;
     let previous = '';
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      // Nothing can move the caret while the window is in the background, and
-      // an editor nobody is looking at is not worth a measurement a frame.
-      if (!document.hasFocus()) return;
-
-      const view = activeView();
-      if (!view) {
+    const look = () => {
+      const state = activeState();
+      if (!state) {
         if (previous !== '') {
           previous = '';
           setCaret(null);
@@ -92,7 +93,6 @@ function useCaret(): Caret | null {
         return;
       }
 
-      const state = view.state;
       const main = state.selection.main;
       const signature = `${main.anchor}:${main.head}:${state.selection.ranges.length}:${state.doc.length}`;
       if (signature === previous) return;
@@ -111,8 +111,8 @@ function useCaret(): Caret | null {
       });
     };
 
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    look();
+    return followActiveState(look);
   }, []);
 
   return caret;
@@ -154,7 +154,7 @@ function useSavedMessage(docId: DocId | null, dirty: boolean): string | null {
   return message;
 }
 
-type Popover = 'language' | 'encoding' | 'eol' | 'indent' | null;
+type Popover = 'language' | 'encoding' | 'eol' | 'indent' | 'stats' | null;
 
 export function StatusBar() {
   useLanguage();
@@ -163,6 +163,7 @@ export function StatusBar() {
   const settings = useSettings();
   const branch = useGitBranch();
   const caret = useCaret();
+  const stats = useTextStats(settings.statusWordCount);
 
   const docId = activeDocId();
   const meta = docId ? getMeta(docId) : undefined;
@@ -197,6 +198,7 @@ export function StatusBar() {
 
   return (
     <footer className="statusbar">
+      <NyuCompanion />
       <div className="statusbar-message" aria-live="polite">
         {meta?.staleOnDisk ? (
           <span className="statusbar-notice" data-tone="warning">
@@ -217,6 +219,7 @@ export function StatusBar() {
       </div>
 
       <div className="statusbar-items">
+        <PomodoroItem />
         <button
           type="button"
           className="statusbar-item"
@@ -224,8 +227,23 @@ export function StatusBar() {
           disabled={!caret}
           title={t('Gehe zu Zeile…')}
         >
-          {caret ? caretLabel(caret) : NOTHING}
+          {/* The word count says what is selected in more detail; with it on,
+              the caret item goes back to being just the position. */}
+          {caret ? caretLabel(caret, stats !== null) : NOTHING}
         </button>
+
+        {stats ? (
+          <button
+            type="button"
+            className="statusbar-item statusbar-words"
+            aria-haspopup="dialog"
+            aria-expanded={popover === 'stats'}
+            onClick={(event) => toggle('stats', event.currentTarget)}
+            title={t('Textstatistik')}
+          >
+            {wordCountLabel(stats)}
+          </button>
+        ) : null}
 
         <button
           type="button"
@@ -320,6 +338,9 @@ export function StatusBar() {
       {popover === 'encoding' && docId ? (
         <EncodingMenu docId={docId} anchor={anchor} onClose={() => close('encoding')} />
       ) : null}
+      {popover === 'stats' && stats ? (
+        <TextStatsPopover stats={stats} anchor={anchor} onClose={() => close('stats')} />
+      ) : null}
       {popover === 'language' && docId ? (
         <LanguagePicker docId={docId} anchor={anchor} onClose={() => close('language')} />
       ) : null}
@@ -334,8 +355,8 @@ export function StatusBar() {
  * needs to see the comma and the middle dot in context to punctuate the other
  * language correctly, and German and English do not agree about either.
  */
-function caretLabel(caret: Caret): string {
-  if (caret.selected === 0) {
+function caretLabel(caret: Caret, positionOnly = false): string {
+  if (caret.selected === 0 || positionOnly) {
     return t('Z. {line}, Sp. {column}', { line: caret.line, column: caret.column });
   }
   if (caret.selectedLines > 1) {

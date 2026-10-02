@@ -31,10 +31,12 @@ import {
   type DocId,
 } from '../lib/documents';
 import type { PaneId } from '../lib/layout';
+import { isMarkdownDoc, usePreviewOpen, usePreviewRatio } from '../lib/preview';
 import { takeRestoredScroll } from '../lib/session';
 import { registerView } from '../lib/views';
 import { focusPane, useWorkspace } from '../lib/workspace';
 import { EmptyPane } from './EmptyPane';
+import { MarkdownPreview } from './MarkdownPreview';
 import { TabBar } from './TabBar';
 
 export function EditorPane({ pane }: { pane: PaneId }) {
@@ -46,6 +48,11 @@ export function EditorPane({ pane }: { pane: PaneId }) {
 
   const docId = workspace.panes[pane]?.active ?? null;
   const isActivePane = workspace.activePane === pane;
+  // Checked against the language on every render, so picking "Text" for a
+  // README by hand takes its preview away rather than rendering it anyway.
+  const previewWanted = usePreviewOpen(docId);
+  const previewRatio = usePreviewRatio();
+  const showPreview = docId !== null && previewWanted && isMarkdownDoc(docId);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -170,9 +177,22 @@ export function EditorPane({ pane }: { pane: PaneId }) {
       onFocusCapture={() => focusPane(pane)}
     >
       <TabBar pane={pane} />
-      <div className="editorpane-body">
+      <div
+        className="editorpane-body"
+        data-preview={showPreview ? true : undefined}
+        style={
+          showPreview
+            ? {
+                gridTemplateColumns: `minmax(0, ${previewRatio}fr) auto minmax(0, ${1 - previewRatio}fr)`,
+              }
+            : undefined
+        }
+      >
         <div className="editorpane-host" ref={hostRef} hidden={docId === null} />
         {docId === null ? <EmptyPane pane={pane} /> : null}
+        {/* Keyed on the document: a preview that gave up on one file (too
+            large) has no reason to give up on the next tab's. */}
+        {showPreview ? <MarkdownPreview key={docId} pane={pane} docId={docId} /> : null}
       </div>
     </div>
   );

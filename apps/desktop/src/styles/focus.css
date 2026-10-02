@@ -1,0 +1,284 @@
+/*
+ * Zen mode, pinned and coloured tabs, and the text statistics popover.
+ *
+ * Zen mode is almost entirely this file: `App.tsx` sets `data-zen` on `.app`
+ * and leaves every component mounted, and the rules below move the chrome out
+ * of sight instead of out of the tree. That is what lets leaving zen restore
+ * the window exactly — nothing was closed, so nothing has to be reopened.
+ *
+ * Every transition here is a fade or a short slide, and the tokens' global
+ * `data-motion='reduced'` rule cuts them all to 1 ms without help.
+ */
+
+/* ── Zen: the chrome steps aside ───────────────────────── */
+
+.app[data-zen] {
+  background: var(--uwu-deep);
+}
+
+.app[data-zen] .app-body {
+  animation: zen-in 280ms ease-out;
+}
+
+@keyframes zen-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * Title bar and status bar float over the text, parked just past their edge.
+ * They come back while the pointer rests on the edge strip or on the bar
+ * itself, and while anything inside has focus — an open menu, a status bar
+ * popover — so a bar never slides away from under a menu being used.
+ */
+.app[data-zen] .appheader,
+.app[data-zen] .statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  opacity: 0;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
+}
+
+.app[data-zen] .appheader {
+  top: 0;
+  transform: translateY(calc(-100% - 1px));
+  box-shadow: 0 18px 40px -26px var(--app-shade);
+}
+
+.app[data-zen] .statusbar {
+  bottom: 0;
+  transform: translateY(calc(100% + 1px));
+}
+
+.app[data-zen] .zen-edge[data-edge='top']:hover + .appheader,
+.app[data-zen] .appheader:hover,
+.app[data-zen] .appheader:focus-within,
+.app[data-zen] .zen-edge[data-edge='bottom']:hover + .statusbar,
+.app[data-zen] .statusbar:hover,
+.app[data-zen] .statusbar:focus-within {
+  transform: none;
+  opacity: 1;
+  /* A short wait, so a pointer flicking past the edge on its way somewhere
+     else does not drag a bar along with it. */
+  transition-delay: 120ms;
+}
+
+.zen-edge {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 39;
+  height: 6px;
+}
+
+.zen-edge[data-edge='top'] {
+  top: 0;
+}
+
+.zen-edge[data-edge='bottom'] {
+  bottom: 0;
+}
+
+/* One pane, no tab bar, no divider, no compare banner. The other halves of a
+   split stay mounted — their editors keep their scroll — and are simply not
+   shown. */
+.app[data-zen] .tabbar,
+.app[data-zen] .comparebar,
+.app[data-zen] .split-divider,
+.app[data-zen] .split-half:not(:has(.editorpane[data-active='true'])) {
+  display: none;
+}
+
+.app[data-zen] .split-half {
+  flex: 1 1 0% !important;
+}
+
+/* ── Zen: the column ───────────────────────────────────── */
+
+/*
+ * The text as a centred column, `--zen-columns` characters of the editor's own
+ * font wide (`ch` resolves on `.cm-content`, so it is the mono face, not the
+ * chrome's). Gutters go: line numbers beside a column of prose are noise, and
+ * the git and fold marks come back the moment zen ends.
+ */
+.app[data-zen] .cm-gutters {
+  display: none;
+}
+
+.app[data-zen] .cm-content {
+  flex: 0 1 calc(var(--zen-columns, 80) * 1ch);
+  max-width: 100%;
+  margin: 0 auto;
+  padding-top: 10vh;
+}
+
+/* Focus dimming: the lines outside the caret's paragraph, from `editor/focus.ts`. */
+.app[data-zen] .cm-line {
+  transition: opacity 180ms ease;
+}
+
+.app[data-zen] .cm-line.cm-uwuDimmed {
+  opacity: 0.32;
+}
+
+/* "Esc zum Verlassen": fades in, sits, fades out, gone. */
+.zen-hint {
+  position: fixed;
+  top: 22px;
+  left: 50%;
+  z-index: 41;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-elevated);
+  color: var(--uwu-muted);
+  font-size: 12px;
+  pointer-events: none;
+  transition: opacity 400ms ease;
+  animation: zen-in 300ms ease-out;
+}
+
+.zen-hint[data-phase='fading'] {
+  opacity: 0;
+}
+
+/* ── Pinned and coloured tabs ──────────────────────────── */
+
+.tabbar-tab-pin {
+  display: grid;
+  place-items: center;
+  margin-right: 5px;
+  color: var(--uwu-muted);
+}
+
+.tabbar-tab[data-active='true'] .tabbar-tab-pin {
+  color: var(--uwu-ink);
+}
+
+/* Compact: a pinned tab is recognised by its place and its pin, not read. */
+.tabbar-tab[data-pinned] {
+  max-width: 140px;
+}
+
+.tabbar-tab[data-pinned] .tabbar-tab-select {
+  padding-left: 9px;
+}
+
+/* The last pinned tab gets a slightly stronger edge, so the two groups read as
+   two groups. */
+.tabbar-tab[data-pinned]:has(+ .tabbar-tab:not([data-pinned])) {
+  border-right-color: var(--uwu-border);
+}
+
+/*
+ * A colour is a stripe along the bottom edge. The top edge is the active tab's
+ * pink, and the tab name is already coloured by git — the bottom is the one
+ * place left that says nothing yet.
+ */
+.tabbar-tab[data-color]::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--tab-color);
+  pointer-events: none;
+}
+
+.tabbar-tab[data-color='blue'] {
+  --tab-color: var(--uwu-code-function);
+}
+
+.tabbar-tab[data-color='green'] {
+  --tab-color: var(--uwu-code-string);
+}
+
+.tabbar-tab[data-color='yellow'] {
+  --tab-color: var(--uwu-code-number);
+}
+
+.tabbar-tab[data-color='violet'] {
+  --tab-color: var(--uwu-code-type);
+}
+
+.tabbar-tab[data-color='red'] {
+  --tab-color: var(--uwu-code-invalid);
+}
+
+/* ── Text statistics ───────────────────────────────────── */
+
+.statusbar-words {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Placed by `usePopoverPosition`, like the encoding and language popovers. */
+.textstats {
+  position: fixed;
+  z-index: 35;
+  display: grid;
+  gap: 10px;
+  width: 300px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-card);
+  background: var(--uwu-surface);
+  box-shadow: 0 20px 48px -20px var(--app-shade);
+  font-size: 12px;
+}
+
+.textstats:focus {
+  outline: none;
+}
+
+.textstats-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.textstats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.textstats-table th,
+.textstats-table td {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--uwu-hairline);
+  text-align: right;
+  font-weight: 400;
+}
+
+.textstats-table th[scope='row'] {
+  text-align: left;
+  color: var(--uwu-muted);
+}
+
+.textstats-table thead th {
+  color: var(--uwu-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.textstats-table tr:last-child th,
+.textstats-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.textstats-table td + td {
+  padding-left: 14px;
+}
+
+.textstats-note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}

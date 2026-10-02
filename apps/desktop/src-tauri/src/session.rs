@@ -1,4 +1,4 @@
-//! What was open last time, and the unsaved text beside it.
+//! What was open last time, the unsaved text beside it, and the note trash.
 //!
 //! The store lives in the app's data directory, or wherever `UWUNOTES_DIR`
 //! points — `lib.rs` decides that once at startup, so trying things out never
@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use tauri::State;
 use uwunotes_fs::FsError;
-use uwunotes_session::StoredSession;
+use uwunotes_session::{StoredSession, TrashEntry, TrashNote, TrashSummary};
 
 use crate::{AppState, CommandResult};
 
@@ -105,6 +105,58 @@ pub(crate) async fn read_draft(
 pub(crate) async fn drop_draft(state: State<'_, AppState>, doc_id: String) -> CommandResult<()> {
     let store = Arc::clone(&state.session);
     tauri::async_runtime::spawn_blocking(move || store.drop_draft(&doc_id))
+        .await
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+}
+
+/// Puts the unsaved text of a tab being closed into the note trash. The page
+/// closes the tab only after this succeeded.
+#[tauri::command]
+pub(crate) async fn trash_note(
+    state: State<'_, AppState>,
+    note: TrashNote,
+) -> CommandResult<TrashSummary> {
+    let store = Arc::clone(&state.session);
+    tauri::async_runtime::spawn_blocking(move || store.trash_note(note))
+        .await
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+}
+
+/// The trash, newest first, without the full texts.
+#[tauri::command]
+pub(crate) async fn list_trash(state: State<'_, AppState>) -> CommandResult<Vec<TrashSummary>> {
+    let store = Arc::clone(&state.session);
+    tauri::async_runtime::spawn_blocking(move || store.list_trash())
+        .await
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+}
+
+/// One trash entry with its text, or `null` when it is gone.
+#[tauri::command]
+pub(crate) async fn read_trash(
+    state: State<'_, AppState>,
+    id: String,
+) -> CommandResult<Option<TrashEntry>> {
+    let store = Arc::clone(&state.session);
+    tauri::async_runtime::spawn_blocking(move || store.read_trash(&id))
+        .await
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+}
+
+/// Deletes one trash entry for good — after a restore, or on request.
+#[tauri::command]
+pub(crate) async fn delete_trash(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    let store = Arc::clone(&state.session);
+    tauri::async_runtime::spawn_blocking(move || store.delete_trash(&id))
+        .await
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+}
+
+/// Deletes every trash entry. The page has asked before calling this.
+#[tauri::command]
+pub(crate) async fn empty_trash(state: State<'_, AppState>) -> CommandResult<()> {
+    let store = Arc::clone(&state.session);
+    tauri::async_runtime::spawn_blocking(move || store.empty_trash())
         .await
         .unwrap_or_else(|error| Err(thread_stopped(&error)))
 }

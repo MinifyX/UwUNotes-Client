@@ -69,6 +69,11 @@ impl SessionStore {
         }
     }
 
+    /// The config directory itself, for the trash beside the drafts.
+    pub(crate) fn directory(&self) -> &Path {
+        &self.directory
+    }
+
     pub fn session_path(&self) -> PathBuf {
         self.directory.join(SESSION_FILE)
     }

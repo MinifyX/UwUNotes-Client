@@ -21,7 +21,6 @@ import type { Eol } from './api';
 import { ENCODINGS, EOLS, eolName } from './encodings';
 import { allDocs, getMeta, patchMeta } from './documents';
 import {
-  closeAllSafely,
   closeDocSafely,
   hasClosedTabs,
   newFile,
@@ -50,15 +49,23 @@ import {
   startRecording,
   stopRecording,
 } from './macros';
+import { dance, petCompanion } from './nyu';
+import { getPomodoro, skipPhase, startFocus, stopFocus, togglePomodoro } from './nyu-pomodoro';
 import { ask } from './prompt';
 import { getSettings, updateSettings } from './settings';
 import { macroShortcutText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, focusActiveView } from './views';
-import { toggleSidebar } from './chrome';
+import { bookmarkCommands } from './bookmarks';
+import { setSidebarView, toggleSidebar } from './chrome';
+import { emptyTrashAsked, trashEntries } from './notebook';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
+import { markdownCommands } from './preview';
+import { historyCommands } from './history';
 import { printDoc } from './print';
+import { canCloseInPane, closeAllUnpinned, closeInPane, togglePinned } from './tab-actions';
+import { toggleZen, zenActive } from './zen';
 import { getZoom, resetZoom, stepZoom, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from './zoom';
 import {
   activeDocId,
@@ -102,7 +109,8 @@ export type DialogName =
   | 'macros'
   | 'settings'
   | 'about'
-  | 'hash';
+  | 'hash'
+  | 'nyu';
 
 export type UiState = { readonly dialog: DialogName | null };
 
@@ -152,14 +160,29 @@ export function allCommands(): Command[] {
     ...editCommands(),
     ...searchCommands(),
     ...viewCommands(),
+    ...markdownCommands(),
+    ...bookmarkCommands(),
     ...encodingCommands(),
     ...eolCommands(),
     ...languageCommands(),
     ...macroCommands(),
+    ...notebookCommands(),
     ...toolCommands(),
+    ...historyCommands(),
     ...extensionCommands(),
+    ...nyuCommands(),
     ...appCommands(),
   ];
+}
+
+/**
+ * Whether a command exists and may run right now. For the keyboard, which
+ * must leave a key to the browser when the command it stands for would do
+ * nothing — see `markdown.togglePreview` in `lib/shortcuts.ts`.
+ */
+export function commandEnabled(id: string): boolean {
+  const command = allCommands().find((entry) => entry.id === id);
+  return command !== undefined && (!command.enabled || command.enabled());
 }
 
 export function runCommand(id: string): void {
@@ -326,8 +349,30 @@ function fileCommands(): Command[] {
       group,
       shortcut: shortcutLabel('file.closeAll'),
       enabled: hasDoc,
+      // Pinned tabs stay, as they do for every bulk close; see `lib/tabs.ts`.
+      // Quitting closes no tab at all: the window's close guard in `App.tsx`
+      // writes the session and the drafts, and the next start brings back
+      // every tab, pinned or not.
       run: async () => {
-        await closeAllSafely();
+        await closeAllUnpinned();
+      },
+    },
+    {
+      id: 'file.closeOthers',
+      title: () => t('Andere Tabs schließen'),
+      group,
+      enabled: () => canCloseInPane(getWorkspace().activePane, activeDocId(), 'others'),
+      run: async () => {
+        await closeInPane(getWorkspace().activePane, activeDocId(), 'others');
+      },
+    },
+    {
+      id: 'file.closeToRight',
+      title: () => t('Tabs rechts schließen'),
+      group,
+      enabled: () => canCloseInPane(getWorkspace().activePane, activeDocId(), 'right'),
+      run: async () => {
+        await closeInPane(getWorkspace().activePane, activeDocId(), 'right');
       },
     },
     {
@@ -428,6 +473,38 @@ function viewCommands(): Command[] {
       run: () => cycleTab(true),
     },
     {
+      id: 'tab.togglePin',
+      title: () => {
+        const id = activeDocId();
+        return id && getMeta(id)?.pinned ? t('Tab lösen') : t('Tab anheften');
+      },
+      group,
+      enabled: () => activeDocId() !== null,
+      run: () => {
+        const id = activeDocId();
+        if (id) togglePinned(id);
+      },
+    },
+    {
+      id: 'view.zen',
+      title: () => (zenActive() ? t('Zen-Modus beenden') : t('Zen-Modus')),
+      group,
+      shortcut: shortcutLabel('view.zen'),
+      run: toggleZen,
+    },
+    {
+      id: 'view.toggleTypewriter',
+      title: () => t('Schreibmaschinen-Scrollen umschalten'),
+      group,
+      run: () => updateSettings({ typewriterScrolling: !getSettings().typewriterScrolling }),
+    },
+    {
+      id: 'view.toggleZenFocusDim',
+      title: () => t('Fokus-Abdunklung im Zen-Modus umschalten'),
+      group,
+      run: () => updateSettings({ zenFocusDim: !getSettings().zenFocusDim }),
+    },
+    {
       id: 'view.splitRight',
       title: () => t('Nach rechts teilen'),
       group,
@@ -493,6 +570,12 @@ function viewCommands(): Command[] {
       shortcut: shortcutLabel('view.previousDifference'),
       enabled: () => (getCompare().differences ?? 0) > 0,
       run: () => gotoDifference(true),
+    },
+    {
+      id: 'view.showOutline',
+      title: () => t('Gliederung zeigen'),
+      group,
+      run: () => setSidebarView('outline'),
     },
     {
       id: 'view.toggleSidebar',
@@ -767,6 +850,26 @@ function macroCommands(): Command[] {
  * the selection straight into the clipboard — Notepad++'s three MD5 entries,
  * for every algorithm rather than just the one.
  */
+/** The notebook view and its trash; see `lib/notebook.ts`. */
+function notebookCommands(): Command[] {
+  const group = () => t('Notizbuch');
+  return [
+    {
+      id: 'notes.show',
+      title: () => t('Notizbuch zeigen'),
+      group,
+      run: () => setSidebarView('notebook'),
+    },
+    {
+      id: 'notes.emptyTrash',
+      title: () => t('Papierkorb leeren'),
+      group,
+      enabled: () => trashEntries().length > 0,
+      run: emptyTrashAsked,
+    },
+  ];
+}
+
 function toolCommands(): Command[] {
   const group = () => t('Werkzeuge');
   const commands: Command[] = [
@@ -828,6 +931,66 @@ function extensionCommands(): Command[] {
     group,
     run: command.run,
   }));
+}
+
+/**
+ * Nyu's corner of the palette: the Pomodoro, her achievements, and two
+ * commands that exist purely to make her do something.
+ */
+function nyuCommands(): Command[] {
+  const group = () => t('Nyu');
+  const pomodoro = getPomodoro();
+  return [
+    {
+      id: 'nyu.achievements',
+      title: () => t('Nyu-Erfolge'),
+      group,
+      run: () => openDialog('nyu'),
+    },
+    {
+      id: 'nyu.pet',
+      title: () => t('Nyu streicheln'),
+      group,
+      run: petCompanion,
+    },
+    {
+      id: 'nyu.dance',
+      title: () => t('Nyu tanzen lassen'),
+      group,
+      run: dance,
+    },
+    {
+      id: 'pomodoro.start',
+      title: () => t('Nyu-Pomodoro starten'),
+      group,
+      enabled: () => getPomodoro().phase === null,
+      run: () => startFocus(),
+    },
+    {
+      id: 'pomodoro.pause',
+      title: () =>
+        pomodoro.phase !== null && pomodoro.endsAt === null
+          ? t('Nyu-Pomodoro fortsetzen')
+          : t('Nyu-Pomodoro pausieren'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => togglePomodoro(),
+    },
+    {
+      id: 'pomodoro.skip',
+      title: () => t('Nyu-Pomodoro: Abschnitt überspringen'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => skipPhase(),
+    },
+    {
+      id: 'pomodoro.stop',
+      title: () => t('Nyu-Pomodoro beenden'),
+      group,
+      enabled: () => getPomodoro().phase !== null,
+      run: () => stopFocus(),
+    },
+  ];
 }
 
 function appCommands(): Command[] {

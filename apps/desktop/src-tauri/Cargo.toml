@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 uwunotes-fs.workspace = true
+uwunotes-history.workspace = true
 uwunotes-session.workspace = true
 
 # The downloaded setup is checked against the release key once more, on the

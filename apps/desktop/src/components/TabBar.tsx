@@ -20,7 +20,13 @@
  * through props, and which has no business re-rendering because a pointer
  * passed over it.
  *
- * This bar asks nothing before closing a tab. `closeDocSafely` does that.
+ * Nothing here asks before closing a tab, and neither does `closeDocSafely`:
+ * unsaved changes go to the note trash on the way out.
+ *
+ * Pinned tabs sit at the left and show only a pin and a short name; the order
+ * is kept by `lib/workspace.ts`, and the drop marker here is clamped by the
+ * same rule (`clampDropIndex` in `lib/tabs.ts`) so it never points at a place
+ * the tab would not actually go.
  */
 
 import {
@@ -41,8 +47,11 @@ import {
 } from '../lib/documents';
 import { closeDocSafely, describeApiError, newFile } from '../lib/files';
 import { useGitStatus } from '../lib/git';
+import { showHistoryOf } from '../lib/history';
 import { t, useLanguage } from '../lib/i18n';
 import { nextPane, paneCount, type PaneId } from '../lib/layout';
+import { canCloseInPane, closeInPane, setTabColor, togglePinned } from '../lib/tab-actions';
+import { clampDropIndex, shortTabName, TAB_COLOR_NAMES, TAB_COLORS } from '../lib/tabs';
 import { toast } from '../lib/toast';
 import { focusActiveView } from '../lib/views';
 import {
@@ -55,6 +64,7 @@ import {
 } from '../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { Icon } from './Icon';
+import { PreviewToggle } from './PreviewToggle';
 
 /** A press shorter than this much movement is a click, not a drag. */
 const DRAG_THRESHOLD = 5;
@@ -94,7 +104,14 @@ function targetAt(clientX: number, clientY: number, dragged: DocId): DropTarget 
     const strip = element.closest<HTMLElement>('[data-tabstrip]');
     const stripPane = strip?.dataset.tabstrip;
     if (strip && stripPane) {
-      return { kind: 'reorder', pane: stripPane, index: insertionIndex(strip, clientX, dragged) };
+      const tabs = getWorkspace().panes[stripPane]?.tabs ?? [];
+      const index = clampDropIndex(
+        tabs,
+        dragged,
+        insertionIndex(strip, clientX, dragged),
+        (doc) => getMeta(doc)?.pinned === true,
+      );
+      return { kind: 'reorder', pane: stripPane, index };
     }
 
     const paneElement = element.closest<HTMLElement>('[data-pane]');
@@ -149,8 +166,18 @@ export function TabBar({ pane }: { pane: PaneId }) {
 
   const stripRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
+  /** Where the tab menu last opened, so the colour list can open in its place. */
+  const lastMenu = useRef<{ docId: DocId; x: number; y: number; kind: 'tab' } | null>(null);
   const [draggingDoc, setDraggingDoc] = useState<DocId | null>(null);
-  const [menu, setMenu] = useState<{ docId: DocId; x: number; y: number } | null>(null);
+  // `colors` is the second menu that "Farbe…" opens in the same spot: the
+  // context menu has no submenus, and six colour rows inline would make the
+  // menu twice as long for something chosen once per file.
+  const [menu, setMenu] = useState<{
+    docId: DocId;
+    x: number;
+    y: number;
+    kind: 'tab' | 'colors';
+  } | null>(null);
 
   /**
    * The wheel, turned sideways.
@@ -252,21 +279,43 @@ export function TabBar({ pane }: { pane: PaneId }) {
   const menuItems = (docId: DocId): ContextMenuItem[] => {
     const meta = getMeta(docId);
     const path = meta?.path ?? null;
-    const others = tabs.filter((id) => id !== docId);
     const workspaceNow = getWorkspace();
     const otherPane = nextPane(workspaceNow.layout, pane);
     return [
       { id: 'close', label: t('Schließen'), run: () => void closeDocSafely(docId) },
+      // The three bulk closes pass over pinned tabs; see `tabsToClose`.
       {
         id: 'closeOthers',
         label: t('Andere schließen'),
-        disabled: others.length === 0,
-        run: () => void closeEach(others),
+        disabled: !canCloseInPane(pane, docId, 'others'),
+        run: () => void closeInPane(pane, docId, 'others'),
+      },
+      {
+        id: 'closeRight',
+        label: t('Rechts schließen'),
+        disabled: !canCloseInPane(pane, docId, 'right'),
+        run: () => void closeInPane(pane, docId, 'right'),
       },
       {
         id: 'closeAll',
         label: t('Alle schließen'),
-        run: () => void closeEach([...tabs]),
+        disabled: !canCloseInPane(pane, docId, 'all'),
+        run: () => void closeInPane(pane, docId, 'all'),
+      },
+      {
+        id: 'pin',
+        label: meta?.pinned ? t('Lösen') : t('Anheften'),
+        run: () => togglePinned(docId),
+      },
+      {
+        id: 'color',
+        label: t('Farbe…'),
+        // Reopened as the colour list once this menu has closed itself; the
+        // frame lets its outside-click and focus handling finish first.
+        run: () =>
+          requestAnimationFrame(() =>
+            setMenu((open) => (open ? open : { ...lastMenu.current!, kind: 'colors' })),
+          ),
       },
       {
         id: 'copyPath',
@@ -280,6 +329,7 @@ export function TabBar({ pane }: { pane: PaneId }) {
         disabled: path === null,
         run: () => void reveal(path),
       },
+      { id: 'history', label: t('Zeitreise zeigen'), run: () => showHistoryOf(docId) },
       {
         id: 'moveToPane',
         label: t('In den anderen Bereich verschieben'),
@@ -311,7 +361,10 @@ export function TabBar({ pane }: { pane: PaneId }) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={() => endDrag(false)}
-            onContextMenu={(x, y) => setMenu({ docId, x, y })}
+            onContextMenu={(x, y) => {
+              lastMenu.current = { docId, x, y, kind: 'tab' };
+              setMenu(lastMenu.current);
+            }}
           />
         ))}
       </div>
@@ -329,13 +382,23 @@ export function TabBar({ pane }: { pane: PaneId }) {
       >
         <Icon name="plus" size={15} />
       </button>
+      <PreviewToggle pane={pane} />
 
-      {menu ? (
+      {menu?.kind === 'tab' ? (
         <ContextMenu
           x={menu.x}
           y={menu.y}
           items={menuItems(menu.docId)}
           label={t('Tab-Menü')}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
+      {menu?.kind === 'colors' ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={colorItems(menu.docId)}
+          label={t('Tabfarbe')}
           onClose={() => setMenu(null)}
         />
       ) : null}
@@ -388,6 +451,8 @@ function Tab({
       data-stale={meta.staleOnDisk ? true : undefined}
       data-git={gitStatus ?? undefined}
       data-dragging={dragging ? true : undefined}
+      data-pinned={meta.pinned ? true : undefined}
+      data-color={meta.color}
       onPointerDown={(event) => onPointerDown(event, docId)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -404,7 +469,7 @@ function Tab({
         aria-selected={active}
         // Roving tabindex: one stop for the whole bar, then arrows inside it.
         tabIndex={active ? 0 : -1}
-        title={meta.path ?? meta.name}
+        title={tabTitle(meta)}
         onClick={() => {
           activateDoc(docId);
           // A click on a tab means "take me to this file", so the caret goes
@@ -430,7 +495,12 @@ function Tab({
           });
         }}
       >
-        <span className="tabbar-tab-name">{meta.name}</span>
+        {meta.pinned ? (
+          <span className="tabbar-tab-pin" aria-hidden>
+            <Icon name="pin" size={12} />
+          </span>
+        ) : null}
+        <span className="tabbar-tab-name">{meta.pinned ? shortTabName(meta.name) : meta.name}</span>
       </button>
       <button
         type="button"
@@ -454,11 +524,37 @@ function tabLabel(meta: DocMeta): string {
   return meta.dirty ? t('{name} (ungespeichert)', { name: meta.name }) : meta.name;
 }
 
-/** Closes a list of tabs one at a time, stopping at the first Cancel. */
-async function closeEach(ids: DocId[]): Promise<void> {
-  for (const id of ids) {
-    if (!(await closeDocSafely(id))) return;
-  }
+/**
+ * The tooltip: the full path, and what the compact or coloured tab leaves out.
+ * The colour is only a stripe on screen, so it is also said in words here, for
+ * anybody who cannot tell the stripes apart.
+ */
+function tabTitle(meta: DocMeta): string {
+  const where = meta.path ?? meta.name;
+  const color = meta.color ? t(TAB_COLOR_NAMES[meta.color]) : null;
+  if (meta.pinned && color) return t('{name} · angeheftet · {color}', { name: where, color });
+  if (meta.pinned) return t('{name} · angeheftet', { name: where });
+  if (color) return t('{name} · {color}', { name: where, color });
+  return where;
+}
+
+/** "Keine" and the five colours, the current one ticked. */
+function colorItems(docId: DocId): ContextMenuItem[] {
+  const current = getMeta(docId)?.color ?? null;
+  return [
+    {
+      id: 'none',
+      label: t('Keine Farbe'),
+      checked: current === null,
+      run: () => setTabColor(docId, null),
+    },
+    ...TAB_COLORS.map((color) => ({
+      id: color,
+      label: t(TAB_COLOR_NAMES[color]),
+      checked: current === color,
+      run: () => setTabColor(docId, color),
+    })),
+  ];
 }
 
 async function copyPath(path: string | null): Promise<void> {

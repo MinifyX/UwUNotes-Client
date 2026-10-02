@@ -109,3 +109,25 @@ fn the_line_endings_the_page_spells() {
             .unwrap_or_else(|error| panic!("eol {spelling} must deserialise: {error}"));
     }
 }
+
+#[test]
+fn fields_this_crate_does_not_name_survive_a_round_trip() {
+    let page = r#"{
+        "version": 1,
+        "activePane": "pane-1",
+        "zen": true,
+        "documents": [{
+            "docId": "doc-1", "name": "Neu 1", "encoding": "UTF-8", "bom": false, "eol": "lf",
+            "pinned": true, "color": "mint", "bookmarks": [3, 17]
+        }]
+    }"#;
+    let session: StoredSession = serde_json::from_str(page).expect("parses");
+    let back = serde_json::to_value(&session).expect("serialises");
+    assert_eq!(back["zen"], serde_json::json!(true));
+    assert_eq!(back["documents"][0]["pinned"], serde_json::json!(true));
+    assert_eq!(back["documents"][0]["color"], serde_json::json!("mint"));
+    assert_eq!(
+        back["documents"][0]["bookmarks"],
+        serde_json::json!([3, 17])
+    );
+}

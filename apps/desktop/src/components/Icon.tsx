@@ -47,6 +47,8 @@ const PATHS = {
   // Two chevrons converging: fold everything back in.
   collapse: 'M4.5 2.5 8 6l3.5-3.5 M4.5 13.5 8 10l3.5 3.5',
   refresh: 'M13.5 8a5.5 5.5 0 1 1-1.6-3.9 M13.5 2.4v3.4h-3.4',
+  // A clock face wound backwards: the Zeitreise.
+  history: 'M2.6 8a5.4 5.4 0 1 0 1.6-3.8 M2.4 2.4v2.8h2.8 M8 5v3.2l2.2 1.4',
   external:
     'M9.5 2.5h4v4 M13.5 2.5 7.8 8.2 M12 9.8v2.7a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h2.7',
   gear: 'M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M8 1.5v1.7 M8 12.8v1.7 M1.5 8h1.7 M12.8 8h1.7 M3.4 3.4 4.6 4.6 M11.4 11.4l1.2 1.2 M12.6 3.4l-1.2 1.2 M4.6 11.4l-1.2 1.2',
@@ -62,6 +64,23 @@ const PATHS = {
   wrap: 'M2 3.5h12 M2 8h8.25a2.25 2.25 0 0 1 0 4.5H6 M7.8 10.7 6 12.5l1.8 1.8 M2 12.5h1.6',
   sidebar: 'M1.5 2.5h13v11h-13z M6 2.5v11',
   dots: 'M3.2 8h.01 M8 8h.01 M12.8 8h.01',
+  // A push pin seen from the side, tilted the way a pinned tab leans.
+  pin: 'M9.5 1.8 14.2 6.5 M10.6 2.9 7.4 6.1 4.3 6.6 9.4 11.7 9.9 8.6 13.1 5.4 M6.8 9.2 2 14',
+  // A page with text on the left and the same page rendered on the right.
+  preview:
+    'M1.5 2.5h13v11h-13z M8 2.5v11 M3.4 5.5h2.8 M3.4 8h2.8 M3.4 10.5h1.8 M9.8 5.4h2.8 M9.8 7.6h2.8 M9.8 10.5h1.6',
+  // Indented lines, the shape of a table of contents.
+  outline:
+    'M2 3.5h.01 M4.5 3.5h9.5 M4.5 6.5h.01 M7 6.5h7 M4.5 9.5h.01 M7 9.5h7 M2 12.5h.01 M4.5 12.5h9.5',
+  // A ribbon with a notch: Notepad++'s mark, drawn as one.
+  bookmark: 'M4.5 2h7a.5.5 0 0 1 .5.5V14l-4-3-4 3V2.5a.5.5 0 0 1 .5-.5Z',
+  // A spiral-bound pad with two lines on it: the notebook view.
+  notebook:
+    'M4.5 1.5h7.5a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z M2.2 4.5h2.4 M2.2 8h2.4 M2.2 11.5h2.4 M6.8 5.5h3.9 M6.8 8.2h3.9',
+  trash:
+    'M2.5 4h11 M6 4V2.5h4V4 M3.8 4l.7 9.6a.9.9 0 0 0 .9.9h5.2a.9.9 0 0 0 .9-.9L12.2 4 M6.6 6.8v4.6 M9.4 6.8v4.6',
+  // An arrow curling back: bring it back.
+  restore: 'M3.5 6h6.5a3.25 3.25 0 0 1 0 6.5H6 M5.8 3.7 3.5 6l2.3 2.3',
 } as const;
 
 export type IconName = keyof typeof PATHS;

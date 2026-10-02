@@ -14,12 +14,19 @@
  * React subscribes to {@link subscribeDocuments}, which fires when *metadata*
  * changes — a name, the dirty flag, an encoding — and not when text does. The
  * one exception is the dirty flag itself, which is recomputed on every edit;
- * see {@link setDocState}.
+ * see {@link setDocState}. Whoever does need to hear about typing — the draft
+ * flush, an untitled note's title — subscribes to {@link subscribeText}, which
+ * names the document and costs a listener call, not a render. Whoever follows
+ * the caret or the parse as well — the status bar, the outline, the preview —
+ * subscribes to {@link subscribeDocState}, which fires on every new state.
  */
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
 import type { EncodingLabel, Eol, FileStamp, LoadedFile } from './api';
+import { detectNoteLanguage } from './note-language';
+import { noteTitle } from './note-title';
 import { getSettings } from './settings';
+import type { TabColor } from './tabs';
 
 export type DocId = string;
 
@@ -28,8 +35,17 @@ export type DocMeta = {
   id: DocId;
   /** `null` until the buffer is saved somewhere. */
   path: string | null;
-  /** The file name, or `Neu 1` for a buffer that has none yet. */
+  /**
+   * The file name. For a buffer that was never saved, the title its first line
+   * gives it, or `Neu n` while it has none — see `lib/note-title.ts`.
+   */
   name: string;
+  /**
+   * The `Neu n` number of a buffer that was never saved, `null` once it has a
+   * file. Kept separately because the tab shows a title instead, and the
+   * counter must still know which numbers are taken.
+   */
+  untitled: number | null;
   encoding: EncodingLabel;
   bom: boolean;
   eol: Eol;
@@ -49,6 +65,20 @@ export type DocMeta = {
   readOnly: boolean;
   /** Set when the file changed on disk behind our back and we have not reloaded. */
   staleOnDisk: boolean;
+  /**
+   * Kept at the left of its tab bar and spared by "close all/others/right".
+   * Optional, like `color`, because only the session and the tab menu ever set
+   * it — every other place that builds a document can stay unaware of both.
+   */
+  pinned?: boolean;
+  /** A colour stripe on the tab, picked from its context menu. See `lib/tabs.ts`. */
+  color?: TabColor;
+  /**
+   * For a buffer without a path: the language its text looks like, guessed
+   * by `lib/note-language.ts` — so far only `markdown`. Below a language
+   * picked by hand; see `resolveLanguage`.
+   */
+  detectedLanguage?: string;
 };
 
 export type Doc = {
@@ -56,10 +86,17 @@ export type Doc = {
   state: EditorState;
   /** The text as it is on disk. The dirty flag is `state.doc` against this. */
   savedDoc: Text;
+  /**
+   * Bumped whenever the text changes. Lets the draft flush tell "this draft is
+   * already on disk" from "this one changed" without comparing whole texts.
+   */
+  textVersion: number;
 };
 
 const docs = new Map<DocId, Doc>();
 const listeners = new Set<() => void>();
+const textListeners = new Set<(id: DocId) => void>();
+const stateListeners = new Set<(id: DocId) => void>();
 /** Bumped on every metadata change, so `useSyncExternalStore` has a snapshot to compare. */
 let version = 0;
 let docCounter = 0;
@@ -73,6 +110,42 @@ function announce() {
 export function subscribeDocuments(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/**
+ * Called with the document's id whenever its text changes — on every
+ * keystroke, so a listener should do no more than start a timer.
+ */
+export function subscribeText(listener: (id: DocId) => void): () => void {
+  textListeners.add(listener);
+  return () => textListeners.delete(listener);
+}
+
+/**
+ * Called with the document's id whenever its `EditorState` is replaced: an
+ * edit, a caret move, a bookmark, a grammar arriving, the background parser
+ * getting further. Every editor transaction is written back here (see
+ * `components/EditorPane.tsx`), and so is every change made to a document
+ * that is not on screen, so this hears both — which an `updateListener` in
+ * the editor, seeing only mounted views, would not.
+ *
+ * It is what the status bar, the word count, the outline, the bookmark list
+ * and the preview follow instead of polling every frame: nothing runs while
+ * nothing changes. A listener should compare identities (`Text` and the
+ * selection are immutable) and start a timer for anything that costs more.
+ */
+export function subscribeDocState(listener: (id: DocId) => void): () => void {
+  stateListeners.add(listener);
+  return () => stateListeners.delete(listener);
+}
+
+function stateChanged(id: DocId) {
+  for (const listener of stateListeners) listener(id);
+}
+
+function textChanged(doc: Doc) {
+  doc.textVersion += 1;
+  for (const listener of textListeners) listener(doc.meta.id);
 }
 
 export function documentsVersion(): number {
@@ -91,15 +164,32 @@ export function allDocs(): Doc[] {
   return [...docs.values()];
 }
 
+/**
+ * Different in every run. A note's Zeitreise history is keyed by its id and
+ * outlives the run, so the first new buffer of tomorrow must not be called
+ * `doc-1-0` again and inherit the versions of today's.
+ */
+const RUN = Date.now().toString(36);
+
 export function newDocId(): DocId {
   docCounter += 1;
-  return `doc-${docCounter}-${version}`;
+  return `doc-${docCounter}-${version}-${RUN}`;
+}
+
+/** The next free `Neu n` number. */
+export function nextUntitledNumber(): number {
+  untitledCounter += 1;
+  return untitledCounter;
+}
+
+/** `Neu 1`, `Neu 2`, … — the name of an untitled buffer with nothing in it yet. */
+export function untitledName(number: number): string {
+  return `Neu ${number}`;
 }
 
 /** `Neu 1`, `Neu 2`, … The German name is what `t()` translates in the tab. */
 export function nextUntitledName(): string {
-  untitledCounter += 1;
-  return `Neu ${untitledCounter}`;
+  return untitledName(nextUntitledNumber());
 }
 
 /**
@@ -135,6 +225,8 @@ type OpenInit = {
   binary?: boolean;
   /** For a restored draft: the text differs from disk from the first moment. */
   dirty?: boolean;
+  /** The `Neu n` number, for a buffer without a path. */
+  untitled?: number | null;
 };
 
 /** Puts a document in the store and returns its id. */
@@ -147,6 +239,7 @@ export function openDoc(init: OpenInit): DocId {
       id,
       path: init.path,
       name: init.name,
+      untitled: init.path === null ? (init.untitled ?? null) : null,
       encoding: init.encoding ?? settings.defaultEncoding,
       bom: init.bom ?? false,
       eol: init.eol ?? settings.defaultEol,
@@ -158,11 +251,19 @@ export function openDoc(init: OpenInit): DocId {
       binary: init.binary ?? false,
       readOnly: init.stamp?.readOnly ?? false,
       staleOnDisk: false,
+      // Guessed once here for a note that arrives with text — a restored
+      // draft, a note from the trash, a version opened as a tab; typing
+      // refreshes it later (`lib/notebook.ts`).
+      detectedLanguage:
+        init.path === null && !init.languageOverride && init.text
+          ? (detectNoteLanguage(init.text) ?? undefined)
+          : undefined,
     },
     state,
     // A document that starts dirty (a restored draft) has no disk text to
     // compare against, so an empty document stands in: anything is different.
     savedDoc: init.dirty ? Text.empty : state.doc,
+    textVersion: 0,
   };
   docs.set(id, doc);
   announce();
@@ -186,9 +287,24 @@ export function openLoadedFile(file: LoadedFile, name: string, id?: DocId): DocI
   });
 }
 
-/** An empty buffer with no path, named `Neu n`. */
+/**
+ * A buffer with no path, named `Neu n` — or, when it starts with text, after
+ * its first line and with the dirty dot on.
+ *
+ * Text that exists nowhere else (a Zeitreise version opened as a tab, say) is
+ * unsaved by definition. A clean buffer would close without going to the
+ * trash and leave no draft behind on quit, and the text would simply be gone.
+ */
 export function openUntitled(text = ''): DocId {
-  return openDoc({ path: null, name: nextUntitledName(), text });
+  const untitled = nextUntitledNumber();
+  if (text === '') return openDoc({ path: null, name: untitledName(untitled), text, untitled });
+  return openDoc({
+    path: null,
+    name: noteTitle(text.slice(0, 4_000)) ?? untitledName(untitled),
+    text,
+    untitled,
+    dirty: true,
+  });
 }
 
 /**
@@ -206,12 +322,16 @@ export function openUntitled(text = ''): DocId {
 export function setDocState(id: DocId, state: EditorState) {
   const doc = docs.get(id);
   if (!doc) return;
+  if (state === doc.state) return;
+  const changed = state.doc !== doc.state.doc;
   doc.state = state;
+  if (changed) textChanged(doc);
   const dirty = !state.doc.eq(doc.savedDoc);
   if (dirty !== doc.meta.dirty) {
     doc.meta = { ...doc.meta, dirty };
     announce();
   }
+  stateChanged(id);
 }
 
 /** Replaces the text, keeping the undo history — for reloading from disk. */
@@ -221,7 +341,9 @@ export function replaceDocText(id: DocId, text: string) {
   doc.state = doc.state.update({
     changes: { from: 0, to: doc.state.doc.length, insert: text },
   }).state;
+  textChanged(doc);
   announce();
+  stateChanged(id);
 }
 
 export function patchMeta(id: DocId, patch: Partial<Omit<DocMeta, 'id'>>) {
@@ -240,6 +362,7 @@ export function markSaved(id: DocId, path: string, name: string, stamp: FileStam
     ...doc.meta,
     path,
     name,
+    untitled: null,
     stamp,
     dirty: false,
     staleOnDisk: false,
