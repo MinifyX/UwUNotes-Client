@@ -33,6 +33,7 @@ import { locale, N_, t } from '../../lib/i18n';
 import { toast } from '../../lib/toast';
 import { activeView } from '../../lib/views';
 import { registerPlugin } from './registry';
+import { registerTaskLists } from './task-lists';
 
 /* ── Trailing whitespace ───────────────────────────────── */
 
@@ -535,4 +536,6 @@ export function registerBuiltinPlugins(): void {
       },
     ],
   });
+
+  registerTaskLists();
 }
