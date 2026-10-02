@@ -53,6 +53,7 @@ import { getSettings, subscribeSettings, type Settings } from '../lib/settings';
 import { viewFor } from '../lib/views';
 import { getWorkspace } from '../lib/workspace';
 import { subscribeZen, zenActive } from '../lib/zen';
+import { bookmarks } from './bookmarks';
 import { compareExtension } from './compare';
 import { indentGuides, printMargin, whitespaceMarkers } from './decorations';
 import { focusExtensions } from './focus';
@@ -97,6 +98,9 @@ export function baseExtensions(): Extension {
     editorKeymap,
     // Empty until two files are compared; see `lib/compare.ts`.
     compareExtension,
+    // Base rather than settings: the marks are part of the document, written
+    // into the session, and must survive every reconfigure untouched.
+    bookmarks,
     languageCompartment.of([]),
     settingsCompartment.of(settingsExtensions(getSettings())),
   ];

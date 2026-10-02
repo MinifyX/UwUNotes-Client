@@ -54,9 +54,11 @@ import { getSettings, updateSettings } from './settings';
 import { macroShortcutText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, focusActiveView } from './views';
-import { toggleSidebar } from './chrome';
+import { bookmarkCommands } from './bookmarks';
+import { setSidebarView, toggleSidebar } from './chrome';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
+import { markdownCommands } from './preview';
 import { printDoc } from './print';
 import { canCloseInPane, closeAllUnpinned, closeInPane, togglePinned } from './tab-actions';
 import { toggleZen, zenActive } from './zen';
@@ -153,6 +155,8 @@ export function allCommands(): Command[] {
     ...editCommands(),
     ...searchCommands(),
     ...viewCommands(),
+    ...markdownCommands(),
+    ...bookmarkCommands(),
     ...encodingCommands(),
     ...eolCommands(),
     ...languageCommands(),
@@ -546,6 +550,12 @@ function viewCommands(): Command[] {
       shortcut: shortcutLabel('view.previousDifference'),
       enabled: () => (getCompare().differences ?? 0) > 0,
       run: () => gotoDifference(true),
+    },
+    {
+      id: 'view.showOutline',
+      title: () => t('Gliederung zeigen'),
+      group,
+      run: () => setSidebarView('outline'),
     },
     {
       id: 'view.toggleSidebar',

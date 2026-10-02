@@ -251,6 +251,10 @@ export type SessionDocument = {
   pinned?: boolean;
   /** One of `TAB_COLORS` in `lib/tabs.ts`. */
   color?: string;
+  /** Bookmarked lines, 1-based. Left out when there are none; the store carries it verbatim. */
+  bookmarks?: number[];
+  /** The Markdown preview was open next to this document. Left out when it was not. */
+  preview?: boolean;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };

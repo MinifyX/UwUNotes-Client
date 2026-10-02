@@ -41,10 +41,12 @@ import {
   subscribeDocuments,
   type DocId,
 } from './documents';
+import { bookmarksForSession, restoreBookmarks, sanitizeBookmarkLines } from './bookmarks';
 import { describeApiError, newFile } from './files';
 import { sanitizeTabColor } from './tabs';
 import { t } from './i18n';
 import { newPaneId, paneIds, sanitizeLayout, type LayoutNode, type PaneId } from './layout';
+import { previewForSession, setPreviewOpen } from './preview';
 import { getSettings } from './settings';
 import { toast } from './toast';
 import { viewFor } from './views';
@@ -139,6 +141,8 @@ async function restoreOnce(): Promise<void> {
     if (entry.pinned || entry.color) {
       patchMeta(id, { pinned: entry.pinned, color: sanitizeTabColor(entry.color) });
     }
+    restoreBookmarks(id, entry.bookmarks);
+    if (entry.preview) setPreviewOpen(id, true);
     placeCaret(id, entry.cursor, entry.scrollTop);
     const untitled = /^Neu (\d+)$/.exec(entry.name);
     if (untitled?.[1]) highestUntitled = Math.max(highestUntitled, Number(untitled[1]));
@@ -378,6 +382,8 @@ export async function persistSession(): Promise<void> {
       // writes exactly what it wrote before these existed.
       pinned: meta.pinned || undefined,
       color: meta.color,
+      bookmarks: bookmarksForSession(meta.id),
+      preview: previewForSession(meta.id),
     });
     try {
       if (meta.dirty) await writeDraft(meta.id, doc.state.doc.toString());
@@ -483,6 +489,8 @@ function sanitizeDocument(raw: unknown): SessionDocument | null {
     stamp: sanitizeStamp(entry.stamp),
     pinned: entry.pinned === true || undefined,
     color: sanitizeTabColor(entry.color),
+    bookmarks: sanitizeBookmarkLines(entry.bookmarks),
+    preview: entry.preview === true ? true : undefined,
   };
 }
 

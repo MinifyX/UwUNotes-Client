@@ -9,6 +9,7 @@ import editor from './editor.json';
 import files from './files.json';
 import focus from './focus.json';
 import macros from './macros.json';
+import markdown from './markdown.json';
 import search from './search.json';
 import settings from './settings.json';
 import updates from './updates.json';
@@ -23,4 +24,5 @@ export const EN: Readonly<Record<string, string>> = {
   ...macros,
   ...updates,
   ...focus,
+  ...markdown,
 };
