@@ -8,12 +8,15 @@
 //! failing a start.
 //!
 //! Drafts live beside the session file: one per document with unsaved changes,
-//! so closing the window never costs the user anything.
+//! so closing the window never costs the user anything. And a trash beside
+//! both: the unsaved text of tabs that were closed without saving.
 
 #![forbid(unsafe_code)]
 
 pub mod model;
 pub mod store;
+pub mod trash;
 
 pub use model::{SessionDocument, SessionPane, StoredSession, SESSION_VERSION};
 pub use store::SessionStore;
+pub use trash::{TrashEntry, TrashNote, TrashSummary};
