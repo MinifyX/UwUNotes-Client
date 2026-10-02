@@ -16,7 +16,8 @@
 
 import { useSyncExternalStore } from 'react';
 import type { DocId } from './documents';
-import { closeDoc, getMeta } from './documents';
+import { closeDoc, getMeta, patchMeta } from './documents';
+import { clampDropIndex, pinnedFirst } from './tabs';
 import {
   columnsLayout,
   MAX_PANES,
@@ -67,8 +68,30 @@ let current = emptyWorkspace();
 const listeners = new Set<() => void>();
 
 function commit(next: Workspace) {
-  current = next;
+  current = keepPinnedFirst(next);
   for (const listener of listeners) listener();
+}
+
+const isPinned = (doc: DocId) => getMeta(doc)?.pinned === true;
+
+/**
+ * Pinned tabs to the left of every pane, whatever just happened.
+ *
+ * Enforced here, at the one door every change walks through, rather than in
+ * each of the dozen functions below that build a tab list: a tab opened next
+ * to a pinned one, two panes merged into one, a session restored — each would
+ * otherwise need to remember, and the one that forgets is the bug. Panes that
+ * are already in order keep their object, so nothing re-renders for nothing.
+ */
+function keepPinnedFirst(workspace: Workspace): Workspace {
+  let panes: Record<PaneId, Pane> | null = null;
+  for (const [id, pane] of Object.entries(workspace.panes)) {
+    const tabs = pinnedFirst(pane.tabs, isPinned);
+    if (tabs === pane.tabs) continue;
+    panes ??= { ...workspace.panes };
+    panes[id] = { ...pane, tabs: [...tabs] };
+  }
+  return panes ? { ...workspace, panes } : workspace;
 }
 
 export function getWorkspace(): Workspace {
@@ -210,7 +233,8 @@ export function reorderTab(doc: DocId, toIndex: number) {
   if (!pane) return;
   const found = current.panes[pane]!;
   const without = found.tabs.filter((id) => id !== doc);
-  const at = Math.max(0, Math.min(without.length, toIndex));
+  // A drag cannot carry a tab across the pinned boundary; see `lib/tabs.ts`.
+  const at = clampDropIndex(found.tabs, doc, toIndex, isPinned);
   commit({
     ...current,
     panes: {
@@ -218,6 +242,16 @@ export function reorderTab(doc: DocId, toIndex: number) {
       [pane]: { ...found, tabs: [...without.slice(0, at), doc, ...without.slice(at)] },
     },
   });
+}
+
+/**
+ * Pins or unpins a tab. The flag is the document's, so the session keeps it;
+ * the re-commit is what moves the tab to the edge of the pinned group.
+ */
+export function setTabPinned(doc: DocId, pinned: boolean) {
+  if (isPinned(doc) === pinned) return;
+  patchMeta(doc, { pinned: pinned || undefined });
+  commit(current);
 }
 
 /* ── Panes ─────────────────────────────────────────────── */

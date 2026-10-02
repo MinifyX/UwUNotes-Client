@@ -242,6 +242,15 @@ export type SessionDocument = {
   /** There were unsaved changes, so a draft was written next to the session. */
   dirty: boolean;
   stamp: FileStamp | null;
+  /**
+   * Tab flags from the tab menu. Optional and left out when off: the Rust
+   * store does not name them and carries them through verbatim (`extra` in
+   * `crates/uwunotes-session/src/model.rs`), so an older build that never
+   * heard of them still writes them back unchanged.
+   */
+  pinned?: boolean;
+  /** One of `TAB_COLORS` in `lib/tabs.ts`. */
+  color?: string;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };

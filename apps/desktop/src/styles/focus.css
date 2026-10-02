@@ -1,0 +1,68 @@
+/*
+ * Pinned and coloured tabs.
+ */
+
+/* ── Pinned and coloured tabs ──────────────────────────── */
+
+.tabbar-tab-pin {
+  display: grid;
+  place-items: center;
+  margin-right: 5px;
+  color: var(--uwu-muted);
+}
+
+.tabbar-tab[data-active='true'] .tabbar-tab-pin {
+  color: var(--uwu-ink);
+}
+
+/* Compact: a pinned tab is recognised by its place and its pin, not read. */
+.tabbar-tab[data-pinned] {
+  max-width: 140px;
+}
+
+.tabbar-tab[data-pinned] .tabbar-tab-select {
+  padding-left: 9px;
+}
+
+/* The last pinned tab gets a slightly stronger edge, so the two groups read as
+   two groups. */
+.tabbar-tab[data-pinned]:has(+ .tabbar-tab:not([data-pinned])) {
+  border-right-color: var(--uwu-border);
+}
+
+/*
+ * A colour is a stripe along the bottom edge. The top edge is the active tab's
+ * pink, and the tab name is already coloured by git — the bottom is the one
+ * place left that says nothing yet.
+ */
+.tabbar-tab[data-color]::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--tab-color);
+  pointer-events: none;
+}
+
+.tabbar-tab[data-color='blue'] {
+  --tab-color: var(--uwu-code-function);
+}
+
+.tabbar-tab[data-color='green'] {
+  --tab-color: var(--uwu-code-string);
+}
+
+.tabbar-tab[data-color='yellow'] {
+  --tab-color: var(--uwu-code-number);
+}
+
+.tabbar-tab[data-color='violet'] {
+  --tab-color: var(--uwu-code-type);
+}
+
+.tabbar-tab[data-color='red'] {
+  --tab-color: var(--uwu-code-invalid);
+}
