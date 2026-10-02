@@ -84,12 +84,25 @@ export type Settings = {
 
   /** Folded-away folders in the file tree, as absolute paths. */
   collapsedFolders: string[];
+
+  /** Zen mode's text column, in characters of the editor font. */
+  zenWidth: number;
+  /** In zen mode, the caret line stays in the middle of the screen. */
+  zenTypewriter: boolean;
+  /** In zen mode, everything but the paragraph or block under the caret fades back. */
+  zenFocusDim: boolean;
+  /** Typewriter scrolling everywhere, not only in zen mode. */
+  typewriterScrolling: boolean;
+  /** Word count in the status bar, with a popover of the rest. */
+  statusWordCount: boolean;
 };
 
 export const FONT_SIZE_MIN = 8;
 export const FONT_SIZE_MAX = 36;
 export const TAB_SIZES = [2, 4, 8] as const;
 export const AUTOSAVE_CHOICES = [0, 30, 60, 300] as const;
+export const ZEN_WIDTH_MIN = 40;
+export const ZEN_WIDTH_MAX = 160;
 
 /** The monospace faces bundled with the app, plus whatever the system has. */
 export const BUNDLED_FONTS = ['JetBrains Mono Variable', 'Fira Code Variable'] as const;
@@ -140,6 +153,13 @@ export const DEFAULT_SETTINGS: Settings = {
   soundVolume: 0.35,
 
   collapsedFolders: [],
+
+  // A line of a printed book, give or take; the width prose is easiest to read at.
+  zenWidth: 80,
+  zenTypewriter: true,
+  zenFocusDim: true,
+  typewriterScrolling: false,
+  statusWordCount: true,
 };
 
 const KEY = 'uwunotes.settings';
@@ -224,6 +244,12 @@ export function sanitize(raw: unknown): Settings {
           .map((path) => path.slice(0, 400))
           .slice(0, 500)
       : [],
+
+    zenWidth: int(input.zenWidth, ZEN_WIDTH_MIN, ZEN_WIDTH_MAX, d.zenWidth),
+    zenTypewriter: bool(input.zenTypewriter, d.zenTypewriter),
+    zenFocusDim: bool(input.zenFocusDim, d.zenFocusDim),
+    typewriterScrolling: bool(input.typewriterScrolling, d.typewriterScrolling),
+    statusWordCount: bool(input.statusWordCount, d.statusWordCount),
   };
 }
 

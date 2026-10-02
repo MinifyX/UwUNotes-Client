@@ -15,7 +15,7 @@
  */
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { useSidebarOpen } from './lib/chrome';
 import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
@@ -27,6 +27,8 @@ import { persistSession, restoreSession, startSessionAutosave } from './lib/sess
 import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
+import { useSettings } from './lib/settings';
+import { useZen } from './lib/zen';
 import { AboutDialog } from './components/AboutDialog';
 import { CompareBar } from './components/CompareBar';
 import { HashDialog } from './components/HashDialog';
@@ -44,12 +46,17 @@ import { Toasts } from './components/Toasts';
 import { UpdateHint } from './components/UpdateHint';
 import { PromptHost } from './components/PromptHost';
 import { Nyu } from './components/nyu/Nyu';
+import { ZenEdge, ZenHint } from './components/Zen';
 import { pickGreeting } from './components/nyu/greetings';
 
 export function App() {
   useLanguage();
   const [ready, setReady] = useState(false);
-  const sidebarOpen = useSidebarOpen();
+  // Zen mode does not close the sidebar, it just does not draw it — so
+  // leaving zen finds the sidebar exactly as it was. See `lib/zen.ts`.
+  const zen = useZen();
+  const sidebarOpen = useSidebarOpen() && !zen;
+  const { zenWidth } = useSettings();
   const { dialog } = useUiState();
   const workspace = useWorkspace();
   const version = useSyncExternalStore(subscribeDocuments, documentsVersion);
@@ -140,7 +147,15 @@ export function App() {
   if (!ready) return <Startup />;
 
   return (
-    <div className="app" data-sidebar={sidebarOpen ? 'open' : 'closed'}>
+    <div
+      className="app"
+      data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      data-zen={zen ? true : undefined}
+      style={zen ? ({ '--zen-columns': zenWidth } as CSSProperties) : undefined}
+    >
+      {/* Before the title bar on purpose: `styles/focus.css` reveals the bar
+          from the edge strip with a sibling selector. */}
+      {zen ? <ZenEdge edge="top" /> : null}
       <TitleBar />
 
       <div className="app-body">
@@ -160,9 +175,11 @@ export function App() {
       {/* Between the text and the status bar, and nothing at all when there is
           no update to mention: a new version is worth a row of the window and
           never a dialog over the file somebody is writing. */}
-      <UpdateHint />
+      {zen ? null : <UpdateHint />}
 
+      {zen ? <ZenEdge edge="bottom" /> : null}
       <StatusBar />
+      {zen ? <ZenHint /> : null}
 
       <Toasts />
       <PromptHost />

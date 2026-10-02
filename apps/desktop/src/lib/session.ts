@@ -42,6 +42,7 @@ import {
   type DocId,
 } from './documents';
 import { describeApiError, newFile } from './files';
+import { sanitizeTabColor } from './tabs';
 import { t } from './i18n';
 import { newPaneId, paneIds, sanitizeLayout, type LayoutNode, type PaneId } from './layout';
 import { getSettings } from './settings';
@@ -133,6 +134,11 @@ async function restoreOnce(): Promise<void> {
     const id = await restoreDocument(entry);
     if (!id) continue;
     restored.set(entry.docId, id);
+    // Before the panes are rebuilt below, so the workspace sees the pins when
+    // it orders the tabs.
+    if (entry.pinned || entry.color) {
+      patchMeta(id, { pinned: entry.pinned, color: sanitizeTabColor(entry.color) });
+    }
     placeCaret(id, entry.cursor, entry.scrollTop);
     const untitled = /^Neu (\d+)$/.exec(entry.name);
     if (untitled?.[1]) highestUntitled = Math.max(highestUntitled, Number(untitled[1]));
@@ -368,6 +374,10 @@ export async function persistSession(): Promise<void> {
       scrollTop: scrollTopOf(meta.id),
       dirty: meta.dirty,
       stamp: meta.stamp,
+      // `undefined` is dropped by the JSON on its way to Rust, so a plain tab
+      // writes exactly what it wrote before these existed.
+      pinned: meta.pinned || undefined,
+      color: meta.color,
     });
     try {
       if (meta.dirty) await writeDraft(meta.id, doc.state.doc.toString());
@@ -471,6 +481,8 @@ function sanitizeDocument(raw: unknown): SessionDocument | null {
     scrollTop: finite(entry.scrollTop),
     dirty: entry.dirty === true,
     stamp: sanitizeStamp(entry.stamp),
+    pinned: entry.pinned === true || undefined,
+    color: sanitizeTabColor(entry.color),
   };
 }
 

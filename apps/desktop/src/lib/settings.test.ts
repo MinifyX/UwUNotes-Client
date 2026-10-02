@@ -19,6 +19,8 @@ import {
   resetSettings,
   sanitize,
   updateSettings,
+  ZEN_WIDTH_MAX,
+  ZEN_WIDTH_MIN,
 } from './settings';
 
 beforeEach(() => {
@@ -73,6 +75,11 @@ describe('sanitising nonsense', () => {
       sounds: 'loud',
       soundVolume: 'quiet',
       collapsedFolders: 'C:/one',
+      zenWidth: 'wide',
+      zenTypewriter: 'on',
+      zenFocusDim: 1,
+      typewriterScrolling: null,
+      statusWordCount: 'yes',
     };
 
     expect(sanitize(garbage)).toEqual(DEFAULT_SETTINGS);
@@ -194,6 +201,30 @@ describe('sanitising nonsense', () => {
     };
 
     expect(sanitize(chosen)).toEqual(chosen);
+  });
+});
+
+describe('zen mode and the word count', () => {
+  it('keeps the zen column between a narrow note and a wide screen', () => {
+    expect(sanitize({ zenWidth: 10 }).zenWidth).toBe(ZEN_WIDTH_MIN);
+    expect(sanitize({ zenWidth: 9000 }).zenWidth).toBe(ZEN_WIDTH_MAX);
+    expect(sanitize({ zenWidth: 72.4 }).zenWidth).toBe(72);
+    expect(sanitize({ zenWidth: Number.NaN }).zenWidth).toBe(DEFAULT_SETTINGS.zenWidth);
+  });
+
+  it('starts with the calm defaults: typewriter and dimming in zen, word count on', () => {
+    const fresh = sanitize({});
+    expect(fresh.zenTypewriter).toBe(true);
+    expect(fresh.zenFocusDim).toBe(true);
+    expect(fresh.typewriterScrolling).toBe(false);
+    expect(fresh.statusWordCount).toBe(true);
+  });
+
+  it('keeps switched-off values switched off', () => {
+    const off = sanitize({ zenTypewriter: false, zenFocusDim: false, statusWordCount: false });
+    expect(off.zenTypewriter).toBe(false);
+    expect(off.zenFocusDim).toBe(false);
+    expect(off.statusWordCount).toBe(false);
   });
 });
 

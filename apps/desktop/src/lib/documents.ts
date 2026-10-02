@@ -20,6 +20,7 @@
 import { EditorState, Text, type Extension } from '@codemirror/state';
 import type { EncodingLabel, Eol, FileStamp, LoadedFile } from './api';
 import { getSettings } from './settings';
+import type { TabColor } from './tabs';
 
 export type DocId = string;
 
@@ -49,6 +50,14 @@ export type DocMeta = {
   readOnly: boolean;
   /** Set when the file changed on disk behind our back and we have not reloaded. */
   staleOnDisk: boolean;
+  /**
+   * Kept at the left of its tab bar and spared by "close all/others/right".
+   * Optional, like `color`, because only the session and the tab menu ever set
+   * it — every other place that builds a document can stay unaware of both.
+   */
+  pinned?: boolean;
+  /** A colour stripe on the tab, picked from its context menu. See `lib/tabs.ts`. */
+  color?: TabColor;
 };
 
 export type Doc = {

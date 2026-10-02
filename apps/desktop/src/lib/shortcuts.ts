@@ -22,6 +22,7 @@ import { t } from './i18n';
 import { runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
 import { activateTabAt, cyclePane } from './workspace';
+import { zenActive } from './zen';
 
 /** German source names for the modifiers; {@link renderKeys} translates them. */
 const CTRL = 'Strg';
@@ -104,6 +105,7 @@ const LABELS: Record<string, readonly string[]> = {
   'view.splitDown': [CTRL, SHIFT, 'D'],
   'view.closePane': [CTRL, SHIFT, 'Q'],
   'view.nextPane': ['F6'],
+  'view.zen': ['F11'],
   'view.moveTabToOtherPane': [CTRL, SHIFT, 'M'],
   'view.toggleSidebar': [CTRL, 'B'],
   'view.columns2': [CTRL, SHIFT, '2'],
@@ -260,6 +262,39 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   if (event.code === 'F8' && !event.ctrlKey && !event.altKey && !event.metaKey) {
     const command = event.shiftKey ? 'view.previousDifference' : 'view.nextDifference';
     return () => runCommand(command);
+  }
+
+  // F11 is zen mode. It is the fullscreen key in every browser and in
+  // Notepad++, and zen mode is fullscreen with the furniture taken out, so the
+  // finger that knows one finds the other. No chord with Ctrl was free that
+  // meant anything: Ctrl+Shift+Z is redo on Linux, and VS Code's Ctrl+K Z is a
+  // two-step chord this listener does not do.
+  if (
+    event.code === 'F11' &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  ) {
+    return () => runCommand('view.zen');
+  }
+
+  // Escape leaves zen mode — but only an Escape nobody else wanted. Every bar,
+  // menu and dialog in the app handles its own Escape and prevents the default
+  // (the modal ones even stop it in the capture phase), and CodeMirror does
+  // the same when Escape closed its autocomplete or collapsed a multi-caret
+  // selection. This listener runs last, on the way up, so a closed find bar
+  // costs one Escape and leaving zen a second one, never both at once.
+  if (
+    event.key === 'Escape' &&
+    !event.defaultPrevented &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.shiftKey &&
+    zenActive()
+  ) {
+    return () => runCommand('view.zen');
   }
 
   if (!event.ctrlKey || event.altKey || event.metaKey) return null;

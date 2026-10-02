@@ -21,7 +21,6 @@ import type { Eol } from './api';
 import { ENCODINGS, EOLS, eolName } from './encodings';
 import { allDocs, getMeta, patchMeta } from './documents';
 import {
-  closeAllSafely,
   closeDocSafely,
   hasClosedTabs,
   newFile,
@@ -59,6 +58,8 @@ import { toggleSidebar } from './chrome';
 import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './compare';
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
 import { printDoc } from './print';
+import { canCloseInPane, closeAllUnpinned, closeInPane, togglePinned } from './tab-actions';
+import { toggleZen, zenActive } from './zen';
 import { getZoom, resetZoom, stepZoom, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from './zoom';
 import {
   activeDocId,
@@ -326,8 +327,28 @@ function fileCommands(): Command[] {
       group,
       shortcut: shortcutLabel('file.closeAll'),
       enabled: hasDoc,
+      // Pinned tabs stay, as they do for every bulk close; see `lib/tabs.ts`.
+      // Quitting still goes through `closeAllSafely`, which spares nothing.
       run: async () => {
-        await closeAllSafely();
+        await closeAllUnpinned();
+      },
+    },
+    {
+      id: 'file.closeOthers',
+      title: () => t('Andere Tabs schließen'),
+      group,
+      enabled: () => canCloseInPane(getWorkspace().activePane, activeDocId(), 'others'),
+      run: async () => {
+        await closeInPane(getWorkspace().activePane, activeDocId(), 'others');
+      },
+    },
+    {
+      id: 'file.closeToRight',
+      title: () => t('Tabs rechts schließen'),
+      group,
+      enabled: () => canCloseInPane(getWorkspace().activePane, activeDocId(), 'right'),
+      run: async () => {
+        await closeInPane(getWorkspace().activePane, activeDocId(), 'right');
       },
     },
     {
@@ -426,6 +447,38 @@ function viewCommands(): Command[] {
       shortcut: shortcutLabel('tab.previous'),
       enabled: manyTabs,
       run: () => cycleTab(true),
+    },
+    {
+      id: 'tab.togglePin',
+      title: () => {
+        const id = activeDocId();
+        return id && getMeta(id)?.pinned ? t('Tab lösen') : t('Tab anheften');
+      },
+      group,
+      enabled: () => activeDocId() !== null,
+      run: () => {
+        const id = activeDocId();
+        if (id) togglePinned(id);
+      },
+    },
+    {
+      id: 'view.zen',
+      title: () => (zenActive() ? t('Zen-Modus beenden') : t('Zen-Modus')),
+      group,
+      shortcut: shortcutLabel('view.zen'),
+      run: toggleZen,
+    },
+    {
+      id: 'view.toggleTypewriter',
+      title: () => t('Schreibmaschinen-Scrollen umschalten'),
+      group,
+      run: () => updateSettings({ typewriterScrolling: !getSettings().typewriterScrolling }),
+    },
+    {
+      id: 'view.toggleZenFocusDim',
+      title: () => t('Fokus-Abdunklung im Zen-Modus umschalten'),
+      group,
+      run: () => updateSettings({ zenFocusDim: !getSettings().zenFocusDim }),
     },
     {
       id: 'view.splitRight',

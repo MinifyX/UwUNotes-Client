@@ -46,6 +46,8 @@ import {
   TAB_SIZES,
   updateSettings,
   useSettings,
+  ZEN_WIDTH_MAX,
+  ZEN_WIDTH_MIN,
   type Settings,
 } from '../lib/settings';
 import { macroShortcutText, shortcutLabel } from '../lib/shortcuts';
@@ -381,6 +383,47 @@ function SettingsBody() {
               disabled={!settings.sounds}
               format={(value) => `${Math.round(value * 100)} %`}
               onChange={(soundVolume) => write({ soundVolume })}
+            />
+            <SwitchField
+              label={t('Wortzahl in der Statusleiste')}
+              hint={t('Ein Klick darauf zeigt Zeichen, Absätze und die Lesezeit.')}
+              checked={settings.statusWordCount}
+              onChange={(statusWordCount) => write({ statusWordCount })}
+            />
+          </Section>
+
+          <Section title={t('Zen-Modus')}>
+            <NumberField
+              label={t('Spaltenbreite')}
+              hint={t(
+                'In Zeichen der Editorschrift. Zen-Modus mit F11 oder über das Menü Ansicht.',
+              )}
+              value={settings.zenWidth}
+              min={ZEN_WIDTH_MIN}
+              max={ZEN_WIDTH_MAX}
+              step={4}
+              unit={t('Zeichen')}
+              onChange={(zenWidth) => write({ zenWidth })}
+            />
+            <SwitchField
+              label={t('Schreibmaschinen-Scrollen im Zen-Modus')}
+              hint={t('Die Zeile mit dem Cursor bleibt in der Mitte des Bildschirms.')}
+              checked={settings.zenTypewriter}
+              onChange={(zenTypewriter) => writeEditor({ zenTypewriter })}
+            />
+            <SwitchField
+              label={t('Fokus-Abdunklung')}
+              hint={t(
+                'Alles außer dem Absatz mit dem Cursor tritt zurück. Bei Code: der Block bis zur nächsten Leerzeile.',
+              )}
+              checked={settings.zenFocusDim}
+              onChange={(zenFocusDim) => writeEditor({ zenFocusDim })}
+            />
+            <SwitchField
+              label={t('Schreibmaschinen-Scrollen überall')}
+              hint={t('Auch außerhalb des Zen-Modus.')}
+              checked={settings.typewriterScrolling}
+              onChange={(typewriterScrolling) => writeEditor({ typewriterScrolling })}
             />
           </Section>
 

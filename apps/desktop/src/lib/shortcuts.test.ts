@@ -32,18 +32,22 @@ import {
   normalizeMacroShortcut,
 } from './shortcuts';
 import { activateTabAt, cyclePane } from './workspace';
+import { zenActive } from './zen';
 
 vi.mock('./commands', () => ({ runCommand: vi.fn() }));
 vi.mock('./workspace', () => ({ activateTabAt: vi.fn(), cyclePane: vi.fn() }));
 // `macroWithShortcut` reading the stored list is `macros.test.ts`'s ground to
 // cover; here it is the knob that says whether a macro claims these keys.
 vi.mock('./macros', () => ({ macroWithShortcut: vi.fn(), playMacro: vi.fn() }));
+// Whether zen mode is on decides what a bare Escape means, and nothing else.
+vi.mock('./zen', () => ({ zenActive: vi.fn() }));
 
 const command = vi.mocked(runCommand);
 const macroFor = vi.mocked(macroWithShortcut);
 const play = vi.mocked(playMacro);
 const tabAt = vi.mocked(activateTabAt);
 const pane = vi.mocked(cyclePane);
+const zen = vi.mocked(zenActive);
 
 let uninstall: (() => void) | null = null;
 
@@ -273,6 +277,38 @@ describe('F6', () => {
     press({ code: 'F6', key: 'F6', alt: true });
 
     expect(pane).not.toHaveBeenCalled();
+  });
+});
+
+describe('zen mode', () => {
+  it('toggles on F11, with no modifier at all', () => {
+    expect(commandFor({ code: 'F11', key: 'F11' })).toBe('view.zen');
+    expect(commandFor({ code: 'F11', key: 'F11', ctrl: true })).toBe(null);
+    expect(commandFor({ code: 'F11', key: 'F11', shift: true })).toBe(null);
+  });
+
+  it('leaves Escape alone when zen mode is off', () => {
+    zen.mockReturnValue(false);
+    const event = press({ code: 'Escape', key: 'Escape' });
+    expect(command).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves zen mode on an Escape nobody else wanted', () => {
+    zen.mockReturnValue(true);
+    expect(commandFor({ code: 'Escape', key: 'Escape' })).toBe('view.zen');
+  });
+
+  it('does not take an Escape that a bar or the editor already answered', () => {
+    zen.mockReturnValue(true);
+    // A handler earlier on the way up, as the find bar or CodeMirror would be.
+    const answer = (event: KeyboardEvent) => event.preventDefault();
+    window.addEventListener('keydown', answer, true);
+    try {
+      expect(commandFor({ code: 'Escape', key: 'Escape' })).toBe(null);
+    } finally {
+      window.removeEventListener('keydown', answer, true);
+    }
   });
 });
 
