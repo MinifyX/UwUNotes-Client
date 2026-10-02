@@ -265,4 +265,43 @@ describe('untitled notes', () => {
     expect(documents.getMeta(note)?.name).toBe(`Neu ${documents.getMeta(note)?.untitled}`);
     stop();
   });
+
+  it('become Markdown once they look like it, unless a language was picked', async () => {
+    vi.useFakeTimers();
+    const { notebook, documents } = await fresh();
+    const { resolveLanguage } = await import('../editor/languages');
+    const stop = notebook.startNotebook();
+    const language = (id: string) => {
+      const meta = documents.getMeta(id);
+      return meta ? (resolveLanguage(meta)?.id ?? null) : null;
+    };
+
+    const note = documents.openUntitled();
+    type(documents, note, 'Heute\n- [ ] Milch');
+    expect(language(note)).toBeNull();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(language(note)).toBe('markdown');
+
+    // Rewritten into something else entirely: plain again.
+    const doc = documents.getDoc(note);
+    if (!doc) throw new Error('gone');
+    documents.setDocState(
+      note,
+      doc.state.update({ changes: { from: 0, to: doc.state.doc.length, insert: 'nur Text' } })
+        .state,
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(language(note)).toBeNull();
+
+    // A language picked by hand is left alone.
+    const picked = documents.openUntitled();
+    documents.patchMeta(picked, { languageOverride: 'text' });
+    type(documents, picked, '# Überschrift');
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(documents.getMeta(picked)?.detectedLanguage).toBeUndefined();
+
+    // A note that arrives with Markdown in it is Markdown from the start.
+    expect(language(documents.openUntitled('# Fertig\n- eins'))).toBe('markdown');
+    stop();
+  });
 });

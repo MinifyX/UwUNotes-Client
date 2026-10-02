@@ -52,6 +52,7 @@ import {
 } from './documents';
 import { moveNoteHistory } from './history';
 import { t } from './i18n';
+import { detectNoteLanguage } from './note-language';
 import { noteTitle } from './note-title';
 import { emitNyu } from './nyu-events';
 import { ask } from './prompt';
@@ -354,7 +355,7 @@ export async function emptyTrashAsked(): Promise<void> {
   await refreshTrash();
 }
 
-/* ── Untitled notes name themselves ────────────────────── */
+/* ── Untitled notes name themselves, and find their language ── */
 
 /** After the typing stops, not on every key: a tab label that flickers is noise. */
 const TITLE_DELAY_MS = 600;
@@ -369,6 +370,7 @@ function scheduleTitle(id: DocId) {
     window.setTimeout(() => {
       titleTimers.delete(id);
       applyNoteTitle(id);
+      applyNoteLanguage(id);
     }, TITLE_DELAY_MS),
   );
 }
@@ -383,6 +385,24 @@ export function applyNoteTitle(id: DocId): void {
   const fallback = doc.meta.untitled === null ? doc.meta.name : untitledName(doc.meta.untitled);
   const name = noteTitle(doc.state.doc.sliceString(0, 4_000)) ?? fallback;
   if (name !== doc.meta.name) patchMeta(id, { name });
+}
+
+/**
+ * Makes an untitled note Markdown once it looks like Markdown — and plain
+ * again once it clearly does not — so the preview, the task boxes and the
+ * outline work in a quick note without picking a language first. A language
+ * picked by hand always wins, and a note with a file goes by its name. On the
+ * title's timer, so it costs one scan of the note's start per typing pause.
+ */
+export function applyNoteLanguage(id: DocId): void {
+  const doc = getDoc(id);
+  if (!doc || doc.meta.path !== null || doc.meta.languageOverride) return;
+  const detected =
+    detectNoteLanguage(doc.state.doc.sliceString(0, 8_000), doc.meta.detectedLanguage ?? null) ??
+    undefined;
+  if (detected === doc.meta.detectedLanguage) return;
+  patchMeta(id, { detectedLanguage: detected });
+  void applyDocLanguage(id);
 }
 
 /** Starts the title timer and loads the trash listing. Returns the teardown. */

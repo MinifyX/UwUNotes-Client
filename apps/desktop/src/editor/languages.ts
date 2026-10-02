@@ -250,5 +250,19 @@ export function resolveLanguage(meta: DocMeta): LanguageEntry | null {
     const chosen = languageById(meta.languageOverride);
     if (chosen) return chosen;
   }
+  return automaticLanguage(meta);
+}
+
+/**
+ * The language without the user's choice: for a note without a path, what
+ * its text looks like (`DocMeta.detectedLanguage`) — its name is only its
+ * first line, and a dot in that is not an extension anybody chose — and
+ * otherwise the file name. What the picker's "automatic" row shows.
+ */
+export function automaticLanguage(meta: DocMeta): LanguageEntry | null {
+  if (meta.path === null && meta.detectedLanguage) {
+    const guessed = languageById(meta.detectedLanguage);
+    if (guessed) return guessed;
+  }
   return languageForFileName(meta.path ?? meta.name);
 }

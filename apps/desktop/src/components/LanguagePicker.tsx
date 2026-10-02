@@ -41,7 +41,7 @@ import {
 } from '../lib/documents';
 import { t } from '../lib/i18n';
 import { activeDocId } from '../lib/workspace';
-import { LANGUAGES, languageForFileName, PLAIN_TEXT } from '../editor/languages';
+import { automaticLanguage, LANGUAGES, PLAIN_TEXT } from '../editor/languages';
 import { applyDocLanguage } from '../editor/setup';
 
 export type LanguagePickerProps = {
@@ -68,7 +68,7 @@ export function LanguagePicker({ docId, anchor, onClose }: LanguagePickerProps) 
   const list = useRef<HTMLUListElement | null>(null);
   const listId = useId();
 
-  const detected = meta ? languageForFileName(meta.path ?? meta.name) : null;
+  const detected = meta ? automaticLanguage(meta) : null;
   const chosen = meta?.languageOverride ?? null;
 
   const rows = useMemo(() => {

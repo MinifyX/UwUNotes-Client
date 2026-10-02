@@ -23,6 +23,7 @@
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
 import type { EncodingLabel, Eol, FileStamp, LoadedFile } from './api';
+import { detectNoteLanguage } from './note-language';
 import { noteTitle } from './note-title';
 import { getSettings } from './settings';
 import type { TabColor } from './tabs';
@@ -72,6 +73,12 @@ export type DocMeta = {
   pinned?: boolean;
   /** A colour stripe on the tab, picked from its context menu. See `lib/tabs.ts`. */
   color?: TabColor;
+  /**
+   * For a buffer without a path: the language its text looks like, guessed
+   * by `lib/note-language.ts` — so far only `markdown`. Below a language
+   * picked by hand; see `resolveLanguage`.
+   */
+  detectedLanguage?: string;
 };
 
 export type Doc = {
@@ -244,6 +251,13 @@ export function openDoc(init: OpenInit): DocId {
       binary: init.binary ?? false,
       readOnly: init.stamp?.readOnly ?? false,
       staleOnDisk: false,
+      // Guessed once here for a note that arrives with text — a restored
+      // draft, a note from the trash, a version opened as a tab; typing
+      // refreshes it later (`lib/notebook.ts`).
+      detectedLanguage:
+        init.path === null && !init.languageOverride && init.text
+          ? (detectNoteLanguage(init.text) ?? undefined)
+          : undefined,
     },
     state,
     // A document that starts dirty (a restored draft) has no disk text to
