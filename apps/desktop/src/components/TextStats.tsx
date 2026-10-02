@@ -3,11 +3,11 @@
  *
  * ## When it counts
  *
- * Like the caret position in `StatusBar.tsx`, by looking at the active view on
- * an animation frame rather than through an extension in every document. The
- * frame only compares two references — CodeMirror's `Text` and selection are
- * immutable, so "did anything change" is `!==` — and the counting itself waits
- * until typing pauses. A short document is counted almost at once; a long one
+ * Like the caret position in `StatusBar.tsx`: when the active document's state
+ * changes (`subscribeDocState`) or another tab becomes the active one, and not
+ * otherwise. The look only compares two references — CodeMirror's `Text` and
+ * selection are immutable, so "did anything change" is `!==` — and the
+ * counting itself waits until typing pauses. A short document is counted almost at once; a long one
  * waits longer, and anything past `EXACT_LIMIT` is estimated from a sample
  * (`lib/text-stats.ts`), so a 50 MB log never costs more than a small file
  * does. Moving the caret alone never recounts the document, only the
@@ -33,7 +33,9 @@ import {
   textStats,
   type TextStats,
 } from '../lib/text-stats';
-import { activeView, focusActiveView } from '../lib/views';
+import { getDoc, subscribeDocState, subscribeDocuments } from '../lib/documents';
+import { focusActiveView } from '../lib/views';
+import { activeDocId, subscribeWorkspace } from '../lib/workspace';
 import { usePopoverPosition } from './LanguagePicker';
 
 export type LiveStats = {
@@ -78,6 +80,30 @@ function selectionStats(state: EditorState): TextStats | null {
   return { ...textStats(text), lines };
 }
 
+/** The active document's state, from the store: it holds every transaction. */
+export function activeState(): EditorState | undefined {
+  const id = activeDocId();
+  return id ? getDoc(id)?.state : undefined;
+}
+
+/**
+ * Calls `look` whenever the active document's state may have changed: its own
+ * transactions, another tab or pane becoming active, a document closing. Not
+ * on a timer and not per frame — an idle window costs nothing.
+ */
+export function followActiveState(look: () => void): () => void {
+  const stopState = subscribeDocState((id) => {
+    if (id === activeDocId()) look();
+  });
+  const stopWorkspace = subscribeWorkspace(look);
+  const stopDocuments = subscribeDocuments(look);
+  return () => {
+    stopState();
+    stopWorkspace();
+    stopDocuments();
+  };
+}
+
 /** Counts for the active editor, or `null` while switched off or with no editor. */
 export function useTextStats(enabled: boolean): LiveStats | null {
   const [stats, setStats] = useState<LiveStats | null>(null);
@@ -87,7 +113,6 @@ export function useTextStats(enabled: boolean): LiveStats | null {
       setStats(null);
       return;
     }
-    let frame = 0;
     let timer = 0;
     let seenDoc: Text | null = null;
     let seenSelection: EditorState['selection'] | null = null;
@@ -97,7 +122,7 @@ export function useTextStats(enabled: boolean): LiveStats | null {
     let counted: TextStats | null = null;
 
     const count = () => {
-      const state = activeView()?.state;
+      const state = activeState();
       if (!state) return;
       if (countedDoc !== state.doc) {
         counted = docStats(state.doc);
@@ -106,11 +131,9 @@ export function useTextStats(enabled: boolean): LiveStats | null {
       setStats({ doc: counted!, selection: selectionStats(state) });
     };
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      if (!document.hasFocus()) return;
-      const view = activeView();
-      if (!view) {
+    const look = () => {
+      const state = activeState();
+      if (!state) {
         if (seenDoc !== null) {
           seenDoc = null;
           seenSelection = null;
@@ -119,7 +142,7 @@ export function useTextStats(enabled: boolean): LiveStats | null {
         }
         return;
       }
-      const { doc, selection } = view.state;
+      const { doc, selection } = state;
       if (doc === seenDoc && seenSelection !== null && selection.eq(seenSelection)) return;
       const docChanged = doc !== seenDoc;
       seenDoc = doc;
@@ -133,9 +156,10 @@ export function useTextStats(enabled: boolean): LiveStats | null {
       timer = window.setTimeout(count, delay);
     };
 
-    frame = requestAnimationFrame(tick);
+    look();
+    const stop = followActiveState(look);
     return () => {
-      cancelAnimationFrame(frame);
+      stop();
       window.clearTimeout(timer);
     };
   }, [enabled]);

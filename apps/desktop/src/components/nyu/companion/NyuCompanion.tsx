@@ -100,24 +100,28 @@ export function NyuCompanion() {
   const visible = settings.nyuCompanion;
 
   // Blinking: now and then, at an irregular pace, only while her eyes are open
-  // and somebody could see it.
+  // and somebody could see it. A hidden window stops the timer altogether
+  // rather than waking every few seconds to decide not to blink.
   useEffect(() => {
     if (!visible || !canLook) return;
     let timer = 0;
     let open = 0;
     const svg = svgRef.current;
     const next = () => {
-      timer = window.setTimeout(blink, 3_000 + Math.random() * 5_000);
+      window.clearTimeout(timer);
+      timer = document.hidden ? 0 : window.setTimeout(blink, 3_000 + Math.random() * 5_000);
     };
     const blink = () => {
-      if (!document.hidden && document.documentElement.dataset.motion !== 'reduced') {
+      if (document.documentElement.dataset.motion !== 'reduced') {
         svg?.classList.add('is-blinking');
         open = window.setTimeout(() => svg?.classList.remove('is-blinking'), 160);
       }
       next();
     };
     next();
+    document.addEventListener('visibilitychange', next);
     return () => {
+      document.removeEventListener('visibilitychange', next);
       window.clearTimeout(timer);
       window.clearTimeout(open);
       svg?.classList.remove('is-blinking');

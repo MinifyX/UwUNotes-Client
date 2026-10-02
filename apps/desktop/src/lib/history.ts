@@ -203,11 +203,9 @@ export async function afterSave(
 export async function moveNoteHistory(from: DocId, to: DocId) {
   if (from === to) return;
   lastSent.delete(keyString({ kind: 'note', id: from }));
-  await historyMove(
-    { kind: 'note', id: from },
-    { kind: 'note', id: to },
-    retentionDays(),
-  ).catch(() => undefined);
+  await historyMove({ kind: 'note', id: from }, { kind: 'note', id: to }, retentionDays()).catch(
+    () => undefined,
+  );
   announce();
 }
 

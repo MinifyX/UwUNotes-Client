@@ -13,13 +13,12 @@
  *
  * ## How it follows the caret
  *
- * By polling `activeView()` on an animation frame, and only while the window
- * has focus. The alternative — a `EditorView.updateListener` pushed in through
- * the plugin registry — means every open document carries an extension whose
- * only purpose is to feed one line of chrome, and it fires on every keystroke
- * whether or not anything in the selection changed. The poll reads five numbers
- * off a state that is already in memory, compares them to the last five, and
- * does nothing at all the vast majority of frames. It is the smaller thing.
+ * By listening to the store: every editor transaction is written back to
+ * `lib/documents.ts`, which says so through `subscribeDocState`, and switching
+ * tabs or panes goes through the workspace. Each time the active document's
+ * state is read, five numbers compared to the last five, and React only hears
+ * about it when one of them moved. No extension in every document, and no
+ * loop: a window nobody types into does no work at all.
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -30,7 +29,6 @@ import { setDocEol } from '../lib/files';
 import { refreshGitStatus, useGitBranch } from '../lib/git';
 import { t, useLanguage } from '../lib/i18n';
 import { TAB_SIZES, updateSettings, useSettings } from '../lib/settings';
-import { activeView } from '../lib/views';
 import { activeDocId, useWorkspace } from '../lib/workspace';
 import { PLAIN_TEXT, resolveLanguage } from '../editor/languages';
 import { NyuCompanion } from './nyu/companion/NyuCompanion';
@@ -40,7 +38,13 @@ import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
 import { Icon } from './Icon';
 import { LanguagePicker } from './LanguagePicker';
-import { TextStatsPopover, useTextStats, wordCountLabel } from './TextStats';
+import {
+  activeState,
+  followActiveState,
+  TextStatsPopover,
+  useTextStats,
+  wordCountLabel,
+} from './TextStats';
 
 /** Long enough to read, short enough to be gone before it is in the way. */
 const SAVED_MESSAGE_MS = 4_000;
@@ -77,17 +81,11 @@ function useCaret(): Caret | null {
   const [caret, setCaret] = useState<Caret | null>(null);
 
   useEffect(() => {
-    let frame = 0;
     let previous = '';
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      // Nothing can move the caret while the window is in the background, and
-      // an editor nobody is looking at is not worth a measurement a frame.
-      if (!document.hasFocus()) return;
-
-      const view = activeView();
-      if (!view) {
+    const look = () => {
+      const state = activeState();
+      if (!state) {
         if (previous !== '') {
           previous = '';
           setCaret(null);
@@ -95,7 +93,6 @@ function useCaret(): Caret | null {
         return;
       }
 
-      const state = view.state;
       const main = state.selection.main;
       const signature = `${main.anchor}:${main.head}:${state.selection.ranges.length}:${state.doc.length}`;
       if (signature === previous) return;
@@ -114,8 +111,8 @@ function useCaret(): Caret | null {
       });
     };
 
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    look();
+    return followActiveState(look);
   }, []);
 
   return caret;

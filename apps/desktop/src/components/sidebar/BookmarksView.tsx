@@ -6,9 +6,10 @@
  * five files, F2 only ever walks the one in front of you. A click jumps there,
  * opening the tab if it is in the background.
  *
- * The marks live in each document's state, so this polls once a frame and
- * compares identities — each document's text and its bookmark set — and only
- * rebuilds the list when one of them actually moved.
+ * The marks live in each document's state, so this listens for new states
+ * (`subscribeDocState`, which covers background tabs too) and compares
+ * identities — each document's text and its bookmark set — and only rebuilds
+ * the list when one of them actually moved.
  */
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -20,7 +21,12 @@ import {
   sameSignature,
   type BookmarkEntry,
 } from '../../lib/bookmarks';
-import { documentsVersion, subscribeDocuments, type DocId } from '../../lib/documents';
+import {
+  documentsVersion,
+  subscribeDocState,
+  subscribeDocuments,
+  type DocId,
+} from '../../lib/documents';
 import { t, useLanguage } from '../../lib/i18n';
 import { shortcutLabel } from '../../lib/shortcuts';
 import { Icon } from '../Icon';
@@ -46,20 +52,15 @@ export function BookmarksView() {
   const [entries, setEntries] = useState<BookmarkEntry[]>(() => allBookmarks());
 
   useEffect(() => {
-    let frame = 0;
     let shown = bookmarkSignature();
     setEntries(allBookmarks());
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      if (!document.hasFocus()) return;
+    return subscribeDocState(() => {
       const now = bookmarkSignature();
       if (sameSignature(now, shown)) return;
       shown = now;
       setEntries(allBookmarks());
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    });
   }, [version]);
 
   const groups = useMemo(() => grouped(entries), [entries]);

@@ -16,7 +16,9 @@
  * one exception is the dirty flag itself, which is recomputed on every edit;
  * see {@link setDocState}. Whoever does need to hear about typing — the draft
  * flush, an untitled note's title — subscribes to {@link subscribeText}, which
- * names the document and costs a listener call, not a render.
+ * names the document and costs a listener call, not a render. Whoever follows
+ * the caret or the parse as well — the status bar, the outline, the preview —
+ * subscribes to {@link subscribeDocState}, which fires on every new state.
  */
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
@@ -87,6 +89,7 @@ export type Doc = {
 const docs = new Map<DocId, Doc>();
 const listeners = new Set<() => void>();
 const textListeners = new Set<(id: DocId) => void>();
+const stateListeners = new Set<(id: DocId) => void>();
 /** Bumped on every metadata change, so `useSyncExternalStore` has a snapshot to compare. */
 let version = 0;
 let docCounter = 0;
@@ -109,6 +112,28 @@ export function subscribeDocuments(listener: () => void): () => void {
 export function subscribeText(listener: (id: DocId) => void): () => void {
   textListeners.add(listener);
   return () => textListeners.delete(listener);
+}
+
+/**
+ * Called with the document's id whenever its `EditorState` is replaced: an
+ * edit, a caret move, a bookmark, a grammar arriving, the background parser
+ * getting further. Every editor transaction is written back here (see
+ * `components/EditorPane.tsx`), and so is every change made to a document
+ * that is not on screen, so this hears both — which an `updateListener` in
+ * the editor, seeing only mounted views, would not.
+ *
+ * It is what the status bar, the word count, the outline, the bookmark list
+ * and the preview follow instead of polling every frame: nothing runs while
+ * nothing changes. A listener should compare identities (`Text` and the
+ * selection are immutable) and start a timer for anything that costs more.
+ */
+export function subscribeDocState(listener: (id: DocId) => void): () => void {
+  stateListeners.add(listener);
+  return () => stateListeners.delete(listener);
+}
+
+function stateChanged(id: DocId) {
+  for (const listener of stateListeners) listener(id);
 }
 
 function textChanged(doc: Doc) {
@@ -283,6 +308,7 @@ export function openUntitled(text = ''): DocId {
 export function setDocState(id: DocId, state: EditorState) {
   const doc = docs.get(id);
   if (!doc) return;
+  if (state === doc.state) return;
   const changed = state.doc !== doc.state.doc;
   doc.state = state;
   if (changed) textChanged(doc);
@@ -291,6 +317,7 @@ export function setDocState(id: DocId, state: EditorState) {
     doc.meta = { ...doc.meta, dirty };
     announce();
   }
+  stateChanged(id);
 }
 
 /** Replaces the text, keeping the undo history — for reloading from disk. */
@@ -302,6 +329,7 @@ export function replaceDocText(id: DocId, text: string) {
   }).state;
   textChanged(doc);
   announce();
+  stateChanged(id);
 }
 
 export function patchMeta(id: DocId, patch: Partial<Omit<DocMeta, 'id'>>) {

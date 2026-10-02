@@ -5,11 +5,11 @@
  * the drawing: a divider to drag, a header with a close button, and the
  * rendered document, kept in step with the editor three ways.
  *
- * - **Live.** The text is never pushed here; it is polled once a frame from
- *   the pane's editor, the way the status bar follows the caret, and compared
- *   by identity — a CodeMirror `Text` is immutable, so "did it change" costs
- *   one comparison. A change re-renders after a short pause, longer for big
- *   documents, so typing never waits for markdown-it.
+ * - **Live.** The store says when the document's state changed
+ *   (`subscribeDocState`), the way the status bar follows the caret, and the
+ *   text is compared by identity — a CodeMirror `Text` is immutable, so "did
+ *   it change" costs one comparison. A change re-renders after a short pause,
+ *   longer for big documents, so typing never waits for markdown-it.
  * - **Scroll.** Every block carries the source line it starts on. When the
  *   editor scrolls, the line at its top is looked up among those anchors and
  *   the preview follows (`lib/markdown/scroll-sync.ts`). One direction only:
@@ -36,7 +36,7 @@ import {
 } from 'react';
 import { toggleTasksOnLines } from '../editor/tasks';
 import { asApiError, openExternal } from '../lib/api';
-import { getDoc, getMeta, type DocId } from '../lib/documents';
+import { getDoc, getMeta, subscribeDocState, type DocId } from '../lib/documents';
 import { openPaths } from '../lib/files';
 import { t, useLanguage } from '../lib/i18n';
 import type { PaneId } from '../lib/layout';
@@ -155,10 +155,9 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
     );
   }, [pane]);
 
-  // Following the text: poll, compare, debounce, render.
+  // Following the text: listen, compare, debounce, render.
   useEffect(() => {
     if (status !== 'ready') return;
-    let frame = 0;
     let timer = 0;
     let shown: unknown = null;
     let first = true;
@@ -179,8 +178,7 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
       syncScroll();
     };
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
+    const look = () => {
       // The store rather than the view: every transaction is written back to
       // it, and it is never caught mid-switch showing the previous tab.
       const state = getDoc(docId)?.state;
@@ -195,9 +193,12 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
       }
     };
 
-    frame = requestAnimationFrame(tick);
+    look();
+    const stop = subscribeDocState((id) => {
+      if (id === docId) look();
+    });
     return () => {
-      cancelAnimationFrame(frame);
+      stop();
       window.clearTimeout(timer);
     };
   }, [status, pane, docId, generation, syncScroll]);

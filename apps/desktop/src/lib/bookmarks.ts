@@ -74,7 +74,7 @@ export function allBookmarks(): BookmarkEntry[] {
 
 /**
  * Something that changes whenever any document's bookmarks or bookmarked text
- * could have — cheap enough to compare on every animation frame. The field
+ * could have — cheap enough to compare on every new editor state. The field
  * value and the doc are both immutable, so identity is the whole comparison.
  */
 export function bookmarkSignature(): unknown[] {

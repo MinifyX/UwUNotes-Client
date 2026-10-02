@@ -3,12 +3,13 @@
  * sections of a config file — for whichever document is active.
  *
  * What counts as structure is decided in `lib/outline.ts`; this is the list.
- * It follows the editor by polling once a frame, like the status bar, and
- * compares identities: the text, the syntax tree (which grows while a big file
- * is parsed in the background) and the language. Only a change in one of
- * those re-extracts, after a short pause, so typing in a long file does not
- * redo the outline on every keystroke. The caret is cheaper, and is followed
- * every frame to keep the current section lit.
+ * It follows the document through `subscribeDocState`, like the status bar —
+ * every transaction, including the background parser's, replaces the state in
+ * the store — and compares identities: the text, the syntax tree (which grows
+ * while a big file is parsed in the background) and the language. Only a
+ * change in one of those re-extracts, after a short pause, so typing in a long
+ * file does not redo the outline on every keystroke. The caret is cheaper, and
+ * is followed on every state to keep the current section lit.
  */
 
 import { syntaxTree } from '@codemirror/language';
@@ -16,7 +17,13 @@ import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { resolveLanguage } from '../../editor/languages';
-import { documentsVersion, getDoc, getMeta, subscribeDocuments } from '../../lib/documents';
+import {
+  documentsVersion,
+  getDoc,
+  getMeta,
+  subscribeDocState,
+  subscribeDocuments,
+} from '../../lib/documents';
 import { t, useLanguage } from '../../lib/i18n';
 import {
   currentOutlineIndex,
@@ -44,7 +51,6 @@ export function OutlineView() {
   const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    let frame = 0;
     let timer = 0;
     let shown: { doc: unknown; tree: unknown } | null = null;
     let lastCaret = -1;
@@ -60,9 +66,7 @@ export function OutlineView() {
     // A different document or language is drawn at once; only edits wait.
     rebuild();
 
-    const tick = () => {
-      frame = requestAnimationFrame(tick);
-      if (!document.hasFocus()) return;
+    const look = () => {
       const state = stateNow();
       if (!state) return;
       const head = state.selection.main.head;
@@ -79,9 +83,12 @@ export function OutlineView() {
       timer = window.setTimeout(rebuild, REBUILD_MS);
     };
 
-    frame = requestAnimationFrame(tick);
+    look();
+    const stop = subscribeDocState((id) => {
+      if (id === docId) look();
+    });
     return () => {
-      cancelAnimationFrame(frame);
+      stop();
       window.clearTimeout(timer);
     };
   }, [docId, languageId, version]);
