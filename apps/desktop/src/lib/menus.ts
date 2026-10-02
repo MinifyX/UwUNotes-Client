@@ -23,6 +23,7 @@ import { N_, t } from './i18n';
 import { paneCount } from './layout';
 import { getSettings } from './settings';
 import { activeDocId, forgetRecents, getWorkspace } from './workspace';
+import { zenActive } from './zen';
 import { LANGUAGES, PLAIN_TEXT, resolveLanguage } from '../editor/languages';
 import { applyDocLanguage } from '../editor/setup';
 
@@ -186,6 +187,12 @@ function viewMenu(): MenuEntry[] {
     }),
     c('view.toggleMinimap', { label: t('Minimap'), checked: settings.minimap }),
     c('view.toggleSidebar', { label: t('Seitenleiste'), checked: sidebarOpen() }),
+    separator(),
+    c('view.zen', { label: t('Zen-Modus'), checked: zenActive() }),
+    c('view.toggleTypewriter', {
+      label: t('Schreibmaschinen-Scrollen'),
+      checked: settings.typewriterScrolling,
+    }),
     separator(),
     {
       kind: 'submenu',

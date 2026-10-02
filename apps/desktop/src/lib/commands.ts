@@ -59,6 +59,7 @@ import { getCompare, gotoDifference, setSyncScroll, toggleCompare } from './comp
 import { HASH_ALGORITHMS, hashSelectionToClipboard, requestHash } from './hash-tool';
 import { printDoc } from './print';
 import { canCloseInPane, closeAllUnpinned, closeInPane, togglePinned } from './tab-actions';
+import { toggleZen, zenActive } from './zen';
 import { getZoom, resetZoom, stepZoom, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN } from './zoom';
 import {
   activeDocId,
@@ -459,6 +460,25 @@ function viewCommands(): Command[] {
         const id = activeDocId();
         if (id) togglePinned(id);
       },
+    },
+    {
+      id: 'view.zen',
+      title: () => (zenActive() ? t('Zen-Modus beenden') : t('Zen-Modus')),
+      group,
+      shortcut: shortcutLabel('view.zen'),
+      run: toggleZen,
+    },
+    {
+      id: 'view.toggleTypewriter',
+      title: () => t('Schreibmaschinen-Scrollen umschalten'),
+      group,
+      run: () => updateSettings({ typewriterScrolling: !getSettings().typewriterScrolling }),
+    },
+    {
+      id: 'view.toggleZenFocusDim',
+      title: () => t('Fokus-Abdunklung im Zen-Modus umschalten'),
+      group,
+      run: () => updateSettings({ zenFocusDim: !getSettings().zenFocusDim }),
     },
     {
       id: 'view.splitRight',
