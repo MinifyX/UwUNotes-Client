@@ -156,26 +156,27 @@ exactly.
 ## Nyu, the mascot
 
 Nyu is the same cat as in UwUMail and UwUSSH — the envelope became a terminal in
-UwUSSH, and here it is a **notepad**. A spiral-bound pad seen head-on, ears
-poking up over the top edge, and the page is the face: UwU eyes, `w` mouth,
-blush. A pink caret blinks next to her mouth like she is about to write
-something.
+UwUSSH, and here it is a **spiral notebook**. Seen head-on, rings on the left,
+an elastic band on the right, ears poking up over the top edge and a pencil
+tucked behind her right ear; the cover is the face: UwU eyes, `w` mouth, blush,
+two ruled lines below.
 
 - **Sticker style**, unchanged across the suite. Plum outlines `#4B1D3F`, pink
   body `#FF6FA6`, light page `#FFB8D3`, pastel props, a white die-cut edge.
   These are fixed artwork and stay the same in dark mode; the white edge is what
   keeps the outlines readable on a `#0e0b11` ground.
 - **App icon** (website, GitHub, macOS Dock). Built like UwUMail's, UwUSSH's
-  and UwURDP's: Nyu as a pink sheet with a folded corner and cat ears,
-  slightly tilted. The sheet is the face, with two ruled lines and the caret
-  below. A small star top left, the heart top right, a big star bottom left.
+  and UwURDP's: Nyu as a pink spiral notebook with cat ears, slightly tilted,
+  rings on the left, a darker elastic band on the right and a yellow pencil
+  tucked behind her right ear. The cover is the face, with two ruled lines
+  below. A small star top left, the heart bottom right, a big star bottom left.
+  On macOS the tile sits inside Apple's icon grid (see `scripts/icons.mjs`).
 - **The tile.** Every UwU app's icon for the website and GitHub sits on
   UwUMail's pastel pink tile (`#FFF3F8` to `#FFD3E5`), never another colour.
   Each one gets sparkles and a heart, arranged differently around it.
 - **Taskbar icon.** On the Windows taskbar, in the setup and in Linux menus
-  Nyu stands alone: upright, no tile, white die-cut edge, a sheet with a
-  folded corner and three plum ruled lines, the last one short with the pink
-  caret at its end, so it reads as notes; the ears say Nyu
+  Nyu stands alone: upright, no tile, white die-cut edge, the notebook with
+  heavier outlines, rings and pencil, so it reads as notes; the ears say Nyu
   (`brand/uwunotes-taskbar-icon.svg`). At 16 and 24 px a simplified cut takes
   over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs`
   regenerates all desktop icons from these three.

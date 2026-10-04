@@ -1,47 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Nyu, the UwUNotes notepad cat">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="256" height="256" role="img" aria-label="Nyu, the UwUNotes notebook cat">
   <title>Nyu</title>
-
   <!--
-    The static twin of <NyuFigure mood="uwu"> in
-    apps/desktop/src/components/nyu/Nyu.tsx. Change one, change the other: this
-    copy is for anything that cannot run React — the readme, a paste into a
-    chat window, an image in a release note.
+    The static twin of the in-app Nyu figure (apps/desktop/src/components/nyu/).
+    Change one, change the other: this copy is for anything that cannot run
+    React, like the readme, a chat paste or an image in a release note.
   -->
-
-  <!-- die-cut white edge -->
-  <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M62 88 L80 36 L114 88 Z"/>
-    <path d="M142 88 L176 36 L194 88 Z"/>
-    <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z"/>
-  </g>
-
-  <!-- ears, before the sheet so their feet disappear behind it -->
-  <g stroke="#4B1D3F" stroke-width="9" stroke-linejoin="round">
-    <path d="M62 88 L80 36 L114 88 Z" fill="#FF6FA6"/>
-    <path d="M142 88 L176 36 L194 88 Z" fill="#FF6FA6"/>
-  </g>
-  <path d="M76 82 L84 52 L100 82 Z" fill="#FFB8D3"/>
-  <path d="M156 82 L172 52 L180 82 Z" fill="#FFB8D3"/>
-
-  <!-- the sheet, which is also the face -->
-  <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z" fill="#FFB8D3" stroke="#4B1D3F" stroke-width="9" stroke-linejoin="round"/>
-
-  <!-- folded corner: the back of the sheet, so it takes the deeper pink -->
-  <path d="M184 74 L228 118 H184 Z" fill="#FF6FA6"/>
-  <path d="M184 74 V118 H228" fill="none" stroke="#4B1D3F" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
-
-  <!-- two ruled lines under the mouth -->
-  <g fill="none" stroke="#FF6FA6" stroke-width="7" stroke-linecap="round">
-    <path d="M56 196 H172"/>
-    <path d="M56 206 H136"/>
-  </g>
-
-  <ellipse cx="74" cy="168" rx="12" ry="7.5" fill="#FF4D8D" opacity="0.5"/>
-  <ellipse cx="182" cy="168" rx="12" ry="7.5" fill="#FF4D8D" opacity="0.5"/>
-
-  <g fill="none" stroke="#4B1D3F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M88 142 Q102 160 116 142"/>
-    <path d="M140 142 Q154 160 168 142"/>
-    <path d="M112 170 q8 13 16 0 q8 13 16 0"/>
+  <g transform="translate(256 256) scale(1.08) translate(-270 -217)" stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"><path d="M118 200 L132 100 Q135 82 151 91 L230 156 Z"/><path d="M394 200 L380 100 Q377 82 361 91 L282 156 Z"/><rect x="100" y="152" width="312" height="230" rx="40"/><g transform="translate(372 128) rotate(-38)"><rect x="-120" y="-20" width="240" height="40" rx="8"/></g></g>
+    <g transform="translate(372 128) rotate(-38)" stroke="#4B1D3F" stroke-width="11" stroke-linejoin="round">
+      <path d="M-120 -20 L-160 0 L-120 20 Z" fill="#F6D2A8"/>
+      <path d="M-160 0 L-145 -7.5 L-145 7.5 Z" fill="#4B1D3F"/>
+      <rect x="-120" y="-20" width="190" height="40" fill="#FFD66E"/>
+      <rect x="70" y="-20" width="24" height="40" fill="#D9C4D0"/>
+      <rect x="94" y="-20" width="30" height="40" rx="10" fill="#FF6FA6"/>
+    </g><g fill="#FF6FA6" stroke="#4B1D3F" stroke-width="14"><path d="M118 200 L132 100 Q135 82 151 91 L230 156 Z"/><path d="M394 200 L380 100 Q377 82 361 91 L282 156 Z"/></g><g fill="#FFB8D3"><path d="M146 150 L151 116 Q152 108 159 112 L196 144 Z"/><path d="M366 150 L361 116 Q360 108 353 112 L316 144 Z"/></g><rect x="100" y="152" width="312" height="230" rx="40" fill="#FFB8D3"/>
+    <rect x="360" y="152" width="20" height="230" fill="#FF6FA6"/>
+    <rect x="100" y="152" width="312" height="230" rx="40" fill="none" stroke="#4B1D3F" stroke-width="14"/><g fill="none" stroke="#FF6FA6" stroke-width="12" stroke-linecap="round"><path d="M164 306 H320"/><path d="M164 342 H270"/></g><g fill="none" stroke="#4B1D3F" stroke-width="11" stroke-linecap="round"><path d="M128 182 H96 A14 14 0 0 0 96 210 H128"/><path d="M128 224 H96 A14 14 0 0 0 96 252 H128"/><path d="M128 266 H96 A14 14 0 0 0 96 294 H128"/><path d="M128 308 H96 A14 14 0 0 0 96 336 H128"/></g><g transform="translate(262 208) scale(1.15) translate(-256 -216)"><g fill="#FF7FB0"><ellipse cx="194" cy="238" rx="15" ry="8.5"/><ellipse cx="318" cy="238" rx="15" ry="8.5"/></g>
+      <g fill="none" stroke="#4B1D3F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M210 194 v4 a12 12 0 0 0 24 0 v-4"/><path d="M278 194 v4 a12 12 0 0 0 24 0 v-4"/>
+        <path d="M236 230 q10 13 20 0 q10 13 20 0"/>
+      </g></g>
   </g>
 </svg>
