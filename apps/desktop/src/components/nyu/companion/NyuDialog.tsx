@@ -424,7 +424,7 @@ function Pomodoro({ progress, format }: { progress: NyuProgress; format: Intl.Nu
           <dd>{format.format(progress.stats.pomodoros)}</dd>
         </div>
         <div className="nyu-stat">
-          <dt>{t('Runden seit der langen Pause')}</dt>
+          <dt>{t('Seit der langen Pause')}</dt>
           <dd>{format.format(state.done)}</dd>
         </div>
         <div className="nyu-stat">
