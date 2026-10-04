@@ -96,6 +96,8 @@ export type NyuProgress = {
   achievements: Partial<Record<AchievementId, number>>;
   /** Occasions she has been around for, so their achievement and hat stay. */
   seen: Occasion[];
+  /** The secrets found so far — the words she answers to and the Konami code. */
+  found: SecretId[];
   /** Occasion → the day it was last greeted with a cameo. */
   greeted: Partial<Record<Occasion, string>>;
   hat: HatChoice;
@@ -127,6 +129,7 @@ export const FRESH_PROGRESS: NyuProgress = {
   days: { last: null, streak: 0, best: 0, total: 0 },
   achievements: {},
   seen: [],
+  found: [],
   greeted: {},
   hat: 'auto',
   minute: { at: 0, chars: 0 },
@@ -361,6 +364,8 @@ export type Achievement = {
   test: (progress: NyuProgress) => boolean;
   /** An accessory that comes with it. */
   hat?: HatId;
+  /** Shown as "???" until it is unlocked: knowing it exists is half the fun, knowing how spoils it. */
+  secret?: true;
 };
 
 const seenOn = (occasion: Occasion) => (progress: NyuProgress) => progress.seen.includes(occasion);
@@ -447,6 +452,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   },
   {
     id: 'konami',
+    secret: true,
     title: N_('Geheimcode'),
     hint: N_('Ein sehr alter Code. Hoch, hoch, runter, runter …'),
     test: (p) => p.stats.konami >= 1,
@@ -454,6 +460,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   },
   {
     id: 'egg',
+    secret: true,
     title: N_('Geheimwort'),
     hint: N_('Nyu hört auf bestimmte Wörter.'),
     test: (p) => p.stats.eggs >= 1,
@@ -507,6 +514,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   },
   {
     id: 'friday13',
+    secret: true,
     title: N_('Glückskatze'),
     hint: N_('Schau an einem Freitag, dem 13., vorbei.'),
     test: seenOn('friday13'),
@@ -606,6 +614,12 @@ export function sanitizeProgress(raw: unknown): NyuProgress {
     ? OCCASIONS.filter((occasion) => (input.seen as unknown[]).includes(occasion))
     : [];
 
+  const found = Array.isArray(input.found)
+    ? SECRETS.filter((secret) => (input.found as unknown[]).includes(secret.id)).map(
+        (secret) => secret.id,
+      )
+    : [];
+
   const greeted: Partial<Record<Occasion, string>> = {};
   for (const [occasion, value] of Object.entries(record(input.greeted))) {
     const when = day(value);
@@ -633,6 +647,7 @@ export function sanitizeProgress(raw: unknown): NyuProgress {
     },
     achievements,
     seen,
+    found,
     greeted,
     hat,
     minute: {
@@ -640,6 +655,32 @@ export function sanitizeProgress(raw: unknown): NyuProgress {
       chars: Math.min(CHARS_PER_MINUTE_CAP, count(minuteIn.chars)),
     },
   };
+}
+
+/* ── Secrets ───────────────────────────────────────────── */
+
+export type SecretId = 'uwu' | 'owo' | 'nyu' | 'meow' | 'konami';
+
+/**
+ * The easter eggs, for the page that counts them. `name` is what is shown once
+ * found, `teaser` the nudge before that — never the answer.
+ */
+export const SECRETS: readonly { id: SecretId; name: string; teaser: string }[] = [
+  { id: 'uwu', name: N_('„uwu“ getippt'), teaser: N_('Ein Gesicht aus drei Buchstaben.') },
+  {
+    id: 'owo',
+    name: N_('„owo“ getippt'),
+    teaser: N_('Ein staunendes Gesicht aus drei Buchstaben.'),
+  },
+  { id: 'nyu', name: N_('„nyu“ getippt'), teaser: N_('Wie heißt sie noch mal?') },
+  { id: 'meow', name: N_('„miau“ getippt'), teaser: N_('Was Katzen so sagen.') },
+  { id: 'konami', name: N_('Konami-Code eingegeben'), teaser: N_('Hoch, hoch, runter, runter …') },
+];
+
+/** The progress with one more secret found; the same object when it was known already. */
+export function noteSecret(progress: NyuProgress, secret: SecretId): NyuProgress {
+  if (progress.found.includes(secret)) return progress;
+  return { ...progress, found: [...progress.found, secret] };
 }
 
 /* ── The store ─────────────────────────────────────────── */
@@ -695,6 +736,12 @@ export function setProgress(next: NyuProgress, announce = true): void {
   current = next;
   if (!persistTimer) persistTimer = window.setTimeout(flushProgress, PERSIST_DELAY_MS);
   if (announce) for (const listener of listeners) listener();
+}
+
+/** Remembers a secret for the Nyu page. Counting is off with levels off, and so is this. */
+export function findSecret(secret: SecretId): void {
+  if (!getSettings().nyuLevels) return;
+  setProgress(noteSecret(current, secret));
 }
 
 export function chooseHat(hat: HatChoice): void {

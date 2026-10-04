@@ -30,7 +30,7 @@ import { Sticker } from '../Nyu';
 import { Tomato } from '../props';
 import './companion.css';
 
-function useSecondTick(active: boolean): void {
+export function useSecondTick(active: boolean): void {
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!active) return;
@@ -52,7 +52,7 @@ function useSecondTick(active: boolean): void {
   }, [active]);
 }
 
-function phaseName(phase: PomodoroPhase): string {
+export function phaseName(phase: PomodoroPhase): string {
   if (phase === 'focus') return t('Fokus');
   return phase === 'break' ? t('Kurze Pause') : t('Lange Pause');
 }

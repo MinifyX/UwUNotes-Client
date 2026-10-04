@@ -12,7 +12,7 @@
  * is greyed and which files are recent is always read at that moment.
  */
 
-import { allCommands, runCommand, type Command } from './commands';
+import { allCommands, NYU_SWITCHES, runCommand, type Command } from './commands';
 import { getCompare } from './compare';
 import { getMeta, patchMeta } from './documents';
 import { ENCODINGS, EOLS, eolName, encodingGroupName, type EncodingGroup } from './encodings';
@@ -20,6 +20,7 @@ import { openPaths, reopenWithEncoding, setDocEncoding, setDocEol } from './file
 import { sidebarOpen } from './chrome';
 import { HASH_ALGORITHMS } from './hash-tool';
 import { N_, t } from './i18n';
+import { getPomodoro } from './nyu-pomodoro';
 import { paneCount } from './layout';
 import { previewOpen } from './preview';
 import { getSettings } from './settings';
@@ -504,6 +505,37 @@ function toolsMenu(): MenuEntry[] {
   ];
 }
 
+/* ── Nyu ───────────────────────────────────────────────── */
+
+function nyuMenu(): MenuEntry[] {
+  const commands = allCommands();
+  const settings = getSettings();
+  const c = (id: string, options: { label?: string; checked?: boolean } = {}) =>
+    command(id, options, commands);
+  const pomodoro = getPomodoro();
+  return [
+    c('nyu.open', { label: t('Nyu-Zentrale öffnen…') }),
+    c('nyu.achievements', { label: t('Erfolge…') }),
+    c('nyu.wardrobe', { label: t('Garderobe…') }),
+    separator(),
+    pomodoro.phase === null
+      ? c('pomodoro.start', { label: t('Pomodoro starten') })
+      : c('pomodoro.stop', { label: t('Pomodoro beenden') }),
+    c('pomodoro.pause', {
+      label:
+        pomodoro.phase !== null && pomodoro.endsAt === null
+          ? t('Pomodoro fortsetzen')
+          : t('Pomodoro pausieren'),
+    }),
+    c('pomodoro.skip', { label: t('Abschnitt überspringen') }),
+    separator(),
+    c('nyu.pet'),
+    c('nyu.dance'),
+    separator(),
+    ...NYU_SWITCHES.map(({ id, key }) => c(id, { checked: settings[key] })),
+  ];
+}
+
 /* ── The row ───────────────────────────────────────────── */
 
 export const MENUS: readonly TopMenu[] = [
@@ -514,4 +546,5 @@ export const MENUS: readonly TopMenu[] = [
   { id: 'language', label: () => t(N_('Sprache')), items: languageMenu },
   { id: 'settings', label: () => t(N_('Einstellungen')), items: settingsMenu },
   { id: 'tools', label: () => t(N_('Werkzeuge')), items: toolsMenu },
+  { id: 'nyu', label: () => t(N_('Nyu')), items: nyuMenu },
 ];
