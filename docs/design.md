@@ -156,10 +156,10 @@ exactly.
 ## Nyu, the mascot
 
 Nyu is the same cat as in UwUMail and UwUSSH — the envelope became a terminal in
-UwUSSH, and here it is a **notepad**. A spiral-bound pad seen head-on, ears
-poking up over the top edge, and the page is the face: UwU eyes, `w` mouth,
-blush. A pink caret blinks next to her mouth like she is about to write
-something.
+UwUSSH, and here it is a **notebook**. A pink spiral-bound notebook seen
+head-on: the binding on the left, a darker elastic band on the right, two ruled
+lines below the face, cat ears at the top corners and a yellow pencil tucked
+behind the right ear. The cover is the face: UwU eyes, `w` mouth, blush.
 
 - **Sticker style**, unchanged across the suite. Plum outlines `#4B1D3F`, pink
   body `#FF6FA6`, light page `#FFB8D3`, pastel props, a white die-cut edge.
