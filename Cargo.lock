@@ -4874,7 +4874,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-desktop"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
  "fontdb",
@@ -4900,7 +4900,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-fs"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chardetng",
  "digest",
@@ -4920,7 +4920,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-history"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4932,7 +4932,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-session"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4942,7 +4942,7 @@ dependencies = [
 
 [[package]]
 name = "uwunotes-setup"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "semver",
  "serde",
