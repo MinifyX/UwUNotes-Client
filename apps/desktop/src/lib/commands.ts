@@ -863,6 +863,12 @@ function notebookCommands(): Command[] {
       run: () => setSidebarView('notebook'),
     },
     {
+      id: 'notes.showTrash',
+      title: () => t('Papierkorb anzeigen'),
+      group,
+      run: () => setSidebarView('trash'),
+    },
+    {
       id: 'notes.emptyTrash',
       title: () => t('Papierkorb leeren'),
       group,

@@ -346,6 +346,14 @@ export async function emptyTrashAsked(): Promise<void> {
     ],
   );
   if (answer !== 'empty') return;
+  await emptyTrashNow();
+}
+
+/**
+ * Empties the trash without asking. Only for a caller that has just asked in
+ * its own way — the trash view confirms in place, inside the sidebar.
+ */
+export async function emptyTrashNow(): Promise<void> {
   try {
     await emptyTrashOnDisk();
   } catch {
@@ -353,6 +361,20 @@ export async function emptyTrashAsked(): Promise<void> {
   }
   for (const entry of trash) closedTabs.forgetTrash(entry.id);
   await refreshTrash();
+}
+
+/**
+ * The whole text of one entry, for reading it in the trash view without
+ * bringing it back. `null` when it is gone — swept, or restored elsewhere.
+ */
+export async function peekTrashed(id: string): Promise<string | null> {
+  try {
+    const entry = await readTrash(id);
+    if (!entry) forgetEntry(id);
+    return entry ? entry.text : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ── Untitled notes name themselves, and find their language ── */

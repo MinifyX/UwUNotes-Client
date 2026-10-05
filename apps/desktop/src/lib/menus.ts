@@ -154,6 +154,7 @@ function fileMenu(): MenuEntry[] {
     c('file.close', t('Schließen')),
     c('file.closeAll', t('Alle offenen Dateien schließen')),
     c('file.reopenClosed'),
+    c('notes.showTrash', t('Papierkorb anzeigen')),
     c('notes.emptyTrash', t('Papierkorb leeren…')),
   ];
 }
