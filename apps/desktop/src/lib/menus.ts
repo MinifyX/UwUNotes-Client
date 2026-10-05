@@ -24,6 +24,7 @@ import { getPomodoro } from './nyu-pomodoro';
 import { paneCount } from './layout';
 import { previewOpen } from './preview';
 import { getSettings } from './settings';
+import { updatesAvailableInApp } from './updates';
 import { activeDocId, forgetRecents, getWorkspace } from './workspace';
 import { zenActive } from './zen';
 import { LANGUAGES, PLAIN_TEXT, resolveLanguage } from '../editor/languages';
@@ -454,6 +455,7 @@ function settingsMenu(): MenuEntry[] {
     c('app.settings', t('Einstellungen…')),
     c('app.palette', t('Befehlspalette…')),
     separator(),
+    ...(updatesAvailableInApp() ? [c('app.checkUpdates', t('Nach Updates suchen…'))] : []),
     c('app.about'),
   ];
 }

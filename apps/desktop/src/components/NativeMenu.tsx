@@ -20,6 +20,7 @@ import { useMacros } from '../lib/macros';
 import { installNativeMenu, refreshNativeMenu } from '../lib/native-menu';
 import { usePomodoro } from '../lib/nyu-pomodoro';
 import { useSettings } from '../lib/settings';
+import { useUpdatesAvailableInApp } from '../lib/updates';
 import { useWorkspace } from '../lib/workspace';
 import { useZen } from '../lib/zen';
 
@@ -36,6 +37,8 @@ export function NativeMenu() {
   useMacros();
   usePomodoro();
   useUiState();
+  // Whether "Nach Updates suchen" belongs in the app menu, known a moment after start.
+  useUpdatesAvailableInApp();
 
   // Every render is a "something changed"; the rebuild itself is debounced.
   useEffect(() => refreshNativeMenu());

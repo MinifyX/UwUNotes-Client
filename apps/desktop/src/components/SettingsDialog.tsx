@@ -63,7 +63,9 @@ import {
 } from '../editor/extensions/registry';
 import { reconfigureAllDocs } from '../editor/setup';
 import { allThemes, themeById, THEMES, type EditorTheme } from '../editor/themes';
+import { AUTO_CHECK_HINT, AUTO_CHECK_LABEL } from '../lib/updates';
 import { Modal } from './Modal';
+import { UpdatesSection } from './settings/UpdatesSection';
 import { ThemeEditor } from './ThemeEditor';
 
 /** A plain preference: nothing in an `EditorState` depends on it. */
@@ -545,6 +547,17 @@ function SettingsBody() {
             >
               {t('Nyus Erfolge und Hüte…')}
             </button>
+          </Section>
+
+          <Section title={t('Updates')}>
+            <UpdatesSection>
+              <SwitchField
+                label={t(AUTO_CHECK_LABEL)}
+                hint={t(AUTO_CHECK_HINT)}
+                checked={settings.autoCheckUpdates}
+                onChange={(autoCheckUpdates) => write({ autoCheckUpdates })}
+              />
+            </UpdatesSection>
           </Section>
 
           <Section title={t('Makros')}>

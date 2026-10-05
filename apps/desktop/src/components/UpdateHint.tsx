@@ -17,12 +17,15 @@ import { useState } from 'react';
 import { openExternal } from '../lib/api';
 import { t, useLanguage } from '../lib/i18n';
 import { useSettings } from '../lib/settings';
-import { dismissUpdate, installUpdateNow, useUpdateState, type UpdateState } from '../lib/updates';
+import {
+  dismissUpdate,
+  installUpdateNow,
+  RELEASES_URL,
+  updateHeadline,
+  useUpdateState,
+} from '../lib/updates';
 import { Icon } from './Icon';
 import { Nyu } from './nyu/Nyu';
-
-/** Where a copy that cannot update itself sends people for the new version. */
-const RELEASES_URL = 'https://github.com/MinifyX/UwUNotes-Client/releases/latest';
 
 export function UpdateHint() {
   useLanguage();
@@ -32,7 +35,9 @@ export function UpdateHint() {
 
   // Nothing on offer and nothing running: the row collapses to no height at
   // all, which is why `.app` can carry it unconditionally.
-  if (state.phase === 'idle' || state.phase === 'checking') return null;
+  if (state.phase === 'idle' || state.phase === 'checking' || state.phase === 'current') {
+    return null;
+  }
 
   const failed = state.phase === 'failed';
   const withCat = settings.tone === 'playful' && !failed;
@@ -59,7 +64,7 @@ export function UpdateHint() {
       </span>
 
       <div className="update-hint-text">
-        <p className="update-hint-line">{headline(state)}</p>
+        <p className="update-hint-line">{updateHeadline(state)}</p>
         {notes && showNotes ? <p className="update-hint-notes">{notes}</p> : null}
       </div>
 
@@ -122,29 +127,4 @@ export function UpdateHint() {
       </div>
     </aside>
   );
-}
-
-/** One sentence per phase. Never playful: the bar is information, not a joke. */
-function headline(state: UpdateState): string {
-  switch (state.phase) {
-    case 'available':
-      return t('UwUNotes {version} ist verfügbar.', { version: state.version });
-    case 'downloading':
-      return state.progress === null
-        ? t('UwUNotes {version} wird geladen …', { version: state.version })
-        : t('UwUNotes {version} wird geladen … {percent} %', {
-            version: state.version,
-            percent: Math.round(state.progress * 100),
-          });
-    case 'ready':
-      // Only reachable where the installer does not replace the running app
-      // itself. On Windows this process is already gone by now.
-      return t('UwUNotes {version} ist installiert. Starte den Editor neu, um es zu benutzen.', {
-        version: state.version,
-      });
-    case 'failed':
-      return state.message;
-    default:
-      return '';
-  }
 }

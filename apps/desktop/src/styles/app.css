@@ -2568,6 +2568,109 @@ input[type='radio'] {
   justify-self: start;
 }
 
+/* Settings → Updates: the version, the button and what the last look found. */
+.settings-update {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-update-version {
+  font-weight: 500;
+}
+
+.settings-update-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-update-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.settings-update-install {
+  border-color: var(--uwu-pink-solid);
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.settings-update-install:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.settings-update-spin {
+  animation: settings-update-spin 900ms linear infinite;
+}
+
+@keyframes settings-update-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+:root[data-motion='reduced'] .settings-update-spin {
+  animation: none;
+}
+
+.settings-update-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+  overflow-wrap: anywhere;
+}
+
+.settings-update-status[data-tone='current'] {
+  color: var(--uwu-ink);
+}
+
+.settings-update-status[data-tone='current'] svg {
+  color: var(--uwu-pink);
+}
+
+.settings-update-status[data-tone='available'] {
+  color: var(--uwu-pink-ink);
+  font-weight: 600;
+}
+
+.settings-update-status[data-tone='error'] {
+  color: var(--uwu-alarm);
+}
+
+.settings-update-bar {
+  overflow: hidden;
+  width: min(100%, 320px);
+  height: 5px;
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-canvas);
+}
+
+.settings-update-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--uwu-pink-solid);
+  transition: width 160ms ease;
+}
+
+.settings-update-bar-fill[data-indeterminate] {
+  width: 30%;
+  animation: settings-update-slide 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes settings-update-slide {
+  from {
+    translate: -10% 0;
+  }
+  to {
+    translate: 250% 0;
+  }
+}
+
 .settings-plugin {
   display: grid;
   gap: 8px;

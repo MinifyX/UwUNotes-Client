@@ -45,6 +45,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { runCommand } from './commands';
 import { N_, t } from './i18n';
 import { MENUS, type MenuEntry, type TopMenu } from './menus';
+import { updatesAvailableInApp } from './updates';
 import { acceleratorFromKeys, macAccelerator, setFunctionKeysNative } from './shortcuts';
 
 /* ── The data Rust gets ────────────────────────────────── */
@@ -199,6 +200,7 @@ export function buildNativeMenu(
     role: null,
     items: [
       command('app.about', t('Über UwUNotes')),
+      ...(updatesAvailableInApp() ? [command('app.checkUpdates', t('Nach Updates suchen…'))] : []),
       separator,
       command('app.settings', t('Einstellungen…')),
       separator,

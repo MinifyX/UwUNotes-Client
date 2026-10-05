@@ -80,6 +80,7 @@ import {
   splitActivePane,
   tabsIn,
 } from './workspace';
+import { checkForUpdateNow, updatesAvailableInApp } from './updates';
 import { pluginCommands } from '../editor/extensions/registry';
 import { applyDocLanguage } from '../editor/setup';
 import { LANGUAGES } from '../editor/languages';
@@ -1061,5 +1062,17 @@ function appCommands(): Command[] {
       group,
       run: () => openDialog('about'),
     },
+    // Not there at all where the store does the updating, rather than greyed:
+    // a disabled "check for updates" reads as a broken one.
+    ...(updatesAvailableInApp()
+      ? [
+          {
+            id: 'app.checkUpdates',
+            title: () => t('Nach Updates suchen'),
+            group,
+            run: () => checkForUpdateNow(),
+          },
+        ]
+      : []),
   ];
 }

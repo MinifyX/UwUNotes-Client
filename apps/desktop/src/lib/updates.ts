@@ -60,6 +60,11 @@ export type UpdateState =
       /** 0 to 1, or `null` while the size of the download is unknown. */
       progress: number | null;
     }
+  /**
+   * A check somebody asked for found nothing newer. Only the settings page
+   * shows it; the bar treats it like `idle`.
+   */
+  | { phase: 'current' }
   /** Installed without the app being replaced underneath us — see below. */
   | { phase: 'ready'; version: string }
   | { phase: 'failed'; message: string };
@@ -134,11 +139,16 @@ export function useUpdatesAvailableInApp(): boolean {
   return updatesAvailableInApp();
 }
 
+/** Where this build's updates come from, for components; `null` until known. */
+export function useUpdateChannel(): UpdateChannel | null {
+  return useSyncExternalStore(subscribe, () => channel);
+}
+
 /**
  * Asks once. `asked` is the difference between the start-up check and a button
  * press, and it is the only thing that decides whether a failure is shown.
  */
-async function check(asked: boolean): Promise<void> {
+async function check(asked: boolean, quiet = false): Promise<void> {
   if ((channel ?? (await loadUpdateChannel())) !== 'github') {
     // Only reachable through something that forgot to ask first. Somebody who
     // pressed a button still hears why nothing happened.
@@ -177,17 +187,56 @@ async function check(asked: boolean): Promise<void> {
     return;
   }
 
-  set({ phase: 'idle' });
+  set({ phase: asked ? 'current' : 'idle' });
   // Nothing to answer and nothing to decide, so a toast rather than the bar —
-  // but somebody who pressed a button has to hear something back.
-  if (asked) {
+  // but somebody who pressed a button has to hear something back. The
+  // settings page says it in place and asks for no toast on top.
+  if (asked && !quiet) {
     toast('info', t('UwUNotes {version} ist die neueste Version.', { version: APP_VERSION }));
   }
 }
 
-/** "Jetzt suchen", from the command palette or the settings. */
-export function checkForUpdateNow(): void {
-  void check(true);
+/**
+ * "Jetzt suchen", from the command palette or the settings. `quiet` drops the
+ * "newest version" toast, for a caller that shows the answer itself.
+ */
+export function checkForUpdateNow(options: { quiet?: boolean } = {}): void {
+  void check(true, options.quiet === true);
+}
+
+/** Where a copy that cannot install an update itself sends people for it. */
+export const RELEASES_URL = 'https://github.com/MinifyX/UwUNotes-Client/releases/latest';
+
+/**
+ * One sentence per phase, for the bar and the settings page alike. Never
+ * playful: this is information, not a joke.
+ */
+export function updateHeadline(state: UpdateState): string {
+  switch (state.phase) {
+    case 'checking':
+      return t('Suche nach Updates …');
+    case 'current':
+      return t('UwUNotes {version} ist die neueste Version.', { version: APP_VERSION });
+    case 'available':
+      return t('UwUNotes {version} ist verfügbar.', { version: state.version });
+    case 'downloading':
+      return state.progress === null
+        ? t('UwUNotes {version} wird geladen …', { version: state.version })
+        : t('UwUNotes {version} wird geladen … {percent} %', {
+            version: state.version,
+            percent: Math.round(state.progress * 100),
+          });
+    case 'ready':
+      // Only reachable where the installer does not replace the running app
+      // itself. On Windows this process is already gone by now.
+      return t('UwUNotes {version} ist installiert. Starte den Editor neu, um es zu benutzen.', {
+        version: state.version,
+      });
+    case 'failed':
+      return state.message;
+    default:
+      return '';
+  }
 }
 
 /**

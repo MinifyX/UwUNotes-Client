@@ -102,8 +102,20 @@ describe('a check somebody pressed a button for', () => {
     updates.checkForUpdateNow();
     await vi.waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
 
-    expect(updates.getUpdateState()).toEqual({ phase: 'idle' });
+    expect(updates.getUpdateState()).toEqual({ phase: 'current' });
     expect(toast.mock.calls[0]?.[1]).toContain(APP_VERSION);
+  });
+
+  it('says it in place and without a toast when the settings page asked', async () => {
+    checkForUpdate.mockResolvedValue({ status: 'none' });
+    const updates = await freshUpdates();
+    const { APP_VERSION } = await import('./settings');
+
+    updates.checkForUpdateNow({ quiet: true });
+    await vi.waitFor(() => expect(updates.getUpdateState().phase).toBe('current'));
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(updates.updateHeadline(updates.getUpdateState())).toContain(APP_VERSION);
   });
 });
 

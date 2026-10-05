@@ -13,5 +13,12 @@
   "Was ist neu?": "What's new?",
   "Weniger": "Less",
   "Später": "Later",
-  "Zur Download-Seite": "Go to the download page"
+  "Zur Download-Seite": "Go to the download page",
+  "Suche nach Updates …": "Checking for updates …",
+  "Updates": "Updates",
+  "Installiert: UwUNotes {version}": "Installed: UwUNotes {version}",
+  "Jetzt nach Updates suchen": "Check for updates now",
+  "Updates kommen über den App Store.": "Updates come through the App Store.",
+  "Diese Version wird über die Paketverwaltung aktualisiert.": "This version is updated through your package manager.",
+  "Nach Updates suchen…": "Check for Updates…"
 }
