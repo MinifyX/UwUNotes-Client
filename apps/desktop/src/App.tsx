@@ -21,6 +21,7 @@ import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
 import { documentsVersion, subscribeDocuments } from './lib/documents';
 import { openPaths, startFileWatchers } from './lib/files';
+import { startOpenRequests } from './lib/open-requests';
 import { startGitWatch } from './lib/git';
 import { t, useLanguage } from './lib/i18n';
 import { startNotebook } from './lib/notebook';
@@ -88,6 +89,7 @@ export function App() {
   useEffect(() => startFileWatchers(), []);
   useEffect(() => startGitWatch(), []);
   useEffect(() => startUpdateCheck(), []);
+  useEffect(() => startOpenRequests(), []);
   useEffect(() => installWheelZoom(), []);
   useEffect(() => startNyu(), []);
 

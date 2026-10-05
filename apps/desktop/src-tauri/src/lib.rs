@@ -13,7 +13,11 @@
 //! - [`history`] — Zeitreise, the automatic versions of every file and note
 //! - [`git`] — the letters next to file names, when the folder is a repository
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
-//! - [`updates`] — whether there is a newer UwUNotes, and installing it
+//! - [`updates`] — whether there is a newer UwUNotes, and installing it; only
+//!   in builds with the `self-update` feature, which the Mac App Store's is not
+//! - [`opened`] — files the system asks the editor to open ("Open with")
+//! - [`sandbox_access`] — the Mac App Store sandbox's bookmarks, so the last
+//!   session's files open again after a restart
 //!
 //! What this layer deliberately does not do: anything worth a unit test. A
 //! command that grows a second `if` has grown logic, and that logic belongs in
@@ -23,9 +27,12 @@ mod dialogs;
 mod files;
 mod git;
 mod history;
+mod opened;
+mod sandbox_access;
 mod search;
 mod session;
 mod system;
+#[cfg(feature = "self-update")]
 mod updates;
 
 use std::collections::HashMap;
@@ -63,14 +70,17 @@ pub fn run() {
         )
         .init();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
-        // The updater plugin registers commands of its own, and none of them
-        // are in `capabilities/default.json` — so the page cannot reach them,
-        // and the feed address stays where it is configured instead of becoming
-        // something the window could be talked into changing.
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init());
+    // The updater plugin registers commands of its own, and none of them are
+    // in `capabilities/default.json` — so the page cannot reach them, and the
+    // feed address stays where it is configured instead of becoming something
+    // the window could be talked into changing.
+    #[cfg(feature = "self-update")]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    let app = builder
         .setup(|app| {
             // %APPDATA%\app.uwunotes.desktop on Windows. UWUNOTES_DIR points
             // somewhere else, so trying things out never touches the session
@@ -80,6 +90,8 @@ pub fn run() {
                 None => app.path().app_data_dir()?,
             };
             tracing::info!(path = %directory.display(), "session directory");
+            // Before the page loads and asks for the files of the last session.
+            sandbox_access::restore(&directory);
             // Next to the session, so UWUNOTES_DIR moves the versions too.
             app.manage(history::History::new(uwunotes_history::HistoryStore::new(
                 directory.join("history"),
@@ -93,6 +105,7 @@ pub fn run() {
             // Its own state rather than a field on `AppState`: nothing else in
             // the app has anything to say about updates, and the type it holds
             // belongs to the updater plugin.
+            #[cfg(feature = "self-update")]
             app.manage(updates::Updates::default());
             Ok(())
         })
@@ -140,9 +153,22 @@ pub fn run() {
             system::open_external,
             system::reveal_in_file_manager,
             system::print_page,
+            system::update_channel,
+            opened::take_opened_paths,
+            #[cfg(feature = "self-update")]
             updates::check_for_update,
+            #[cfg(feature = "self-update")]
             updates::install_update,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("failed to start UwUNotes");
+
+    app.run(|app, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = &event {
+            opened::receive(app, urls);
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app, event);
+    });
 }

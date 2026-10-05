@@ -13,17 +13,18 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DownloadProgress, UpdateCheck } from './api';
+import type { DownloadProgress, UpdateChannel, UpdateCheck } from './api';
 import type { Toast } from './toast';
 
 const checkForUpdate = vi.fn<() => Promise<UpdateCheck>>();
 const installUpdate = vi.fn<(onProgress: (p: DownloadProgress) => void) => Promise<void>>();
+const updateChannel = vi.fn(async (): Promise<UpdateChannel> => 'github');
 const persistSession = vi.fn(async () => undefined);
 const toast = vi.fn<(tone: Toast['tone'], text: string) => number>(() => 0);
 
 vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>();
-  return { ...actual, checkForUpdate, installUpdate };
+  return { ...actual, checkForUpdate, installUpdate, updateChannel };
 });
 vi.mock('./session', () => ({ persistSession }));
 vi.mock('./toast', async (importOriginal) => {
@@ -219,3 +220,35 @@ function progressOf(updates: typeof import('./updates')): number | null {
   const state = updates.getUpdateState();
   return state.phase === 'downloading' ? state.progress : null;
 }
+
+describe('a build the App Store updates', () => {
+  it('never looks, and says why when somebody asks', async () => {
+    vi.useFakeTimers();
+    updateChannel.mockResolvedValueOnce('app-store');
+    const updates = await freshUpdates();
+
+    const stop = updates.startUpdateCheck();
+    await vi.advanceTimersByTimeAsync(20_000);
+    stop();
+    updates.checkForUpdateNow();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(updates.updatesAvailableInApp()).toBe(false);
+    expect(checkForUpdate).not.toHaveBeenCalled();
+    expect(updates.getUpdateState()).toEqual({ phase: 'idle' });
+    expect(toast).toHaveBeenCalledTimes(1);
+  });
+
+  it('is the only kind that hides the updater: a GitHub build shows it', async () => {
+    const updates = await freshUpdates();
+    expect(updates.updatesAvailableInApp()).toBe(false);
+    await updates.loadUpdateChannel();
+    expect(updates.updatesAvailableInApp()).toBe(true);
+  });
+
+  it('treats a Rust side that cannot answer as a GitHub build', async () => {
+    updateChannel.mockRejectedValueOnce(new Error('unknown command'));
+    const updates = await freshUpdates();
+    expect(await updates.loadUpdateChannel()).toBe('github');
+  });
+});

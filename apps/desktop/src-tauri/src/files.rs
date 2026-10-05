@@ -9,13 +9,19 @@
 //! What this module deliberately does not do: delete. [`trash_path`] hands the
 //! file to the recycle bin and lets the desktop decide what that means; nothing
 //! in UwUNotes removes a file for good.
+//!
+//! Reading, saving and listing a folder also tell [`sandbox_access`] about the
+//! path, which in the Mac App Store build is how a file opened today is still
+//! allowed to open after a restart. Everywhere else that call does nothing.
+//!
+//! [`sandbox_access`]: crate::sandbox_access
 
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use uwunotes_fs::{DirEntry, Eol, FileStamp, FsError, LoadedFile, PathInfo};
 
-use crate::CommandResult;
+use crate::{sandbox_access, CommandResult};
 
 /// What a save gives back. A struct rather than a bare stamp because the page's
 /// `SavedFile` will grow a field one day and a bare value has nowhere to put it.
@@ -29,7 +35,9 @@ pub(crate) struct SavedFile {
 /// that is the status bar's encoding menu, which re-opens the same file.
 #[tauri::command(async)]
 pub(crate) fn read_text_file(path: String, encoding: Option<String>) -> CommandResult<LoadedFile> {
-    uwunotes_fs::read_file(Path::new(&path), encoding.as_deref())
+    let loaded = uwunotes_fs::read_file(Path::new(&path), encoding.as_deref())?;
+    sandbox_access::remember(Path::new(&path));
+    Ok(loaded)
 }
 
 /// Encodes the text back and writes it atomically.
@@ -60,6 +68,9 @@ pub(crate) fn write_text_file(
         expected_stamp,
         allow_unmappable,
     )?;
+    // A file saved under a new name exists only now, so only now can it be
+    // bookmarked.
+    sandbox_access::remember(Path::new(&path));
     Ok(SavedFile { stamp })
 }
 
@@ -72,7 +83,9 @@ pub(crate) fn file_status(path: String) -> CommandResult<Option<FileStamp>> {
 
 #[tauri::command(async)]
 pub(crate) fn list_dir(path: String) -> CommandResult<Vec<DirEntry>> {
-    uwunotes_fs::list_dir(Path::new(&path))
+    let entries = uwunotes_fs::list_dir(Path::new(&path))?;
+    sandbox_access::remember(Path::new(&path));
+    Ok(entries)
 }
 
 #[tauri::command(async)]
@@ -99,7 +112,24 @@ pub(crate) fn trash_path(path: String) -> CommandResult<()> {
     if !target.exists() {
         return Err(FsError::NotFound { path: target });
     }
-    trash::delete(&target).map_err(|error| FsError::other(Some(&target), error.to_string()))
+    trash_context()
+        .delete(&target)
+        .map_err(|error| FsError::other(Some(&target), error.to_string()))
+}
+
+/// How a file goes to the bin. On a Mac `trash` asks Finder by default, through
+/// `osascript`, which is what puts "Put Back" in Finder's menu. A sandboxed app
+/// may not script Finder, so the Mac App Store build moves the file itself,
+/// through `NSFileManager` — same bin, without "Put Back".
+fn trash_context() -> trash::TrashContext {
+    #[allow(unused_mut)]
+    let mut context = trash::TrashContext::default();
+    #[cfg(all(target_os = "macos", feature = "mas"))]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos as _};
+        context.set_delete_method(DeleteMethod::NsFileManager);
+    }
+    context
 }
 
 /// Everything about a path, including one that does not exist yet — this is how

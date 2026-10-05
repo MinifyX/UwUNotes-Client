@@ -11,6 +11,18 @@ rust-version.workspace = true
 name = "uwunotes_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# What every download from GitHub is: a copy that looks for its own updates
+# and installs them. Without it there is no updater plugin, no feed, no setup
+# download and no code that could start one.
+default = ["self-update"]
+self-update = ["dep:base64", "dep:minisign-verify", "dep:tauri-plugin-updater", "dep:tempfile"]
+# The Mac App Store build: `--no-default-features --features mas`. The store
+# updates the app, the sandbox decides what it may open, and the folders and
+# files of the last session come back through security-scoped bookmarks
+# (`sandbox_access.rs`). See docs/app-store.md.
+mas = ["dep:objc2", "dep:objc2-foundation"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -23,8 +35,8 @@ uwunotes-session.workspace = true
 # bytes on disk, just before it is started — so that check has to exist here
 # too and not only inside the updater plugin. Both are what the plugin itself
 # uses, so this adds no third-party code that was not already compiled in.
-base64 = "0.22"
-minisign-verify = "0.2"
+base64 = { version = "0.22", optional = true }
+minisign-verify = { version = "0.2", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
@@ -33,10 +45,10 @@ tauri-plugin-opener = "2"
 # The updater checks the minisign signature of what it downloaded before it
 # hands the bytes to the installer. That check is the reason this is a
 # dependency rather than a `reqwest` call and a `Command::spawn`.
-tauri-plugin-updater = "2"
+tauri-plugin-updater = { version = "2", optional = true }
 # A folder only this user can open, for a checked .deb or .rpm on its way to
 # the package manager. The updater plugin uses the same crate.
-tempfile.workspace = true
+tempfile = { workspace = true, optional = true }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Deleting a file from the tree goes to the recycle bin, never a hard delete.
@@ -44,3 +56,16 @@ trash = "5"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }
+
+# Security-scoped bookmarks for the Mac App Store build, through the same objc2
+# crates Tauri itself compiles on a Mac — no new code, only more of their API.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", optional = true }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSData",
+  "NSError",
+  "NSString",
+  "NSURL",
+] }
