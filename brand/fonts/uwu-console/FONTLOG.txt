@@ -1,0 +1,47 @@
+FONTLOG for UwU Console
+=======================
+
+UwU Console is the console font of UwUNotes. It is a Modified Version of
+Atkinson Hyperlegible Mono (Braille Institute of America, designed by
+Applied Design Works and Letters from Sweden), licensed under the SIL Open
+Font License 1.1 (see OFL.txt). The upstream license names no Reserved Font
+Name; the family is renamed anyway so it can never be mistaken for the
+original.
+
+Upstream
+--------
+- Repository: https://github.com/googlefonts/atkinson-hyperlegible-next-mono
+- Commit:     154d50362016cc3e873eb21d242cd0772384c8f9
+- File:       fonts/variable/AtkinsonHyperlegibleMono[wght].ttf (version 2.001)
+- SHA-256:    5ce8b1698d1ded7dff2178c1a3ad159470085a58ea239e8b2cb88f4fb4a6f646
+
+ChangeLog
+---------
+2026-10-05  Version 1.000 (MinifyX)
+- Renamed: typographic family "UwU Console", PostScript
+  "UwUConsole-ExtraLight" (the default outlines are the wght 200 master,
+  as upstream), variations prefix "UwUConsole", unique ID
+  "1.000;MFX;UwUConsole-ExtraLight", vendor "MFX". Copyright line for the
+  modification added, upstream copyright kept.
+- Subset to Latin, Latin Extended, combining marks, Greek, general
+  punctuation, currency, letterlike symbols, arrows, math operators and
+  box drawing/geometric shapes. Every code point upstream maps is kept
+  (359); upstream has no box drawing characters. Hinting instructions and
+  glyph names dropped. GDEF mark classes the subsetter loses for
+  GSUB-only marks (uni0307.large, uni030C.alt) are restored from upstream.
+- Italic not included.
+- New glyphs, drawn as code in build.py, each 632 units wide like every
+  upstream glyph, with gvar deltas to the wght 800 master so their strokes
+  follow the weight axis like the letters:
+  - nyu (U+E000, Private Use): Nyu, a cat face. Round head with two ears in
+    one stroke, oval eyes, a ":3" mouth. Sits on the baseline, ears reach
+    about cap height. Narrower than in UwU Sans; the head stroke grows a
+    little slower than the letters so the face keeps room when bold.
+  - heart (U+2665 BLACK HEART SUIT). U+2764 is left out on purpose so the
+    colour emoji keeps winning for ❤.
+  - arrowleft/up/right/down (U+2190-2193): upstream has no arrows.
+    Horizontal arrows span the minus and sit on its axis, so "->" and "→"
+    line up; vertical arrows run from baseline to cap height.
+- No ligatures and no contextual substitutions. ":3", "<3", "->" and every
+  other sequence render as typed.
+- Letters, digits, spacing and kerning are unchanged.
