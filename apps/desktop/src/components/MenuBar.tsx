@@ -24,22 +24,18 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useReducer,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { t, useLanguage } from '../lib/i18n';
+import { placeMenu, scrollToShow, type Anchor, type MenuPosition } from '../lib/menu-placement';
 import type { MenuEntry, TopMenu } from '../lib/menus';
 import { focusActiveView } from '../lib/views';
 import { Icon } from './Icon';
 
-/** Keeps a list inside the window however close to an edge it opens. */
-const MARGIN = 6;
-
 type MenuBarProps = { menus: readonly TopMenu[] };
-
-/** Where a list opens from, as plain numbers so an effect can depend on them. */
-type Anchor = { left: number; right: number; top: number; bottom: number };
 
 function anchorOf(element: Element | undefined): Anchor | undefined {
   if (!element) return undefined;
@@ -167,39 +163,50 @@ function MenuList({ label, entries, anchor, placement, onClose, onLeft, onRight 
   );
   const [active, setActive] = useState<string>(usable[0]?.id ?? '');
   const [sub, setSub] = useState<string | null>(null);
-  const [position, setPosition] = useState({
+  const [position, setPosition] = useState<MenuPosition>({
     left: placement === 'below' ? anchor.left : anchor.right - 2,
     top: placement === 'below' ? anchor.bottom : anchor.top - 5,
+    maxHeight: window.innerHeight,
   });
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
+  const [, remeasure] = useReducer((count: number) => count + 1, 0);
 
-  // Measured after the first paint: how wide the list is depends on its
-  // translated labels, and only then can it be kept on screen — a submenu that
-  // would leave the window on the right opens to the left instead.
+  // Measured after the first paint: how wide and tall the list is depends on
+  // its translated labels and its entries, and only then can it be kept on
+  // screen — a submenu that would leave the window on the right opens to the
+  // left, one that would leave it at the bottom moves up, and whatever still
+  // does not fit scrolls (`lib/menu-placement.ts`).
   useLayoutEffect(() => {
     const list = listRef.current;
     if (!list) return;
     const box = list.getBoundingClientRect();
-    let left = placement === 'below' ? anchor.left : anchor.right - 2;
-    if (left + box.width > window.innerWidth - MARGIN) {
-      left =
-        placement === 'below'
-          ? window.innerWidth - box.width - MARGIN
-          : anchor.left - box.width + 2;
-    }
-    let top = placement === 'below' ? anchor.bottom : anchor.top - 5;
-    if (top + box.height > window.innerHeight - MARGIN) {
-      top = Math.max(MARGIN, window.innerHeight - box.height - MARGIN);
-    }
-    setPosition({ left: Math.max(MARGIN, left), top });
+    // The full height, not the box's: the box is already cut by the CSS limit.
+    const frame = list.offsetHeight - list.clientHeight;
+    setPosition(
+      placeMenu(
+        anchor,
+        { width: box.width, height: list.scrollHeight + frame },
+        { width: window.innerWidth, height: window.innerHeight },
+        placement,
+      ),
+    );
     list.focus({ preventScroll: true });
     // The four numbers, not the object: a fresh object every render would
     // measure, set, render and measure again for ever.
   }, [anchor.left, anchor.right, anchor.top, anchor.bottom, placement]);
 
+  // The keyboard's highlight is always in view. By hand rather than with
+  // `scrollIntoView`, which would scroll whatever else it finds on the way.
   useEffect(() => {
-    itemRefs.current.get(active)?.scrollIntoView({ block: 'nearest' });
-  }, [active]);
+    const list = listRef.current;
+    const item = itemRefs.current.get(active);
+    if (!list || !item) return;
+    const next = scrollToShow(
+      { top: item.offsetTop, height: item.offsetHeight },
+      { scrollTop: list.scrollTop, clientHeight: list.clientHeight },
+    );
+    if (next !== list.scrollTop) list.scrollTop = next;
+  }, [active, position.maxHeight]);
 
   const move = (delta: number) => {
     if (usable.length === 0) return;
@@ -262,8 +269,17 @@ function MenuList({ label, entries, anchor, placement, onClose, onLeft, onRight 
         aria-activedescendant={active ? `${prefix}${active}` : undefined}
         tabIndex={-1}
         data-menu-surface
-        style={{ left: `${position.left}px`, top: `${position.top}px` }}
+        style={{
+          left: `${position.left}px`,
+          top: `${position.top}px`,
+          maxHeight: `${position.maxHeight}px`,
+        }}
         onKeyDown={onKeyDown}
+        // A submenu was placed beside its item where the item was; once the
+        // list scrolls, it is measured again and follows its item.
+        onScroll={() => {
+          if (sub) remeasure();
+        }}
       >
         {entries.length === 0 ? <div className="menulist-empty">{t('Nichts hier.')}</div> : null}
         {entries.map((entry) => {
