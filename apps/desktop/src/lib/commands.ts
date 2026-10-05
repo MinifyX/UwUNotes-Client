@@ -35,7 +35,8 @@ import {
   setDocEncoding,
   setDocEol,
 } from './files';
-import { t } from './i18n';
+import { N_, t } from './i18n';
+import { setNyuTab, type NyuTab } from './nyu-page';
 import { MAX_PANES, nextPane, paneCount } from './layout';
 import {
   hasLastRecording,
@@ -933,6 +934,30 @@ function extensionCommands(): Command[] {
   }));
 }
 
+/** The page lands on a tab; `lib/nyu-page.ts` remembers which. */
+function openNyuPage(tab: NyuTab): void {
+  setNyuTab(tab);
+  openDialog('nyu');
+}
+
+/**
+ * Nyu's on/off settings as commands, so the Nyu menu can tick them and the
+ * palette can flip them. Settings → Nyu and the Nyu-Zentrale show the same
+ * switches; all three write the same keys.
+ */
+export const NYU_SWITCHES = [
+  { id: 'nyu.toggleCompanion', key: 'nyuCompanion', title: N_('Nyu in der Statusleiste') },
+  { id: 'nyu.toggleGimmicks', key: 'nyuGimmicks', title: N_('Spielereien') },
+  { id: 'nyu.toggleOccasions', key: 'nyuOccasions', title: N_('Anlässe') },
+  { id: 'nyu.toggleLevels', key: 'nyuLevels', title: N_('Level und Erfolge') },
+  { id: 'nyu.toggleTips', key: 'nyuTips', title: N_('Tipps') },
+  {
+    id: 'nyu.togglePomodoroButton',
+    key: 'pomodoroButton',
+    title: N_('Pomodoro-Knopf in der Statusleiste'),
+  },
+] as const;
+
 /**
  * Nyu's corner of the palette: the Pomodoro, her achievements, and two
  * commands that exist purely to make her do something.
@@ -942,11 +967,31 @@ function nyuCommands(): Command[] {
   const pomodoro = getPomodoro();
   return [
     {
+      id: 'nyu.open',
+      title: () => t('Nyu-Zentrale öffnen'),
+      group,
+      run: () => openNyuPage('overview'),
+    },
+    {
       id: 'nyu.achievements',
       title: () => t('Nyu-Erfolge'),
       group,
-      run: () => openDialog('nyu'),
+      run: () => openNyuPage('achievements'),
     },
+    {
+      id: 'nyu.wardrobe',
+      title: () => t('Nyus Garderobe'),
+      group,
+      run: () => openNyuPage('wardrobe'),
+    },
+    ...NYU_SWITCHES.map(({ id, key, title }): Command => ({
+      id,
+      title: () => t(title),
+      group,
+      // Tips come out of the companion's mouth; without her there is nobody to say them.
+      enabled: key === 'nyuTips' ? () => getSettings().nyuCompanion : undefined,
+      run: () => updateSettings({ [key]: !getSettings()[key] }),
+    })),
     {
       id: 'nyu.pet',
       title: () => t('Nyu streicheln'),

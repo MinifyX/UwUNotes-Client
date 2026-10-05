@@ -30,7 +30,7 @@ import { setSidebarView } from './chrome';
 import type { Command } from './commands';
 import { allDocs, getDoc, setDocState, type DocId } from './documents';
 import { t } from './i18n';
-import { shortcutLabel } from './shortcuts';
+import { keysText, shortcutLabel } from './shortcuts';
 import { toast } from './toast';
 import { activeView, viewFor } from './views';
 import { getPane, paneOf, showDoc } from './workspace';
@@ -246,9 +246,14 @@ export function bookmarkCommands(): Command[] {
         const count = deleteBookmarkedLines(view);
         // Plain on purpose: this removed text. Ctrl+Z brings it back, and
         // saying so is the useful half of the message.
-        if (count === 1) toast('info', t('Eine Zeile gelöscht. Strg+Z holt sie zurück.'));
+        const undo = keysText(['Strg', 'Z']);
+        if (count === 1)
+          toast('info', t('Eine Zeile gelöscht. {keys} holt sie zurück.', { keys: undo }));
         else if (count > 1) {
-          toast('info', t('{count} Zeilen gelöscht. Strg+Z holt sie zurück.', { count }));
+          toast(
+            'info',
+            t('{count} Zeilen gelöscht. {keys} holt sie zurück.', { count, keys: undo }),
+          );
         }
       }),
     },

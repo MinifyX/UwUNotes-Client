@@ -15,7 +15,8 @@ import { CAMEOS, type CameoName } from '../../../lib/nyu-cameo';
 import { react, resetLife, say } from '../../../lib/nyu-life';
 import { resetPomodoro, startFocus } from '../../../lib/nyu-pomodoro';
 import { resetProgress } from '../../../lib/nyu-progress';
-import { resetSettings, updateSettings } from '../../../lib/settings';
+import { getSettings, resetSettings, updateSettings } from '../../../lib/settings';
+import { getNyuTab, setNyuTab } from '../../../lib/nyu-page';
 import { HAT_IDS, hatParts } from '../hats';
 import { NyuFigure } from '../Nyu';
 import { NyuScene } from '../scenes';
@@ -113,6 +114,7 @@ describe('the Pomodoro item', () => {
 describe('Nyu’s page', () => {
   it('shows the level, the wardrobe with locked hats, and the achievements', () => {
     updateSettings({ language: 'de' });
+    setNyuTab('wardrobe');
     openDialog('nyu');
     mount(createElement(NyuDialog));
     expect(document.body.textContent).toContain('Level 1');
@@ -120,15 +122,45 @@ describe('Nyu’s page', () => {
       button.textContent?.includes('Krone'),
     );
     expect(crown?.disabled).toBe(true);
+    act(() => setNyuTab('achievements'));
     expect(document.querySelectorAll('.nyu-achievement').length).toBeGreaterThan(10);
+  });
+
+  it('keeps the secret achievements secret until they are found', () => {
+    updateSettings({ language: 'de' });
+    setNyuTab('achievements');
+    openDialog('nyu');
+    mount(createElement(NyuDialog));
+    const secret = document.querySelectorAll('.nyu-achievement[data-secret]');
+    expect(secret.length).toBeGreaterThan(0);
+    for (const row of secret) expect(row.textContent).toContain('???');
+    expect(document.body.textContent).not.toContain('Geheimcode');
+  });
+
+  it('switches tabs and flips a setting from its own tab', () => {
+    updateSettings({ language: 'de' });
+    setNyuTab('overview');
+    openDialog('nyu');
+    mount(createElement(NyuDialog));
+    const tab = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+      (button) => button.textContent === 'Einstellungen',
+    );
+    act(() => tab?.click());
+    expect(getNyuTab()).toBe('settings');
+    const companion = document.querySelector<HTMLButtonElement>('[role="switch"]');
+    expect(companion?.getAttribute('aria-checked')).toBe('true');
+    act(() => companion?.click());
+    expect(getSettings().nyuCompanion).toBe(false);
   });
 
   it('hides the counting when levels are off, but keeps the wardrobe', () => {
     updateSettings({ nyuLevels: false });
+    setNyuTab('achievements');
     openDialog('nyu');
     mount(createElement(NyuDialog));
     expect(document.querySelector('.nyu-level')).toBeNull();
     expect(document.querySelector('.nyu-achievement')).toBeNull();
+    act(() => setNyuTab('wardrobe'));
     expect(document.querySelector('.nyu-hats')).not.toBeNull();
   });
 });

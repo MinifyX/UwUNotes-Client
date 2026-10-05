@@ -42,5 +42,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Deleting a file from the tree goes to the recycle bin, never a hard delete.
 trash = "5"
 
+# The Dock's "Quit" has to wait for the session to be saved (`quit.rs`), and
+# that is an app-delegate method nothing above exposes. Tauri itself already
+# builds on this crate on macOS, so it adds no new code to the build.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }

@@ -16,6 +16,11 @@
  * icon, the menu entry, the shortcut and the palette entry are one code path
  * and cannot drift apart.
  *
+ * On macOS the first two rows are not drawn at all: the window has the
+ * system's title bar with the traffic lights (`tauri.macos.conf.json`) and the
+ * menus are in the menu bar at the top of the screen (`lib/native-menu.ts`).
+ * Only the icon row is left.
+ *
  * The window buttons are Windows' own size — 46 px wide, the full height of the
  * row — because that is what the corner of every other window on the machine
  * feels like, and close turns brand pink on hover, as in UwUMail and UwUSSH.
@@ -28,6 +33,7 @@ import { useCompare } from '../lib/compare';
 import { documentsVersion, subscribeDocuments } from '../lib/documents';
 import { N_, t, useLanguage } from '../lib/i18n';
 import { MENUS } from '../lib/menus';
+import { isMac } from '../lib/platform';
 import { shortcutLabel } from '../lib/shortcuts';
 import { useWorkspace } from '../lib/workspace';
 import { Icon, type IconName } from './Icon';
@@ -69,8 +75,11 @@ export function TitleBar() {
   useSyncExternalStore(subscribeDocuments, documentsVersion);
   const compare = useCompare();
   const [maximized, setMaximized] = useState(false);
+  const mac = isMac();
 
   useEffect(() => {
+    // The system draws the Mac's window buttons and knows their state itself.
+    if (mac) return;
     const window = getCurrentWindow();
     let gone = false;
     let unlisten: (() => void) | undefined;
@@ -96,7 +105,7 @@ export function TitleBar() {
       gone = true;
       unlisten?.();
     };
-  }, []);
+  }, [mac]);
 
   const commands = allCommands();
   const enabled = (id: string) => {
@@ -105,79 +114,81 @@ export function TitleBar() {
   };
 
   return (
-    <header className="appheader">
-      <div className="titlebar" data-tauri-drag-region>
-        <span className="titlebar-brand" data-tauri-drag-region>
-          <Nyu size={22} blink={false} title="UwUNotes" />
-          <span className="titlebar-wordmark" data-tauri-drag-region>
-            <span>UwU</span>Notes
+    <header className="appheader" data-platform={mac ? 'mac' : undefined}>
+      {mac ? null : (
+        <div className="titlebar" data-tauri-drag-region>
+          <span className="titlebar-brand" data-tauri-drag-region>
+            <Nyu size={22} blink={false} title="UwUNotes" />
+            <span className="titlebar-wordmark" data-tauri-drag-region>
+              <span>UwU</span>Notes
+            </span>
           </span>
-        </span>
 
-        <span className="titlebar-spacer" data-tauri-drag-region />
+          <span className="titlebar-spacer" data-tauri-drag-region />
 
-        <div className="window-controls">
-          <button
-            type="button"
-            className="window-control"
-            onClick={() => void getCurrentWindow().minimize()}
-            aria-label={t('Minimieren')}
-            title={t('Minimieren')}
-          >
-            <svg
-              viewBox="0 0 10 10"
-              aria-hidden
-              focusable="false"
-              stroke="currentColor"
-              fill="none"
+          <div className="window-controls">
+            <button
+              type="button"
+              className="window-control"
+              onClick={() => void getCurrentWindow().minimize()}
+              aria-label={t('Minimieren')}
+              title={t('Minimieren')}
             >
-              <path d="M0 5.5h10" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="window-control"
-            onClick={() => void getCurrentWindow().toggleMaximize()}
-            aria-label={maximized ? t('Verkleinern') : t('Maximieren')}
-            title={maximized ? t('Verkleinern') : t('Maximieren')}
-          >
-            <svg
-              viewBox="0 0 10 10"
-              aria-hidden
-              focusable="false"
-              stroke="currentColor"
-              fill="none"
+              <svg
+                viewBox="0 0 10 10"
+                aria-hidden
+                focusable="false"
+                stroke="currentColor"
+                fill="none"
+              >
+                <path d="M0 5.5h10" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="window-control"
+              onClick={() => void getCurrentWindow().toggleMaximize()}
+              aria-label={maximized ? t('Verkleinern') : t('Maximieren')}
+              title={maximized ? t('Verkleinern') : t('Maximieren')}
             >
-              {maximized ? (
-                <path d="M2.5 2.5V.5h7v7h-2 M.5 2.5h7v7h-7z" />
-              ) : (
-                <path d="M.5.5h9v9h-9z" />
-              )}
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="window-control window-control-close"
-            // `close()`, not `destroy()`: this has to go through the window's
-            // close request so `App.tsx` can ask about unsaved files first.
-            onClick={() => void getCurrentWindow().close()}
-            aria-label={t('Schließen')}
-            title={t('Schließen')}
-          >
-            <svg
-              viewBox="0 0 10 10"
-              aria-hidden
-              focusable="false"
-              stroke="currentColor"
-              fill="none"
+              <svg
+                viewBox="0 0 10 10"
+                aria-hidden
+                focusable="false"
+                stroke="currentColor"
+                fill="none"
+              >
+                {maximized ? (
+                  <path d="M2.5 2.5V.5h7v7h-2 M.5 2.5h7v7h-7z" />
+                ) : (
+                  <path d="M.5.5h9v9h-9z" />
+                )}
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="window-control window-control-close"
+              // `close()`, not `destroy()`: this has to go through the window's
+              // close request so `App.tsx` can ask about unsaved files first.
+              onClick={() => void getCurrentWindow().close()}
+              aria-label={t('Schließen')}
+              title={t('Schließen')}
             >
-              <path d="M.5.5l9 9 M9.5.5l-9 9" />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 10 10"
+                aria-hidden
+                focusable="false"
+                stroke="currentColor"
+                fill="none"
+              >
+                <path d="M.5.5l9 9 M9.5.5l-9 9" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <MenuBar menus={MENUS} />
+      {mac ? null : <MenuBar menus={MENUS} />}
 
       <div className="toolbar" role="toolbar" aria-label={t('Werkzeugleiste')}>
         {TOOLBAR.map((group, index) => (

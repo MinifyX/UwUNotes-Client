@@ -50,6 +50,7 @@ import {
 import {
   ACHIEVEMENTS,
   currentHat,
+  findSecret,
   flushProgress,
   gainEvent,
   gainTyping,
@@ -375,6 +376,7 @@ function onEgg(word: EggWord): void {
   companionReact(`egg:${word}`, 0, reaction);
   companionSay(t(line), 3 * SECOND);
   count('egg');
+  findSecret(word);
 }
 
 function onKonami(): void {
@@ -382,6 +384,7 @@ function onKonami(): void {
   if (!cooldowns.allow('konami', 10 * SECOND, Date.now())) return;
   dance();
   count('konami');
+  findSecret('konami');
 }
 
 /** Party: the companion dances and, when motion allows, the party cameo plays. */

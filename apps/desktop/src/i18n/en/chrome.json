@@ -33,7 +33,6 @@
   "Eine erweiterte Option ist an": "An advanced option is on",
   "Einstellungen…": "Settings…",
   "Enter": "Enter",
-  "Umschalt+Enter": "Shift+Enter",
   "Ersetzen…": "Replace…",
   "Suchen…": "Find…",
   "In Dateien suchen…": "Find in files…",
@@ -87,5 +86,17 @@
   "{algorithm} gilt als gebrochen: gut zum Vergleichen mit alten Prüfsummen, nicht als Schutz.": "{algorithm} is considered broken: fine for checking against old checksums, not for protection.",
   "{algorithm} von Dateien erzeugen…": "Create {algorithm} of files…",
   "Öffne im zweiten Bereich die Datei, mit der verglichen werden soll.": "Open the file to compare with in the second pane.",
-  "„{name}“ ist kein gültiger Dateiname.": "“{name}” isn't a valid file name."
+  "„{name}“ ist kein gültiger Dateiname.": "“{name}” isn't a valid file name.",
+  "Alle einblenden": "Show All",
+  "Alle nach vorne bringen": "Bring All to Front",
+  "Alles auswählen": "Select All",
+  "Andere ausblenden": "Hide Others",
+  "Ausschneiden": "Cut",
+  "Dienste": "Services",
+  "Einfügen": "Paste",
+  "Fenster": "Window",
+  "Hilfe": "Help",
+  "UwUNotes ausblenden": "Hide UwUNotes",
+  "UwUNotes beenden": "Quit UwUNotes",
+  "Zoomen": "Zoom"
 }

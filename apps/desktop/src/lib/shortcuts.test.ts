@@ -30,6 +30,7 @@ import {
   macroShortcutTaken,
   macroShortcutText,
   normalizeMacroShortcut,
+  setFunctionKeysNative,
 } from './shortcuts';
 import { activateTabAt, cyclePane } from './workspace';
 import { zenActive } from './zen';
@@ -585,5 +586,26 @@ describe('the keys a macro may not have', () => {
     for (const text of ['', 'KeyJ', 'Alt+KeyJ', 'Ctrl+Shift', 'nonsense at all']) {
       expect(macroShortcutTaken(text)).toBe(true);
     }
+  });
+});
+
+describe('with the native macOS menu installed', () => {
+  afterEach(() => setFunctionKeysNative(false));
+
+  it('leaves the function keys to the menu, and only those', () => {
+    setFunctionKeysNative(true);
+    expect(commandFor({ code: 'F2', key: 'F2' })).toBe(null);
+    expect(commandFor({ code: 'F2', key: 'F2', ctrl: true })).toBe(null);
+    expect(commandFor({ code: 'F8', key: 'F8', shift: true })).toBe(null);
+    expect(commandFor({ code: 'F11', key: 'F11' })).toBe(null);
+    // Ctrl chords stay the page's: the menu's are ⌘ chords, which the page never answers.
+    expect(commandFor({ code: 'KeyS', key: 's', ctrl: true })).toBe('file.save');
+    expect(commandFor({ code: 'KeyS', key: 's', meta: true })).toBe(null);
+  });
+
+  it('answers the function keys again once the menu is gone', () => {
+    setFunctionKeysNative(true);
+    setFunctionKeysNative(false);
+    expect(commandFor({ code: 'F11', key: 'F11' })).toBe('view.zen');
   });
 });

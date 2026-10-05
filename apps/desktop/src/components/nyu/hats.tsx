@@ -1,8 +1,8 @@
 /**
  * Things Nyu wears: the seasonal hats and the accessories she earns.
  *
- * Drawn in Nyu's own coordinates (the page spans 28–228 × 74–220, the ear tips
- * are at (80, 36) and (176, 36)), so a hat goes into `NyuFigure`'s `front` or
+ * Drawn in Nyu's own coordinates (the notebook spans 28–228 × 74–221, the ear
+ * tips are at (50, 30) and (206, 30)), so a hat goes into `NyuFigure`'s `front` or
  * `behind` and lands on her head at every scale. Kept free of the app's
  * modules like everything else in this folder: which hat she wears is decided
  * in `lib/nyu-progress.ts`, this file only draws it.
@@ -12,7 +12,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { NYU } from './Nyu';
+import { Face, NYU } from './Nyu';
 
 export type HatId =
   | 'witch'
@@ -149,8 +149,9 @@ function Glasses({ dark = false }: { dark?: boolean }) {
   const lens = dark
     ? { fill: NYU.outline, fillOpacity: 0.9 }
     : { fill: NYU.sky, fillOpacity: 0.35 };
+  // Written around the eyes' own coordinates, so `Face` carries them along.
   return (
-    <g>
+    <Face>
       <path d="M124 148 Q128 142 132 148" fill="none" stroke={NYU.outline} strokeWidth={6} />
       <circle cx="102" cy="148" r="21" {...lens} stroke={NYU.outline} strokeWidth={6} />
       <circle cx="154" cy="148" r="21" {...lens} stroke={NYU.outline} strokeWidth={6} />
@@ -161,7 +162,7 @@ function Glasses({ dark = false }: { dark?: boolean }) {
           <path d="M142 140 l8 -6" />
         </g>
       ) : null}
-    </g>
+    </Face>
   );
 }
 
