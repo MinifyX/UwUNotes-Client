@@ -16,6 +16,7 @@
   "In dieser Zeile steht keine Aufgabe wie „- [ ] …“.": "There is no task like “- [ ] …” on this line.",
   "Aufgabenlisten": "Task lists",
   "Strg+Enter oder Strg+Klick auf [ ] hakt eine Aufgabe ab.": "Ctrl+Enter or Ctrl+click on [ ] ticks off a task.",
+  "⌘↩ oder ⌘-Klick auf [ ] hakt eine Aufgabe ab.": "⌘↩ or ⌘-click on [ ] ticks off a task.",
   "Gliederung": "Outline",
   "Gliederung zeigen": "Show outline",
   "Gliederung filtern": "Filter outline",
@@ -37,8 +38,8 @@
   "Lesezeichen-Zeilen kopiert.": "Bookmarked lines copied.",
   "Die Zwischenablage hat den Text nicht angenommen.": "The clipboard did not accept the text.",
   "Lesezeichen-Zeilen löschen": "Delete bookmarked lines",
-  "Eine Zeile gelöscht. Strg+Z holt sie zurück.": "One line deleted. Ctrl+Z brings it back.",
-  "{count} Zeilen gelöscht. Strg+Z holt sie zurück.": "{count} lines deleted. Ctrl+Z brings them back.",
+  "Eine Zeile gelöscht. {keys} holt sie zurück.": "One line deleted. {keys} brings it back.",
+  "{count} Zeilen gelöscht. {keys} holt sie zurück.": "{count} lines deleted. {keys} brings them back.",
   "Lesezeichen in der Seitenleiste zeigen": "Show bookmarks in the sidebar",
   "Alle Lesezeichen anzeigen": "Show all bookmarks"
 }

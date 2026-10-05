@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "UwUNotes",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 640,
+        "minHeight": 420,
+        "center": true,
+        "decorations": true,
+        "titleBarStyle": "Visible",
+        "shadow": true,
+        "resizable": true,
+        "dragDropEnabled": true
+      }
+    ]
+  },
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "entitlements": "macos/Entitlements.plist",
+      "files": {
+        "Resources/PrivacyInfo.xcprivacy": "macos/PrivacyInfo.xcprivacy"
+      }
+    }
+  }
+}

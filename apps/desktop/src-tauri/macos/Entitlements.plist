@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The entitlements of the DMG's editor, signed with a Developer ID and the
+  hardened runtime once there is one to sign with (bundle.macOS.entitlements).
+  Not sandboxed: it is the copy that updates itself and shows git status.
+
+  - automation.apple-events: deleting a file asks Finder to move it to the
+    Trash (that is what makes "Put Back" work), and the hardened runtime only
+    lets an app send Apple Events with this. The prompt's text is
+    NSAppleEventsUsageDescription in src-tauri/Info.plist.
+
+  Nothing else: WKWebView runs its JavaScript in WebKit's own processes, so no
+  JIT or unsigned-memory exceptions are needed here.
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.automation.apple-events</key>
+  <true/>
+</dict>
+</plist>

@@ -407,6 +407,45 @@ input[type='radio'] {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.app[data-sidebar='rail'] .app-body {
+  grid-template-columns: 38px minmax(0, 1fr);
+}
+
+/* What stays of a folded sidebar: the way back, and a button per view. */
+.sidebar-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px 0;
+  background: var(--uwu-surface);
+  border-right: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-rail .sidebar-switch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.sidebar-rail .sidebar-switch[data-current] {
+  color: var(--uwu-ink);
+}
+
+.sidebar-rail .sidebar-expand {
+  color: var(--uwu-pink);
+}
+
+.sidebar-rail-rule {
+  flex: none;
+  width: 18px;
+  height: 1px;
+  margin: 3px 0;
+  background: var(--uwu-hairline);
+}
+
 .sidebar {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -423,9 +462,22 @@ input[type='radio'] {
 
 .sidebar-switcher {
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 5px 6px;
   border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-switches {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sidebar-collapse {
+  flex: none;
 }
 
 .sidebar-switch {
@@ -2568,6 +2620,258 @@ input[type='radio'] {
   justify-self: start;
 }
 
+/* Settings → Erscheinungsbild: the interface font, every choice shown in itself. */
+.settings-field-uifont {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.uifont-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.uifont-choice {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 8px 12px;
+  border: 1px solid var(--uwu-hairline);
+  text-align: left;
+  font-weight: 400;
+}
+
+.uifont-choice:hover:not(:disabled) {
+  border-color: var(--uwu-border);
+  background: var(--uwu-canvas);
+}
+
+.uifont-choice[aria-checked='true'] {
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.uifont-choice-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.uifont-choice-sample {
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.uifont-choice[aria-checked='true'] .uifont-choice-sample {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* Settings → Editorschrift: the current font, then a searchable list of all
+   of them, each name drawn in its own face. */
+.editorfont-current {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  text-align: right;
+}
+
+.editorfont {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.editorfont-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.editorfont-search-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--uwu-muted);
+  pointer-events: none;
+}
+
+.editorfont-search-input {
+  width: 100%;
+  padding-left: 29px;
+}
+
+.editorfont-list {
+  /* The offsets the keyboard scrolling reads are measured from here. */
+  position: relative;
+  height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.editorfont-group {
+  padding: 6px 8px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.editorfont-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  /* A system can have a thousand families. Rows out of sight are not laid
+     out, so their fonts are not loaded until somebody scrolls to them. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 27px;
+}
+
+.editorfont-option[data-active] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.editorfont-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  color: var(--uwu-pink);
+}
+
+.editorfont-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-variant-ligatures: none;
+}
+
+.editorfont-note {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+/* Settings → Updates: the version, the button and what the last look found. */
+.settings-update {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-update-version {
+  font-weight: 500;
+}
+
+.settings-update-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-update-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.settings-update-install {
+  border-color: var(--uwu-pink-solid);
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.settings-update-install:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.settings-update-spin {
+  animation: settings-update-spin 900ms linear infinite;
+}
+
+@keyframes settings-update-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+:root[data-motion='reduced'] .settings-update-spin {
+  animation: none;
+}
+
+.settings-update-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+  overflow-wrap: anywhere;
+}
+
+.settings-update-status[data-tone='current'] {
+  color: var(--uwu-ink);
+}
+
+.settings-update-status[data-tone='current'] svg {
+  color: var(--uwu-pink);
+}
+
+.settings-update-status[data-tone='available'] {
+  color: var(--uwu-pink-ink);
+  font-weight: 600;
+}
+
+.settings-update-status[data-tone='error'] {
+  color: var(--uwu-alarm);
+}
+
+.settings-update-bar {
+  overflow: hidden;
+  width: min(100%, 320px);
+  height: 5px;
+  border-radius: var(--uwu-radius-pill);
+  background: var(--uwu-canvas);
+}
+
+.settings-update-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--uwu-pink-solid);
+  transition: width 160ms ease;
+}
+
+.settings-update-bar-fill[data-indeterminate] {
+  width: 30%;
+  animation: settings-update-slide 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes settings-update-slide {
+  from {
+    translate: -10% 0;
+  }
+  to {
+    translate: 250% 0;
+  }
+}
+
 .settings-plugin {
   display: grid;
   gap: 8px;
@@ -3937,11 +4241,18 @@ input[type='radio'] {
   position: fixed;
   z-index: 45;
   display: grid;
+  /* One column that may shrink: a long recent file ellipsizes rather than
+     widening the list past its limit and scrolling it sideways. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  min-width: 230px;
-  max-width: 380px;
-  max-height: calc(100vh - 16px);
+  min-width: min(230px, calc(100vw - 12px));
+  max-width: min(380px, calc(100vw - 12px));
+  /* The real limit is set inline from where the list opened; see
+     lib/menu-placement.ts. This one only holds for the first frame. */
+  max-height: calc(100vh - 12px);
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid var(--uwu-border);
   border-radius: 12px;
@@ -3958,6 +4269,7 @@ input[type='radio'] {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 5px 10px;
   border-radius: 8px;
   white-space: nowrap;

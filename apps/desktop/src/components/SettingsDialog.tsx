@@ -39,7 +39,6 @@ import { macroLabel, useMacros } from '../lib/macros';
 import { ask } from '../lib/prompt';
 import {
   AUTOSAVE_CHOICES,
-  BUNDLED_FONTS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   HISTORY_RETENTION_CHOICES,
@@ -63,7 +62,10 @@ import {
 } from '../editor/extensions/registry';
 import { reconfigureAllDocs } from '../editor/setup';
 import { allThemes, themeById, THEMES, type EditorTheme } from '../editor/themes';
+import { AUTO_CHECK_HINT, AUTO_CHECK_LABEL } from '../lib/updates';
 import { Modal } from './Modal';
+import { EditorFontPicker, UiFontPicker } from './settings/FontPickers';
+import { UpdatesSection } from './settings/UpdatesSection';
 import { ThemeEditor } from './ThemeEditor';
 
 /** A plain preference: nothing in an `EditorState` depends on it. */
@@ -180,10 +182,11 @@ function SettingsBody() {
               ]}
               onChange={(tone) => write({ tone })}
             />
+            <UiFontPicker value={settings.uiFont} onChange={(uiFont) => write({ uiFont })} />
           </Section>
 
-          <Section title={t('Schrift')}>
-            <FontField
+          <Section title={t('Editorschrift')}>
+            <EditorFontPicker
               value={settings.fontFamily}
               onChange={(fontFamily) => writeEditor({ fontFamily })}
             />
@@ -545,6 +548,17 @@ function SettingsBody() {
             >
               {t('Nyus Erfolge und Hüte…')}
             </button>
+          </Section>
+
+          <Section title={t('Updates')}>
+            <UpdatesSection>
+              <SwitchField
+                label={t(AUTO_CHECK_LABEL)}
+                hint={t(AUTO_CHECK_HINT)}
+                checked={settings.autoCheckUpdates}
+                onChange={(autoCheckUpdates) => write({ autoCheckUpdates })}
+              />
+            </UpdatesSection>
           </Section>
 
           <Section title={t('Makros')}>
@@ -1004,35 +1018,6 @@ function RangeField({
         </output>
       </span>
       <Hint id={`${id}-hint`} text={hint} />
-    </div>
-  );
-}
-
-function FontField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const id = useId();
-  return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={id}>
-        {t('Schriftart')}
-      </label>
-      <input
-        id={id}
-        className="settings-text-input"
-        list={`${id}-fonts`}
-        value={value}
-        spellCheck={false}
-        aria-describedby={`${id}-hint`}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <datalist id={`${id}-fonts`}>
-        {BUNDLED_FONTS.map((font) => (
-          <option key={font} value={font} />
-        ))}
-      </datalist>
-      <Hint
-        id={`${id}-hint`}
-        text={t('Mitgeliefert oder eine Schrift vom System — der Name, wie ihn das System kennt.')}
-      />
     </div>
   );
 }

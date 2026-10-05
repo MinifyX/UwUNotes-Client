@@ -1,0 +1,46 @@
+/*
+ * The interface font. UwU Sans is the default (brand/fonts/uwu-sans); Rubik
+ * and DM Sans come from @fontsource (imported in main.tsx). The browser only
+ * fetches the one in use. Which one is in use is `--font-ui` on <html>, set by
+ * `lib/ui-fonts.ts` from Settings → Erscheinungsbild.
+ *
+ * `--uwu-font` is what every rule in the app reads; it is pointed at the
+ * choice here, after the tokens, so nothing else has to know there is one.
+ * The editor is not affected: it has its own font setting.
+ */
+@font-face {
+  font-family: 'UwU Sans';
+  src: url('../assets/fonts/UwUSans[wght].woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --uwu-font: var(
+    --font-ui,
+    'UwU Sans',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    'Noto Sans',
+    Arial,
+    sans-serif
+  );
+}
+
+body {
+  letter-spacing: var(--tracking-ui, 0);
+}
+
+/* Text somebody types or reads as data keeps its characters as typed: no
+   `:3` turned into a cat in a search field or a file name. */
+input,
+textarea,
+pre,
+code,
+kbd {
+  font-variant-ligatures: no-contextual;
+}

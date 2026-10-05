@@ -19,6 +19,7 @@ import { foldKeymap } from '@codemirror/language';
 import { searchKeymap } from '@codemirror/search';
 import type { Extension } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
+import { isMac } from '../lib/platform';
 
 /**
  * Tab indents, and that is a deliberate accessibility trade.
@@ -36,6 +37,14 @@ import { keymap } from '@codemirror/view';
  */
 const tabIndent = [indentWithTab];
 
+/**
+ * On macOS ⌘F and ⌘G belong to the menu bar (Suchen… and Gehe zu Zeile, see
+ * `lib/native-menu.ts`). CodeMirror's search keymap would answer them first,
+ * inside the editor, with its own panel — so on a Mac it does not get them.
+ * F3 still finds the next match there, as everywhere.
+ */
+const macMenuKeys: ReadonlySet<string> = new Set(isMac() ? ['Mod-f', 'Mod-g'] : []);
+
 export const editorKeymap: Extension = keymap.of([
   ...closeBracketsKeymap,
   ...completionKeymap,
@@ -44,7 +53,7 @@ export const editorKeymap: Extension = keymap.of([
   // anyone who expects Tab to take the highlighted suggestion.
   { key: 'Tab', run: acceptCompletion },
   ...tabIndent,
-  ...searchKeymap,
+  ...searchKeymap.filter((binding) => !macMenuKeys.has(binding.key ?? '')),
   ...historyKeymap,
   ...foldKeymap,
   ...defaultKeymap,

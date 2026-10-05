@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  UwUNotes' privacy manifest, copied to Contents/Resources by the macOS builds.
+
+  No tracking, no tracking domains, no data collected: nothing the editor
+  opens or writes leaves the Mac. The App Store build makes no network
+  requests at all; the GitHub build asks GitHub for a newer version, which
+  sends nothing about the user and is not "collection" in Apple's sense.
+
+  The required-reason APIs it does use, and why:
+  - File timestamps: the editor compares a file's modification time with the
+    one it read, to notice a file changed by another program (3B52.1, files
+    the user opened), and keeps Zeitreise versions and drafts in its own
+    container, pruned by age (C617.1).
+  - System boot time: Rust's `Instant` is mach_absolute_time, used for
+    timeouts and to measure how long things took (35F9.1).
+  - User defaults: AppKit and WebKit read and write the app's own defaults
+    (window and web view state) (CA92.1).
+  Nothing asks for free disk space or active keyboards.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>3B52.1</string>
+        <string>C617.1</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>35F9.1</string>
+      </array>
+    </dict>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>CA92.1</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

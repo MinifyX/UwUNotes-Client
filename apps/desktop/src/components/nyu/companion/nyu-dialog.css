@@ -85,6 +85,274 @@
   letter-spacing: 0;
 }
 
+/* ── Tabs ── */
+
+.nyu-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--uwu-elevated);
+}
+
+.nyu-tab {
+  flex: 1 1 auto;
+  padding: 6px 12px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--uwu-muted);
+}
+
+.nyu-tab:hover:not([aria-selected='true']) {
+  color: var(--uwu-ink);
+}
+
+.nyu-tab[aria-selected='true'] {
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.nyu-tab-panel {
+  min-height: 220px;
+}
+
+.nyu-page-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.nyu-page-empty,
+.nyu-page-note {
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+}
+
+.nyu-page-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--uwu-pink-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.nyu-page-button-primary {
+  border-color: var(--uwu-pink-solid);
+  background: var(--uwu-pink-solid);
+  color: #fff;
+}
+
+.nyu-page-button-primary:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.06);
+}
+
+/* ── Overview ── */
+
+.nyu-highlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nyu-highlight {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--uwu-surface);
+  text-align: left;
+}
+
+.nyu-highlight:hover:not(:disabled) {
+  border-color: var(--uwu-pink);
+}
+
+.nyu-highlight-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--uwu-pink-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.nyu-highlight-label {
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+/* ── Occasions ── */
+
+.nyu-occasions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nyu-occasion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+
+.nyu-occasion svg {
+  flex: none;
+  overflow: visible;
+}
+
+.nyu-occasion[data-seen='false'] {
+  opacity: 0.5;
+}
+
+.nyu-occasion[data-seen='false'] svg {
+  filter: grayscale(0.85);
+}
+
+.nyu-occasion[data-seen='true'] {
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+}
+
+/* ── Pomodoro ── */
+
+.nyu-pomodoro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: 14px;
+  background: var(--uwu-surface);
+}
+
+.nyu-pomodoro-tomato {
+  flex: none;
+  overflow: visible;
+}
+
+.nyu-pomodoro[data-running] .nyu-pomodoro-tomato {
+  animation: nyu-bob 2.2s ease-in-out infinite;
+}
+
+.nyu-pomodoro-clock {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 160px;
+}
+
+.nyu-pomodoro-phase,
+.nyu-pomodoro-next {
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
+.nyu-pomodoro-time {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--uwu-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.nyu-pomodoro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nyu-pomodoro[data-running] .nyu-pomodoro-tomato {
+    animation: none;
+  }
+}
+
+/* ── Secrets ── */
+
+.nyu-secret-bar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--uwu-elevated);
+}
+
+.nyu-secret-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--uwu-pink);
+}
+
+.nyu-secrets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nyu-secret {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--uwu-hairline);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+}
+
+.nyu-secret[data-found='true'] {
+  border-style: solid;
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+  font-weight: 600;
+}
+
+.nyu-secret-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--uwu-elevated);
+  font-weight: 800;
+}
+
+.nyu-secret[data-found='true'] .nyu-secret-mark {
+  background: var(--uwu-pink);
+  color: #fff;
+}
+
+/* ── Settings ── */
+
+.nyu-switches {
+  display: grid;
+  gap: 12px;
+}
+
 /* ── Hats ── */
 
 .nyu-hats {
@@ -156,6 +424,11 @@
 
 .nyu-achievement[data-done='false'] {
   opacity: 0.55;
+}
+
+.nyu-achievement[data-secret] {
+  border-style: dashed;
+  background: transparent;
 }
 
 .nyu-achievement-mark {

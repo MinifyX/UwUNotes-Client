@@ -30,5 +30,15 @@
   "{count} ungespeicherte Notizen liegen im Papierkorb": "{count} unsaved notes are in the trash",
   "„{name}“ ließ sich nicht im Papierkorb ablegen. Der Tab bleibt offen.": "\"{name}\" could not be moved to the trash. The tab stays open.",
   "Die Notiz ließ sich nicht aus dem Papierkorb holen.": "The note could not be taken out of the trash.",
-  "Die Notiz ließ sich nicht löschen.": "The note could not be deleted."
+  "Die Notiz ließ sich nicht löschen.": "The note could not be deleted.",
+  "Papierkorb anzeigen": "Show trash",
+  "Zuklappen": "Collapse",
+  "Der Papierkorb ist leer. Was du ungespeichert schließt, landet hier und bleibt 30 Tage.": "The trash is empty. Whatever you close without saving lands here and stays for 30 days.",
+  "Papierkorb durchsuchen": "Search the trash",
+  "(leer)": "(empty)",
+  "Diese Notiz ist nicht mehr im Papierkorb.": "This note is no longer in the trash.",
+  "1 Notiz · {size}": "1 note · {size}",
+  "{count} Notizen · {size}": "{count} notes · {size}",
+  "Leeren": "Empty",
+  "Nach 30 Tagen gelöscht": "deleted after 30 days"
 }

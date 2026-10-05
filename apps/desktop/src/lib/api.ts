@@ -488,7 +488,28 @@ export const printPage = () => invoke<void>('print_page');
 export const revealInFileManager = (path: string) =>
   invoke<void>('reveal_in_file_manager', { path });
 
+/**
+ * Files the system asked the editor to open ("Open with", a double-click, the
+ * Dock) since the last call. Taking them empties the list on the Rust side.
+ */
+export const takeOpenedPaths = () => invoke<string[]>('take_opened_paths');
+
 /* ── Updates ───────────────────────────────────────────── */
+
+/**
+ * Where this build gets its updates: `github` checks the feed and installs
+ * itself, `app-store` is the Mac App Store build, which the store updates and
+ * which has no updater compiled in, `none` a build packaged some other way.
+ */
+export type UpdateChannel = 'github' | 'app-store' | 'none';
+
+export const updateChannel = () => invoke<UpdateChannel>('update_channel');
+
+/** A font family installed on this computer; see `src-tauri/src/fonts.rs`. */
+export type SystemFont = { family: string; monospace: boolean };
+
+/** Monospace families first, each half by name. Scanned once per run. */
+export const systemFonts = () => invoke<SystemFont[]>('system_fonts');
 
 /**
  * What a look at the update feed found.

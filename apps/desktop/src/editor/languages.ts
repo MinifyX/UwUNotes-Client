@@ -128,10 +128,16 @@ const FIRST_CLASS: LanguageEntry[] = [
 ];
 
 function idFor(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+  return (
+    name
+      .toLowerCase()
+      // Before the rest goes: C, C++ and C# would all be `c` otherwise, and only
+      // the first of them could ever be picked by hand.
+      .replace(/\+/g, 'p')
+      .replace(/#/g, 'sharp')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+  );
 }
 
 /**

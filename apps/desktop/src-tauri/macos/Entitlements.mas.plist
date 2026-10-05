@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The Mac App Store build's entitlements. scripts/build-mas.mjs adds the two
+  that name the team, com.apple.application-identifier and
+  com.apple.developer.team-identifier, from APPLE_TEAM_ID at signing time.
+
+  - app-sandbox: required for the store.
+  - files.user-selected.read-write: open and save what the user picks, drops
+    or opens with UwUNotes — the only files the editor reaches.
+  - files.bookmarks.app-scope: security-scoped bookmarks, so the last
+    session's files and folders open again after a restart
+    (src-tauri/src/sandbox_access.rs).
+  - print: File → Print.
+
+  Deliberately absent: network.client (no updater in this build, nothing else
+  goes online — links open in the browser, which needs no entitlement), and
+  everything that runs or controls other programs (no git, no Finder
+  scripting; see docs/app-store.md).
+-->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+  <key>com.apple.security.print</key>
+  <true/>
+</dict>
+</plist>

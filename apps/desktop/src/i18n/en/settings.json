@@ -31,7 +31,6 @@
   "„Sachlich“ behält Nyu und lässt ihre Sprüche weg.": "“Plain” keeps Nyu and leaves out her one-liners.",
   "Verspielt": "Playful",
   "Sachlich": "Plain",
-  "Schrift": "Font",
   "Schriftgröße": "Font size",
   "Zeilenhöhe": "Line height",
   "Ligaturen": "Ligatures",
@@ -81,7 +80,6 @@
   "Jede Minute": "Every minute",
   "Alle 5 Minuten": "Every 5 minutes",
   "Schriftart": "Font family",
-  "Mitgeliefert oder eine Schrift vom System — der Name, wie ihn das System kennt.": "Bundled, or a font from the system — the name as the system knows it.",
   "Git-Marker am Zeilenrand": "Git markers in the gutter",
   "Zeigt neben jeder Zeile, was sich seit dem letzten Commit geändert hat. Kostet einen Git-Aufruf pro Datei.": "Shows next to every line what has changed since the last commit. Costs one git call per file.",
   "Mitgeliefert": "Bundled",
@@ -151,5 +149,16 @@
   "Hintergrund": "Background",
   "Hintergrund der Leiste": "Gutter background",
   "Textfarbe": "Text colour",
-  "Trennlinie": "Divider"
+  "Trennlinie": "Divider",
+  "Schrift der Oberfläche": "Interface font",
+  "Menüs, Dialoge und Nyu: 0123 :3": "Menus, dialogs and Nyu: 0123 :3",
+  "Für Menüs, Dialoge, Seitenleiste und Statusleiste. Der Text im Editor hat seine eigene Schrift.": "For menus, dialogs, the sidebar and the status bar. The text in the editor has a font of its own.",
+  "Editorschrift": "Editor font",
+  "Eigener Name": "Your own name",
+  "Monospace auf diesem System": "Monospace on this computer",
+  "Weitere Schriften auf diesem System": "Other fonts on this computer",
+  "Mitgeliefert oder eine Schrift vom System. Monospace-Schriften stehen oben.": "Bundled, or a font from this computer. Monospace fonts come first.",
+  "Schriften durchsuchen oder Namen eingeben": "Search fonts or type a name",
+  "„{name}“ verwenden": "Use “{name}”",
+  "Schriften des Systems werden gelesen …": "Reading this computer's fonts …"
 }

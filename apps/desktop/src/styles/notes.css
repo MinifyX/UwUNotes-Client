@@ -162,6 +162,178 @@
   padding: 24px 10px 16px;
 }
 
+/* ── The trash view ── */
+
+.trash-entry {
+  position: relative;
+  border-radius: var(--uwu-radius-control);
+}
+
+.trash-entry[data-open] {
+  background: var(--uwu-elevated);
+}
+
+/* Room for the two tools, which sit over the row's right edge. */
+.trash-entry .trash-entry-main {
+  padding-right: 60px;
+}
+
+.trash-entry-tools {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.trash-entry:hover .trash-entry-tools,
+.trash-entry[data-open] .trash-entry-tools,
+.trash-entry-tools:focus-within {
+  opacity: 1;
+}
+
+.trash-entry-tool {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--uwu-muted);
+}
+
+.trash-entry-tool:hover:not(:disabled) {
+  background: var(--uwu-surface);
+  color: var(--uwu-ink);
+}
+
+.trash-entry-delete:hover:not(:disabled) {
+  color: var(--uwu-alarm);
+}
+
+.trash-entry-body {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.trash-entry-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--uwu-muted);
+}
+
+/* The whole text, as it was, and selectable: copying a line out of the trash
+   without bringing the note back is a fine thing to want. */
+.trash-entry-text {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  padding: 7px 9px;
+  border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+  font-family: var(--uwu-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+}
+
+.trash-entry-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.trash-entry-restore {
+  flex: 1;
+  justify-content: center;
+}
+
+.trash-entry-actions .trash-entry-remove {
+  padding: 4px 8px;
+}
+
+.trash-summary {
+  padding: 0 8px 4px;
+  font-size: 11px;
+  color: var(--uwu-muted);
+}
+
+.trash-entry-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.trash-entry-restore {
+  border-color: var(--uwu-pink-solid);
+  background: var(--uwu-pink-solid);
+  color: var(--uwu-on-pink);
+}
+
+.trash-entry-restore:hover:not(:disabled) {
+  background: var(--uwu-pink-solid);
+  filter: brightness(1.07);
+}
+
+.trash-entry-remove:hover:not(:disabled) {
+  color: var(--uwu-alarm);
+}
+
+/* Emptying is asked in the panel, above the list it is about. */
+.trash-confirm {
+  display: grid;
+  gap: 6px;
+  margin: 0 2px 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--uwu-hairline);
+  border-left: 3px solid var(--uwu-alarm);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-elevated);
+}
+
+.trash-confirm-title {
+  font-weight: 700;
+}
+
+.trash-confirm-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--uwu-muted);
+}
+
+.trash-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.trash-confirm-actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.trash-confirm-danger {
+  color: var(--uwu-alarm);
+  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
+}
+
+.trash-confirm-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
+}
+
+html[data-motion='reduced'] .trash-entry-tools,
 html[data-motion='reduced'] .notebook-item,
 html[data-motion='reduced'] .notebook-delete {
   transition: none;

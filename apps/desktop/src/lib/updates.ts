@@ -20,6 +20,12 @@
  * This module does NOT decide the feed address or check a signature. Both are
  * `src-tauri/src/updates.rs` and the config beside it, deliberately out of the
  * page's reach.
+ *
+ * **Not every build updates itself.** The Mac App Store build is updated by
+ * the store, has no updater compiled in, and must not even offer to look:
+ * {@link updatesAvailableInApp} is what the settings, the command palette and
+ * anything else with an update button ask before showing it, and both checks
+ * here refuse quietly where it is false.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -27,7 +33,9 @@ import {
   asApiError,
   checkForUpdate,
   installUpdate,
+  updateChannel,
   type DownloadProgress,
+  type UpdateChannel,
   type UpdateCheck,
 } from './api';
 import { N_, t } from './i18n';
@@ -52,6 +60,11 @@ export type UpdateState =
       /** 0 to 1, or `null` while the size of the download is unknown. */
       progress: number | null;
     }
+  /**
+   * A check somebody asked for found nothing newer. Only the settings page
+   * shows it; the bar treats it like `idle`.
+   */
+  | { phase: 'current' }
   /** Installed without the app being replaced underneath us — see below. */
   | { phase: 'ready'; version: string }
   | { phase: 'failed'; message: string };
@@ -90,11 +103,59 @@ export function useUpdateState(): UpdateState {
   return useSyncExternalStore(subscribe, getUpdateState);
 }
 
+/** Where updates come from, once Rust has said; `null` until then. */
+let channel: UpdateChannel | null = null;
+let channelAsked: Promise<UpdateChannel> | null = null;
+
+/**
+ * Asks Rust where this build's updates come from, once per run. A Rust side
+ * that predates the question answers with an error, and every one of those
+ * was a GitHub build with the updater in it.
+ */
+export function loadUpdateChannel(): Promise<UpdateChannel> {
+  channelAsked ??= updateChannel()
+    .catch((): UpdateChannel => 'github')
+    .then((answer) => {
+      channel = answer;
+      for (const listener of listeners) listener();
+      return answer;
+    });
+  return channelAsked;
+}
+
+/**
+ * Whether this copy looks for and installs its own updates — false for the
+ * Mac App Store build, where the store does that and an update button must not
+ * exist at all. False, too, until the answer is in: a button that appears a
+ * moment late is fine, one that vanishes again is not.
+ */
+export function updatesAvailableInApp(): boolean {
+  return channel === 'github';
+}
+
+/** {@link updatesAvailableInApp} for components, re-rendered once it is known. */
+export function useUpdatesAvailableInApp(): boolean {
+  useSyncExternalStore(subscribe, () => channel);
+  return updatesAvailableInApp();
+}
+
+/** Where this build's updates come from, for components; `null` until known. */
+export function useUpdateChannel(): UpdateChannel | null {
+  return useSyncExternalStore(subscribe, () => channel);
+}
+
 /**
  * Asks once. `asked` is the difference between the start-up check and a button
  * press, and it is the only thing that decides whether a failure is shown.
  */
-async function check(asked: boolean): Promise<void> {
+async function check(asked: boolean, quiet = false): Promise<void> {
+  if ((channel ?? (await loadUpdateChannel())) !== 'github') {
+    // Only reachable through something that forgot to ask first. Somebody who
+    // pressed a button still hears why nothing happened.
+    if (asked) toast('info', t('Updates für diese Version kommen über den App Store.'));
+    return;
+  }
+  // After the wait above, so two presses in the same moment still make one check.
   if (state.phase === 'checking' || state.phase === 'downloading') return;
   set({ phase: 'checking' });
 
@@ -126,17 +187,56 @@ async function check(asked: boolean): Promise<void> {
     return;
   }
 
-  set({ phase: 'idle' });
+  set({ phase: asked ? 'current' : 'idle' });
   // Nothing to answer and nothing to decide, so a toast rather than the bar —
-  // but somebody who pressed a button has to hear something back.
-  if (asked) {
+  // but somebody who pressed a button has to hear something back. The
+  // settings page says it in place and asks for no toast on top.
+  if (asked && !quiet) {
     toast('info', t('UwUNotes {version} ist die neueste Version.', { version: APP_VERSION }));
   }
 }
 
-/** "Jetzt suchen", from the command palette or the settings. */
-export function checkForUpdateNow(): void {
-  void check(true);
+/**
+ * "Jetzt suchen", from the command palette or the settings. `quiet` drops the
+ * "newest version" toast, for a caller that shows the answer itself.
+ */
+export function checkForUpdateNow(options: { quiet?: boolean } = {}): void {
+  void check(true, options.quiet === true);
+}
+
+/** Where a copy that cannot install an update itself sends people for it. */
+export const RELEASES_URL = 'https://github.com/MinifyX/UwUNotes-Client/releases/latest';
+
+/**
+ * One sentence per phase, for the bar and the settings page alike. Never
+ * playful: this is information, not a joke.
+ */
+export function updateHeadline(state: UpdateState): string {
+  switch (state.phase) {
+    case 'checking':
+      return t('Suche nach Updates …');
+    case 'current':
+      return t('UwUNotes {version} ist die neueste Version.', { version: APP_VERSION });
+    case 'available':
+      return t('UwUNotes {version} ist verfügbar.', { version: state.version });
+    case 'downloading':
+      return state.progress === null
+        ? t('UwUNotes {version} wird geladen …', { version: state.version })
+        : t('UwUNotes {version} wird geladen … {percent} %', {
+            version: state.version,
+            percent: Math.round(state.progress * 100),
+          });
+    case 'ready':
+      // Only reachable where the installer does not replace the running app
+      // itself. On Windows this process is already gone by now.
+      return t('UwUNotes {version} ist installiert. Starte den Editor neu, um es zu benutzen.', {
+        version: state.version,
+      });
+    case 'failed':
+      return state.message;
+    default:
+      return '';
+  }
 }
 
 /**
@@ -198,6 +298,7 @@ export function dismissUpdate(): void {
 
 /** The start-up check. Called once from `App.tsx`; returns the teardown. */
 export function startUpdateCheck(): () => void {
+  void loadUpdateChannel();
   // The setting is read when the timer fires, not when it is armed, so turning
   // it off in the first few seconds of a run still stops the check.
   const timer = window.setTimeout(() => {

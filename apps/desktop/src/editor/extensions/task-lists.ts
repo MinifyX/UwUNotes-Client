@@ -10,6 +10,7 @@
  */
 
 import { N_ } from '../../lib/i18n';
+import { isMac } from '../../lib/platform';
 import { taskLists } from '../tasks';
 import { registerPlugin } from './registry';
 
@@ -17,7 +18,10 @@ export function registerTaskLists(): void {
   registerPlugin({
     id: 'task-lists',
     name: N_('Aufgabenlisten'),
-    description: N_('Strg+Enter oder Strg+Klick auf [ ] hakt eine Aufgabe ab.'),
+    // The editor binds Mod-Enter and the click takes Ctrl or ⌘, so a Mac reads ⌘.
+    description: isMac()
+      ? N_('⌘↩ oder ⌘-Klick auf [ ] hakt eine Aufgabe ab.')
+      : N_('Strg+Enter oder Strg+Klick auf [ ] hakt eine Aufgabe ab.'),
     defaultEnabled: true,
     build: taskLists,
   });

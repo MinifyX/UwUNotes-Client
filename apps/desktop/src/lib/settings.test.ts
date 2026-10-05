@@ -45,6 +45,7 @@ describe('sanitising nonsense', () => {
       editorTheme: 0,
       motion: [],
       tone: {},
+      uiFont: 3,
       fontFamily: 12,
       fontSize: 'big',
       lineHeight: 'tall',
@@ -136,6 +137,7 @@ describe('sanitising nonsense', () => {
       language: 'fr',
       motion: 'fast',
       tone: 'stern',
+      uiFont: 'Comic Sans',
       wrap: 'column',
       caretStyle: 'beam',
       defaultEol: 'cr',
@@ -148,12 +150,25 @@ describe('sanitising nonsense', () => {
       language: DEFAULT_SETTINGS.language,
       motion: DEFAULT_SETTINGS.motion,
       tone: DEFAULT_SETTINGS.tone,
+      uiFont: DEFAULT_SETTINGS.uiFont,
       wrap: DEFAULT_SETTINGS.wrap,
       caretStyle: DEFAULT_SETTINGS.caretStyle,
       defaultEol: DEFAULT_SETTINGS.defaultEol,
       autosaveSeconds: DEFAULT_SETTINGS.autosaveSeconds,
     });
     expect(AUTOSAVE_CHOICES).toContain(settings.autosaveSeconds);
+  });
+
+  it('keeps the interface font apart from the editor font', () => {
+    expect(DEFAULT_SETTINGS.uiFont).toBe('uwu');
+    const settings = sanitize({ uiFont: 'rubik', fontFamily: 'Cascadia Code' });
+    expect(settings.uiFont).toBe('rubik');
+    expect(settings.fontFamily).toBe('Cascadia Code');
+    // Stored before there was an interface font: the editor font stays as it was.
+    expect(sanitize({ fontFamily: 'Fira Code Variable' })).toMatchObject({
+      uiFont: 'uwu',
+      fontFamily: 'Fira Code Variable',
+    });
   });
 
   it('takes a blank name as no name', () => {

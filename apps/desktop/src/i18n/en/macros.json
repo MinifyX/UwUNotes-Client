@@ -42,7 +42,7 @@
   "Es gibt noch keine Aufzeichnung.": "There is no recording yet.",
   "Makro „{name}“ gespeichert.": "Macro “{name}” saved.",
   "Mehr als {count} Makros verwaltet UwUNotes nicht.": "UwUNotes doesn't keep more than {count} macros.",
-  "Ein Makro-Kürzel braucht Strg und eine Taste.": "A macro shortcut needs Ctrl and a key.",
+  "Ein Makro-Kürzel braucht {keys} und eine Taste.": "A macro shortcut needs {keys} and a key.",
   "Diese Tastenkombination gehört schon zu UwUNotes selbst.": "That key combination already belongs to UwUNotes itself.",
   "Dieses Makro gibt es nicht mehr.": "That macro no longer exists.",
   "Dieses Makro hat keine Schritte.": "This macro has no steps.",

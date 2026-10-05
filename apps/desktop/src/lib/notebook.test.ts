@@ -34,6 +34,9 @@ const deleteTrash = vi.fn(async (id: string) => {
   entries.delete(id);
 });
 const listTrash = vi.fn(async () => [] as TrashSummary[]);
+const emptyTrash = vi.fn(async () => {
+  entries.clear();
+});
 const historyMove = vi.fn(async () => undefined);
 
 vi.mock('./api', async (importOriginal) => {
@@ -44,6 +47,7 @@ vi.mock('./api', async (importOriginal) => {
     readTrash,
     deleteTrash,
     listTrash,
+    emptyTrash,
     historyMove,
     dropDraft: vi.fn(async () => undefined),
     pathInfo: vi.fn(async (path: string) => ({
@@ -303,5 +307,36 @@ describe('untitled notes', () => {
     // A note that arrives with Markdown in it is Markdown from the start.
     expect(language(documents.openUntitled('# Fertig\n- eins'))).toBe('markdown');
     stop();
+  });
+});
+
+describe('the trash view', () => {
+  it('reads a whole entry without bringing it back', async () => {
+    const { files, notebook, documents, workspace } = await fresh();
+    const note = documents.openUntitled();
+    workspace.showDoc(note);
+    type(documents, note, 'Ganz langer Text');
+    await files.closeDocSafely(note);
+    const [id] = [...entries.keys()];
+
+    expect(await notebook.peekTrashed(id!)).toBe('Ganz langer Text');
+    expect(entries.has(id!)).toBe(true);
+    expect(deleteTrash).not.toHaveBeenCalled();
+    expect(await notebook.peekTrashed('gone')).toBeNull();
+  });
+
+  it('empties without a question once the view has asked', async () => {
+    const { files, notebook, documents, workspace } = await fresh();
+    const note = documents.openUntitled();
+    workspace.showDoc(note);
+    type(documents, note, 'weg damit');
+    await files.closeDocSafely(note);
+
+    await notebook.emptyTrashNow();
+
+    expect(emptyTrash).toHaveBeenCalledTimes(1);
+    expect(entries.size).toBe(0);
+    // Ctrl+Shift+T no longer offers what is gone.
+    expect(notebook.closedTabs.size()).toBe(0);
   });
 });

@@ -191,6 +191,15 @@ fn git_program() -> Option<&'static Path> {
 }
 
 fn resolve_git() -> Option<PathBuf> {
+    // The Mac App Store build runs no programs that are not its own. A
+    // sandboxed process may not run Apple's `/usr/bin/git` at all — that is
+    // `xcrun`, which refuses inside a sandbox — and running whatever else is
+    // on the PATH is exactly what App Review asks about. So no git there: no
+    // letters in the tree, no marks in the gutter, the rest of the editor the
+    // same.
+    if cfg!(feature = "mas") {
+        return None;
+    }
     let name = if cfg!(windows) { "git.exe" } else { "git" };
     let own_folder = std::env::current_exe()
         .ok()

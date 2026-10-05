@@ -43,7 +43,7 @@ import { editorCommand, holdHistory, setRecordingSink } from '../editor/recordin
 import { allCommands, runCommand } from './commands';
 import { compileSearch } from './find';
 import { t } from './i18n';
-import { normalizeMacroShortcut } from './shortcuts';
+import { keysText, normalizeMacroShortcut } from './shortcuts';
 import { emitNyu } from './nyu-events';
 import { toast } from './toast';
 import { activeView } from './views';
@@ -421,7 +421,12 @@ export function deleteMacro(id: string): void {
 export function setMacroShortcut(id: string, shortcut: string | null): void {
   const wanted = shortcut === null ? null : normalizeMacroShortcut(shortcut);
   if (shortcut !== null && !wanted) {
-    toast('info', t('Ein Makro-Kürzel braucht Strg und eine Taste.'));
+    toast(
+      'info',
+      t('Ein Makro-Kürzel braucht {keys} und eine Taste.', {
+        keys: keysText(['Strg'], { control: true }),
+      }),
+    );
     return;
   }
   macros = macros.map((macro) => {

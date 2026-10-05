@@ -63,6 +63,9 @@ const PATHS = {
     'M1.5 2.5h13v11h-13z M10.5 2.5v11 M11.8 5h1.5 M11.8 7.4h1.5 M11.8 9.8h1 M3.2 5.4h5 M3.2 8h4 M3.2 10.6h5.5',
   wrap: 'M2 3.5h12 M2 8h8.25a2.25 2.25 0 0 1 0 4.5H6 M7.8 10.7 6 12.5l1.8 1.8 M2 12.5h1.6',
   sidebar: 'M1.5 2.5h13v11h-13z M6 2.5v11',
+  // The panel with an arrow pointing the way it goes: away, and back.
+  sidebarHide: 'M1.5 2.5h13v11h-13z M6 2.5v11 M11.5 6 9.5 8l2 2',
+  sidebarShow: 'M1.5 2.5h13v11h-13z M6 2.5v11 M9.5 6l2 2-2 2',
   dots: 'M3.2 8h.01 M8 8h.01 M12.8 8h.01',
   // A push pin seen from the side, tilted the way a pinned tab leans.
   pin: 'M9.5 1.8 14.2 6.5 M10.6 2.9 7.4 6.1 4.3 6.6 9.4 11.7 9.9 8.6 13.1 5.4 M6.8 9.2 2 14',
