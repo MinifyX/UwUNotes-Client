@@ -57,7 +57,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "copyright": "GPL-3.0-only",
+    "copyright": "© 2026 MinifyX",
     "license": "GPL-3.0-only",
     "shortDescription": "A text and code editor with cat ears",
     "longDescription": "The editor I build for myself, because Notepad++ is great and looks like 2004. Tabs, real syntax highlighting, find in files, splits — in pink."
