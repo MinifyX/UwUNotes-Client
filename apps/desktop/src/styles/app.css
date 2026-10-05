@@ -407,6 +407,45 @@ input[type='radio'] {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.app[data-sidebar='rail'] .app-body {
+  grid-template-columns: 38px minmax(0, 1fr);
+}
+
+/* What stays of a folded sidebar: the way back, and a button per view. */
+.sidebar-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 5px 0;
+  background: var(--uwu-surface);
+  border-right: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-rail .sidebar-switch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+
+.sidebar-rail .sidebar-switch[data-current] {
+  color: var(--uwu-ink);
+}
+
+.sidebar-rail .sidebar-expand {
+  color: var(--uwu-pink);
+}
+
+.sidebar-rail-rule {
+  flex: none;
+  width: 18px;
+  height: 1px;
+  margin: 3px 0;
+  background: var(--uwu-hairline);
+}
+
 .sidebar {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -423,9 +462,22 @@ input[type='radio'] {
 
 .sidebar-switcher {
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 5px 6px;
   border-bottom: 1px solid var(--uwu-hairline);
+}
+
+.sidebar-switches {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.sidebar-collapse {
+  flex: none;
 }
 
 .sidebar-switch {

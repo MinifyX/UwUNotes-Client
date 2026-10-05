@@ -45,7 +45,7 @@ import { GoToLine } from './components/GoToLine';
 import { MacroDialog } from './components/MacroDialog';
 import { SearchPanel } from './components/SearchPanel';
 import { SettingsDialog } from './components/SettingsDialog';
-import { Sidebar } from './components/sidebar/Sidebar';
+import { Sidebar, SidebarRail } from './components/sidebar/Sidebar';
 import { SplitContainer } from './components/SplitContainer';
 import { StatusBar } from './components/StatusBar';
 import { TitleBar } from './components/TitleBar';
@@ -158,7 +158,7 @@ export function App() {
   return (
     <div
       className="app"
-      data-sidebar={sidebarOpen ? 'open' : 'closed'}
+      data-sidebar={sidebarOpen ? 'open' : zen ? 'closed' : 'rail'}
       data-zen={zen ? true : undefined}
       style={zen ? ({ '--zen-columns': zenWidth } as CSSProperties) : undefined}
     >
@@ -168,7 +168,7 @@ export function App() {
       <TitleBar />
 
       <div className="app-body">
-        {sidebarOpen ? <Sidebar /> : null}
+        {sidebarOpen ? <Sidebar /> : zen ? null : <SidebarRail />}
         <div className="app-editors">
           <CompareBar />
           <SplitContainer />
