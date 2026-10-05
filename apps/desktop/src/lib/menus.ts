@@ -411,7 +411,11 @@ function languageMenu(): MenuEntry[] {
     void applyDocLanguage(id);
   };
   const disabled = !id;
-  const programming = LANGUAGES.filter((entry) => entry.id !== PLAIN_TEXT.id);
+  // One entry per id: the bundled list repeats a few first-class languages
+  // under another name (JSX, TSX), and two menu items with one id would light
+  // up together.
+  const ids = new Set<string>([PLAIN_TEXT.id]);
+  const programming = LANGUAGES.filter((entry) => !ids.has(entry.id) && ids.add(entry.id));
   return [
     {
       kind: 'item',
