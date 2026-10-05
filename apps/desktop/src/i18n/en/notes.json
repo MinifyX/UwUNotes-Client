@@ -38,5 +38,7 @@
   "(leer)": "(empty)",
   "Diese Notiz ist nicht mehr im Papierkorb.": "This note is no longer in the trash.",
   "1 Notiz · {size}": "1 note · {size}",
-  "{count} Notizen · {size}": "{count} notes · {size}"
+  "{count} Notizen · {size}": "{count} notes · {size}",
+  "Leeren": "Empty",
+  "Nach 30 Tagen gelöscht": "deleted after 30 days"
 }

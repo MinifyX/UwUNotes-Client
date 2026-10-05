@@ -165,7 +165,7 @@ export function TrashView() {
                   void emptyTrashNow();
                 }}
               >
-                {t('Endgültig löschen')}
+                {t('Leeren')}
               </button>
               <button type="button" ref={cancelRef} onClick={() => setConfirming(false)}>
                 {t('Abbrechen')}
@@ -203,6 +203,14 @@ export function TrashView() {
                 }}
               />
             </div>
+
+            <p className="trash-summary">
+              {trash.length === 1
+                ? t('1 Notiz · {size}', { size: formatBytes(total) })
+                : t('{count} Notizen · {size}', { count: trash.length, size: formatBytes(total) })}
+              {' · '}
+              {t('Nach 30 Tagen gelöscht')}
+            </p>
 
             {shown.length === 0 ? (
               <p className="notebook-none">{t('Nichts gefunden.')}</p>
@@ -277,9 +285,10 @@ export function TrashView() {
                             <button
                               type="button"
                               className="trash-entry-remove"
+                              title={t('Endgültig löschen')}
                               onClick={() => remove(entry.id)}
                             >
-                              {t('Endgültig löschen')}
+                              <Icon name="trash" size={13} title={t('Endgültig löschen')} />
                             </button>
                           </div>
                         </div>
@@ -292,14 +301,6 @@ export function TrashView() {
           </>
         )}
       </div>
-
-      {trash.length > 0 ? (
-        <footer className="sidebar-footer">
-          {trash.length === 1
-            ? t('1 Notiz · {size}', { size: formatBytes(total) })
-            : t('{count} Notizen · {size}', { count: trash.length, size: formatBytes(total) })}
-        </footer>
-      ) : null}
 
       {menu && (
         <ContextMenu

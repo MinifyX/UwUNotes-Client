@@ -249,8 +249,22 @@
 
 .trash-entry-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+}
+
+.trash-entry-restore {
+  flex: 1;
+  justify-content: center;
+}
+
+.trash-entry-actions .trash-entry-remove {
+  padding: 4px 8px;
+}
+
+.trash-summary {
+  padding: 0 8px 4px;
+  font-size: 11px;
+  color: var(--uwu-muted);
 }
 
 .trash-entry-actions button {
@@ -299,14 +313,14 @@
 }
 
 .trash-confirm-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 2px;
 }
 
 .trash-confirm-actions button {
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-size: 12px;
 }
 
