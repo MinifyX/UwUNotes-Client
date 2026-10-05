@@ -19,6 +19,7 @@
  */
 
 import { t } from './i18n';
+import { isMac } from './platform';
 import { commandEnabled, runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
 import { activateTabAt, cyclePane } from './workspace';
@@ -181,17 +182,125 @@ function renderKeys(keys: readonly string[]): string {
     .join('+');
 }
 
-/**
- * A bound command's keys in the table's own spelling — {@link KEY_CTRL},
- * {@link KEY_SHIFT}, then the key — for the native macOS menu, which turns them
- * into accelerators (`lib/native-menu.ts`). `undefined` when nothing is bound.
+/* ── The Mac's way of writing keys ─────────────────────── */
+
+/*
+ * On macOS a shortcut is written with symbols, modifiers in Apple's order
+ * (⌃ ⌥ ⇧ ⌘) and no plus signs — ⇧⌘S — and what is written has to be what
+ * works. Two different keys do the work there:
+ *
+ * - Commands in a menu are answered by the native menu bar with ⌘
+ *   (`lib/native-menu.ts`), which takes {@link macAccelerator} from here: one
+ *   table for what the menu registers and what every label shows.
+ * - The few bound commands that are in no menu ({@link CONTROL_ON_MAC}) stay
+ *   with this file's listener, which answers the Control key — ⌃⇥ for the
+ *   next tab is also what Safari uses. Macros are the same: ⌃.
  */
-export function shortcutKeys(command: string): readonly string[] | undefined {
-  return LABELS[command];
+
+/** Chords macOS has already taken, moved to keys that are free. `null`: no key at all. */
+const MAC_KEYS: Record<string, string | null> = {
+  // ⌘H hides the app; every Mac editor replaces on ⌥⌘F.
+  'find.replace': 'CmdOrCtrl+Alt+F',
+  // ⌘⇧Q logs out of the Mac.
+  'view.closePane': null,
+  // ⌘⇧3 is a screenshot; ⌘⇧2 moves along for symmetry.
+  'view.columns2': 'CmdOrCtrl+Alt+2',
+  'view.columns3': 'CmdOrCtrl+Alt+3',
+  // CodeMirror's own `Mod-Enter`, which is ⌘ on a Mac.
+  'markdown.toggleTask': 'CmdOrCtrl+Enter',
+};
+
+/**
+ * Bound commands that no menu lists, so no native accelerator answers them:
+ * on a Mac they keep the Control key of this file's listener. The native menu
+ * test checks this list against the menus.
+ */
+export const CONTROL_ON_MAC: ReadonlySet<string> = new Set([
+  'tab.next',
+  'tab.previous',
+  'view.moveTabToOtherPane',
+  'view.nextPane',
+]);
+
+/**
+ * The table's keys as an accelerator: `[Strg, Umschalt, S]` → `CmdOrCtrl+Shift+S`.
+ * `CmdOrCtrl` rather than `Cmd` so the same string would mean Ctrl anywhere
+ * else; the menu is only installed on macOS, where it is ⌘.
+ */
+export function acceleratorFromKeys(keys: readonly string[]): string {
+  return keys
+    .map((key) => {
+      if (key === CTRL) return 'CmdOrCtrl';
+      if (key === SHIFT) return 'Shift';
+      return key;
+    })
+    .join('+');
 }
 
-export const KEY_CTRL = CTRL;
-export const KEY_SHIFT = SHIFT;
+/** The macOS accelerator for a command, or `null` when it has none there. */
+export function macAccelerator(command: string): string | null {
+  if (command in MAC_KEYS) return MAC_KEYS[command] ?? null;
+  const keys = LABELS[command];
+  return keys ? acceleratorFromKeys(keys) : null;
+}
+
+const MAC_MODIFIERS: readonly [RegExp, string][] = [
+  [/^(?:ctrl|control)$/i, '⌃'],
+  [/^(?:alt|option)$/i, '⌥'],
+  [/^shift$/i, '⇧'],
+  [/^(?:cmd|command|cmdorctrl|super|meta)$/i, '⌘'],
+];
+
+const MAC_KEY_GLYPHS: Record<string, string> = {
+  Enter: '↩',
+  Tab: '⇥',
+  Escape: '⎋',
+  Backspace: '⌫',
+  Delete: '⌦',
+  Space: '␣',
+  PageUp: '⇞',
+  PageDown: '⇟',
+  Home: '↖',
+  End: '↘',
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+};
+
+/** `CmdOrCtrl+Shift+S` → `⇧⌘S`; `Ctrl+Tab` → `⌃⇥`. */
+export function macKeysText(accelerator: string): string {
+  // The `+` key itself: `CmdOrCtrl++`.
+  const parts = accelerator.endsWith('++')
+    ? [...accelerator.slice(0, -2).split('+'), '+']
+    : accelerator.split('+');
+  const key = parts.pop() ?? '';
+  // A modifier on its own, as in "needs ⌃ and a key".
+  const alone = MAC_MODIFIERS.find(([pattern]) => pattern.test(key));
+  if (alone && parts.length === 0) return alone[1];
+  const symbols = MAC_MODIFIERS.filter(([pattern]) => parts.some((part) => pattern.test(part))).map(
+    ([, symbol]) => symbol,
+  );
+  const glyph = MAC_KEY_GLYPHS[key] ?? (key.length === 1 ? key.toUpperCase() : key);
+  return `${symbols.join('')}${glyph}`;
+}
+
+/**
+ * A combination written the way this platform writes it: `Strg+Z` here,
+ * `⌘Z` on a Mac. `control` says the Strg is the Control key on a Mac too —
+ * for the keys this file's listener answers, not the menu.
+ */
+export function keysText(keys: readonly string[], options: { control?: boolean } = {}): string {
+  if (!isMac()) return renderKeys(keys);
+  const accelerator = keys
+    .map((key) => {
+      if (key === CTRL) return options.control ? 'Ctrl' : 'Cmd';
+      if (key === SHIFT) return 'Shift';
+      return key;
+    })
+    .join('+');
+  return macKeysText(accelerator);
+}
 
 /**
  * Set while the native macOS menu is installed. That menu carries the function
@@ -205,10 +314,17 @@ export function setFunctionKeysNative(on: boolean): void {
   functionKeysNative = on;
 }
 
-/** `Strg+S`, in the current language. `undefined` when nothing is bound. */
+/**
+ * `Strg+S`, in the current language — or `⌘S` on a Mac, exactly what the menu
+ * bar shows and answers. `undefined` when nothing is bound.
+ */
 export function shortcutLabel(command: string): string | undefined {
   const keys = LABELS[command];
-  return keys ? renderKeys(keys) : undefined;
+  if (!keys) return undefined;
+  if (!isMac()) return renderKeys(keys);
+  if (CONTROL_ON_MAC.has(command)) return keysText(keys, { control: true });
+  const accelerator = macAccelerator(command);
+  return accelerator ? macKeysText(accelerator) : undefined;
 }
 
 /* ── Keys a user gave to a macro ───────────────────────── */
@@ -298,7 +414,10 @@ export function macroShortcutTaken(shortcut: string): boolean {
 export function macroShortcutText(shortcut: string): string {
   const key = parseMacroShortcut(shortcut);
   if (!key) return shortcut;
-  return renderKeys(key.shift ? [CTRL, SHIFT, keyLabel(key.code)] : [CTRL, keyLabel(key.code)]);
+  // A macro is answered by this file's listener: on a Mac that is Control.
+  return keysText(key.shift ? [CTRL, SHIFT, keyLabel(key.code)] : [CTRL, keyLabel(key.code)], {
+    control: true,
+  });
 }
 
 /** `KeyM` is a fine thing to store and a terrible thing to show. */

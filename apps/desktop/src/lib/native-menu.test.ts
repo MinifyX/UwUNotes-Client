@@ -14,6 +14,7 @@ import {
 } from './native-menu';
 import { MENUS } from './menus';
 import { updateSettings } from './settings';
+import { CONTROL_ON_MAC } from './shortcuts';
 
 // The labels are checked in the source language.
 beforeAll(() => updateSettings({ language: 'de' }));
@@ -183,5 +184,12 @@ describe('buildNativeMenu', () => {
     expect(new Set(keys).size).toBe(keys.length);
     // ⌘H stays the system's "hide".
     expect(keys).not.toContain('cmdorctrl+h');
+  });
+
+  it('leaves exactly the commands it does not list to the Control key', () => {
+    const listed = new Set(
+      items(buildNativeMenu(MENUS, vi.fn()).menus).map((entry) => entry.id.split('/').pop()),
+    );
+    for (const id of CONTROL_ON_MAC) expect(listed.has(id)).toBe(false);
   });
 });

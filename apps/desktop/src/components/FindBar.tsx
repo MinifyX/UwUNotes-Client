@@ -32,6 +32,7 @@ import {
   type FindState,
 } from '../lib/find';
 import { t, useLanguage } from '../lib/i18n';
+import { keysText } from '../lib/shortcuts';
 import { focusActiveView } from '../lib/views';
 import { Icon } from './Icon';
 
@@ -255,7 +256,7 @@ export function FindBar() {
           className="findbar-button findbar-button-wide"
           disabled={nothingToFind}
           onClick={() => findNext(true)}
-          title={t('Umschalt+Enter')}
+          title={keysText(['Umschalt', 'Enter'])}
         >
           {t('Zurück')}
         </button>

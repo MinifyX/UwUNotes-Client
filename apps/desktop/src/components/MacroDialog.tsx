@@ -32,6 +32,7 @@ import {
 } from '../lib/macros';
 import { ask } from '../lib/prompt';
 import {
+  keysText,
   macroShortcutFromEvent,
   macroShortcutTaken,
   macroShortcutText,
@@ -323,7 +324,12 @@ function useShortcutCapture(
 
       const shortcut = macroShortcutFromEvent(event);
       if (!shortcut) {
-        toast('info', t('Ein Makro-Kürzel braucht Strg und eine Taste.'));
+        toast(
+          'info',
+          t('Ein Makro-Kürzel braucht {keys} und eine Taste.', {
+            keys: keysText(['Strg'], { control: true }),
+          }),
+        );
         return;
       }
       if (macroShortcutTaken(shortcut)) {

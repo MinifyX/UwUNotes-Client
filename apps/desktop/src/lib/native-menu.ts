@@ -45,7 +45,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { runCommand } from './commands';
 import { N_, t } from './i18n';
 import { MENUS, type MenuEntry, type TopMenu } from './menus';
-import { KEY_CTRL, KEY_SHIFT, setFunctionKeysNative, shortcutKeys } from './shortcuts';
+import { acceleratorFromKeys, macAccelerator, setFunctionKeysNative } from './shortcuts';
 
 /* ── The data Rust gets ────────────────────────────────── */
 
@@ -95,38 +95,9 @@ export type NativeMenu = {
 
 /* ── Shortcuts ─────────────────────────────────────────── */
 
-/** Chords that macOS has already taken, moved to keys that are free. `null`: no key at all. */
-const MAC_KEYS: Record<string, string | null> = {
-  // ⌘H hides the app.
-  'find.replace': 'CmdOrCtrl+Alt+F',
-  // ⌘⇧Q logs out of the Mac.
-  'view.closePane': null,
-  // ⌘⇧3 is a screenshot; ⌘⇧2 moves along for symmetry.
-  'view.columns2': 'CmdOrCtrl+Alt+2',
-  'view.columns3': 'CmdOrCtrl+Alt+3',
-};
-
-/**
- * The table's keys as an accelerator: `[Strg, Umschalt, S]` → `CmdOrCtrl+Shift+S`.
- * `CmdOrCtrl` rather than `Cmd` so the same string would mean Ctrl anywhere
- * else; the menu is only installed on macOS, where it is ⌘.
- */
-export function acceleratorFromKeys(keys: readonly string[]): string {
-  return keys
-    .map((key) => {
-      if (key === KEY_CTRL) return 'CmdOrCtrl';
-      if (key === KEY_SHIFT) return 'Shift';
-      return key;
-    })
-    .join('+');
-}
-
-/** The macOS accelerator for a command, or `null` when it has none there. */
-export function macAccelerator(command: string): string | null {
-  if (command in MAC_KEYS) return MAC_KEYS[command] ?? null;
-  const keys = shortcutKeys(command);
-  return keys ? acceleratorFromKeys(keys) : null;
-}
+// What each command's key is on a Mac lives in `lib/shortcuts.ts`, so the
+// labels everywhere else show the same keys the menu registers.
+export { acceleratorFromKeys, macAccelerator };
 
 /* ── Building ──────────────────────────────────────────── */
 
