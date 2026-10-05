@@ -181,6 +181,30 @@ function renderKeys(keys: readonly string[]): string {
     .join('+');
 }
 
+/**
+ * A bound command's keys in the table's own spelling — {@link KEY_CTRL},
+ * {@link KEY_SHIFT}, then the key — for the native macOS menu, which turns them
+ * into accelerators (`lib/native-menu.ts`). `undefined` when nothing is bound.
+ */
+export function shortcutKeys(command: string): readonly string[] | undefined {
+  return LABELS[command];
+}
+
+export const KEY_CTRL = CTRL;
+export const KEY_SHIFT = SHIFT;
+
+/**
+ * Set while the native macOS menu is installed. That menu carries the function
+ * keys of its entries (F2, F8, F11) as real accelerators, so the menu shows
+ * them, and from then on the menu alone answers them: see the comment at the
+ * top of `lib/native-menu.ts` for why the two must never both answer.
+ */
+let functionKeysNative = false;
+
+export function setFunctionKeysNative(on: boolean): void {
+  functionKeysNative = on;
+}
+
 /** `Strg+S`, in the current language. `undefined` when nothing is bound. */
 export function shortcutLabel(command: string): string | undefined {
   const keys = LABELS[command];
@@ -307,7 +331,13 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
 
   // F8 walks the differences of a comparison, like WinMerge's Alt+Down but
   // without the Alt that AltGr would turn into a brace.
-  if (event.code === 'F8' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+  if (
+    event.code === 'F8' &&
+    !functionKeysNative &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey
+  ) {
     const command = event.shiftKey ? 'view.previousDifference' : 'view.nextDifference';
     return () => runCommand(command);
   }
@@ -319,6 +349,7 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   // two-step chord this listener does not do.
   if (
     event.code === 'F11' &&
+    !functionKeysNative &&
     !event.ctrlKey &&
     !event.altKey &&
     !event.metaKey &&
@@ -352,6 +383,7 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
   // text field, where the editor's bookmarks are not what anybody meant.
   if (
     event.code === 'F2' &&
+    !functionKeysNative &&
     !event.defaultPrevented &&
     !inPlainTextField(event.target) &&
     !event.altKey &&

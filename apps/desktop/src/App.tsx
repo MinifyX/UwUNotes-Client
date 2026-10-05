@@ -28,6 +28,7 @@ import { ask } from './lib/prompt';
 import { persistSession, restoreSession, startSessionAutosave } from './lib/session';
 import { startNyu } from './lib/nyu';
 import { useNyuHat } from './lib/nyu-progress';
+import { isMac } from './lib/platform';
 import { installShortcuts } from './lib/shortcuts';
 import { startUpdateCheck } from './lib/updates';
 import { useWorkspace, windowTitle } from './lib/workspace';
@@ -35,6 +36,7 @@ import { useSettings } from './lib/settings';
 import { useZen } from './lib/zen';
 import { AboutDialog } from './components/AboutDialog';
 import { CompareBar } from './components/CompareBar';
+import { NativeMenu } from './components/NativeMenu';
 import { HashDialog } from './components/HashDialog';
 import { CommandPalette } from './components/CommandPalette';
 import { FindBar } from './components/FindBar';
@@ -208,6 +210,7 @@ export function App() {
       <StatusBar />
       {zen ? <ZenHint /> : null}
 
+      {isMac() ? <NativeMenu /> : null}
       <NyuCameos />
       <Toasts />
       <PromptHost />

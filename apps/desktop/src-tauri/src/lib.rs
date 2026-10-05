@@ -14,6 +14,7 @@
 //! - [`git`] — the letters next to file names, when the folder is a repository
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
 //! - [`updates`] — whether there is a newer UwUNotes, and installing it
+//! - [`menu`] — the macOS menu bar, built from what the page sends
 //!
 //! What this layer deliberately does not do: anything worth a unit test. A
 //! command that grows a second `if` has grown logic, and that logic belongs in
@@ -23,6 +24,7 @@ mod dialogs;
 mod files;
 mod git;
 mod history;
+mod menu;
 mod search;
 mod session;
 mod system;
@@ -71,6 +73,9 @@ pub fn run() {
         // and the feed address stays where it is configured instead of becoming
         // something the window could be talked into changing.
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Only macOS ever has a native menu (see `menu.rs`), but forwarding a
+        // click is the same everywhere.
+        .on_menu_event(|app, event| menu::forward(app, &event))
         .setup(|app| {
             // %APPDATA%\app.uwunotes.desktop on Windows. UWUNOTES_DIR points
             // somewhere else, so trying things out never touches the session
@@ -142,6 +147,7 @@ pub fn run() {
             system::print_page,
             updates::check_for_update,
             updates::install_update,
+            menu::set_app_menu,
         ])
         .run(tauri::generate_context!())
         .expect("failed to start UwUNotes");
