@@ -2620,6 +2620,155 @@ input[type='radio'] {
   justify-self: start;
 }
 
+/* Settings → Erscheinungsbild: the interface font, every choice shown in itself. */
+.settings-field-uifont {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.uifont-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.uifont-choice {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: 8px 12px;
+  border: 1px solid var(--uwu-hairline);
+  text-align: left;
+  font-weight: 400;
+}
+
+.uifont-choice:hover:not(:disabled) {
+  border-color: var(--uwu-border);
+  background: var(--uwu-canvas);
+}
+
+.uifont-choice[aria-checked='true'] {
+  border-color: var(--uwu-pink);
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.uifont-choice-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.uifont-choice-sample {
+  font-size: 12.5px;
+  color: var(--uwu-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.uifont-choice[aria-checked='true'] .uifont-choice-sample {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* Settings → Editorschrift: the current font, then a searchable list of all
+   of them, each name drawn in its own face. */
+.editorfont-current {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  text-align: right;
+}
+
+.editorfont {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.editorfont-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.editorfont-search-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--uwu-muted);
+  pointer-events: none;
+}
+
+.editorfont-search-input {
+  width: 100%;
+  padding-left: 29px;
+}
+
+.editorfont-list {
+  /* The offsets the keyboard scrolling reads are measured from here. */
+  position: relative;
+  height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--uwu-border);
+  border-radius: var(--uwu-radius-control);
+  background: var(--uwu-canvas);
+}
+
+.editorfont-group {
+  padding: 6px 8px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uwu-muted);
+}
+
+.editorfont-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  /* A system can have a thousand families. Rows out of sight are not laid
+     out, so their fonts are not loaded until somebody scrolls to them. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 27px;
+}
+
+.editorfont-option[data-active] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+}
+
+.editorfont-tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 14px;
+  color: var(--uwu-pink);
+}
+
+.editorfont-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-variant-ligatures: none;
+}
+
+.editorfont-note {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--uwu-muted);
+}
+
 /* Settings → Updates: the version, the button and what the last look found. */
 .settings-update {
   display: grid;

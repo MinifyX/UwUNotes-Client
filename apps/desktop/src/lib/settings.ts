@@ -14,6 +14,7 @@
 import { useSyncExternalStore } from 'react';
 import pkg from '../../package.json';
 import { language } from './i18n';
+import { applyUiFont, isUiFont, type UiFont } from './ui-fonts';
 
 export type ThemeSetting = 'system' | 'light' | 'dark';
 /** German or English; "system" follows what the system prefers. */
@@ -33,7 +34,10 @@ export type Settings = {
   editorTheme: string;
   motion: MotionSetting;
   tone: ToneSetting;
+  /** The interface's font (menus, dialogs, sidebar); the editor has `fontFamily`. */
+  uiFont: UiFont;
 
+  /** The editor's font: a bundled one or any family the system has. */
   fontFamily: string;
   fontSize: number;
   lineHeight: number;
@@ -145,6 +149,7 @@ export const DEFAULT_SETTINGS: Settings = {
   editorTheme: 'uwu',
   motion: 'system',
   tone: 'playful',
+  uiFont: 'uwu',
 
   fontFamily: 'JetBrains Mono Variable',
   fontSize: 14,
@@ -242,6 +247,7 @@ export function sanitize(raw: unknown): Settings {
     editorTheme: text(input.editorTheme, d.editorTheme, 40),
     motion: oneOf(input.motion, ['system', 'on', 'off'] as const, d.motion),
     tone: oneOf(input.tone, ['playful', 'neutral'] as const, d.tone),
+    uiFont: isUiFont(input.uiFont) ? input.uiFont : d.uiFont,
 
     fontFamily: text(input.fontFamily, d.fontFamily),
     fontSize: int(input.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, d.fontSize),
@@ -399,7 +405,7 @@ export function darkActive(settings: Settings = current): boolean {
 }
 
 /**
- * Puts theme, language and motion on `<html>`, now and whenever the setting or
+ * Puts theme, language, motion and the interface font on `<html>`, now and whenever the setting or
  * the system changes. Called once from `main.tsx` before React mounts, so the
  * first paint is already the right colour.
  */
@@ -407,6 +413,7 @@ export function applyAppearance() {
   const apply = () => {
     document.documentElement.dataset.theme = darkActive() ? 'dark' : 'light';
     document.documentElement.lang = language(current);
+    applyUiFont(current.uiFont);
     if (motionAllowed()) delete document.documentElement.dataset.motion;
     else document.documentElement.dataset.motion = 'reduced';
   };

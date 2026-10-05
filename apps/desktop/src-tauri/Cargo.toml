@@ -39,6 +39,10 @@ base64 = { version = "0.22", optional = true }
 minisign-verify = { version = "0.2", optional = true }
 serde.workspace = true
 serde_json.workspace = true
+# The installed font families, for the editor's font picker. Pure Rust: it
+# reads the font folders (and fontconfig's files on Linux) itself, so it needs
+# no system library and works the same inside the Mac App Store sandbox.
+fontdb = "0.24"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"

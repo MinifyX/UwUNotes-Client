@@ -505,6 +505,12 @@ export type UpdateChannel = 'github' | 'app-store' | 'none';
 
 export const updateChannel = () => invoke<UpdateChannel>('update_channel');
 
+/** A font family installed on this computer; see `src-tauri/src/fonts.rs`. */
+export type SystemFont = { family: string; monospace: boolean };
+
+/** Monospace families first, each half by name. Scanned once per run. */
+export const systemFonts = () => invoke<SystemFont[]>('system_fonts');
+
 /**
  * What a look at the update feed found.
  *

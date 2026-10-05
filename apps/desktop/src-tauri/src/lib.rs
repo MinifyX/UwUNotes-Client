@@ -12,6 +12,7 @@
 //! - [`session`] — what was open last time, the drafts beside it, the note trash
 //! - [`history`] — Zeitreise, the automatic versions of every file and note
 //! - [`git`] — the letters next to file names, when the folder is a repository
+//! - [`fonts`] — the font families installed here, for the editor's font picker
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
 //! - [`updates`] — whether there is a newer UwUNotes, and installing it; only
 //!   in builds with the `self-update` feature, which the Mac App Store's is not
@@ -27,6 +28,7 @@
 
 mod dialogs;
 mod files;
+mod fonts;
 mod git;
 mod history;
 mod menu;
@@ -162,6 +164,7 @@ pub fn run() {
             system::reveal_in_file_manager,
             system::print_page,
             system::update_channel,
+            fonts::system_fonts,
             opened::take_opened_paths,
             #[cfg(feature = "self-update")]
             updates::check_for_update,

@@ -18,12 +18,14 @@
  * belongs to `App.tsx`, which can show something while it happens.
  */
 
-import '@fontsource-variable/manrope';
+import '@fontsource-variable/rubik';
+import '@fontsource-variable/dm-sans';
 import '@fontsource-variable/jetbrains-mono';
 import '@fontsource-variable/fira-code';
 
 import '@uwu/tokens/tokens.css';
 import '@uwu/tokens/code.css';
+import './styles/fonts.css';
 import './components/nyu/nyu.css';
 import './styles/app.css';
 import './styles/editor.css';
