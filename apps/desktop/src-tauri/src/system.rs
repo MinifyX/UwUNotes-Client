@@ -41,6 +41,27 @@ pub(crate) fn app_info(app: AppHandle, state: State<'_, AppState>) -> AppInfo {
     }
 }
 
+/// Where this copy gets its updates from, for the page to decide whether
+/// "check for updates" means anything here:
+///
+/// - `github` — it checks the release feed and installs what it finds itself
+///   (the `self-update` feature, every download from GitHub);
+/// - `app-store` — the Mac App Store build, which the store updates and which
+///   must not even look;
+/// - `none` — built without either, by somebody packaging it their own way.
+#[tauri::command]
+pub(crate) fn update_channel() -> &'static str {
+    UPDATE_CHANNEL
+}
+
+const UPDATE_CHANNEL: &str = if cfg!(feature = "self-update") {
+    "github"
+} else if cfg!(feature = "mas") {
+    "app-store"
+} else {
+    "none"
+};
+
 /// Opens a link in the browser or the mail client. Nothing else leaves the app.
 #[tauri::command(async)]
 pub(crate) fn open_external(app: AppHandle, url: String) -> CommandResult<()> {

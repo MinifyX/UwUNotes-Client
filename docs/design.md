@@ -166,16 +166,17 @@ behind the right ear. The cover is the face: UwU eyes, `w` mouth, blush.
   These are fixed artwork and stay the same in dark mode; the white edge is what
   keeps the outlines readable on a `#0e0b11` ground.
 - **App icon** (website, GitHub, macOS Dock). Built like UwUMail's, UwUSSH's
-  and UwURDP's: Nyu as a pink sheet with a folded corner and cat ears,
-  slightly tilted. The sheet is the face, with two ruled lines and the caret
-  below. A small star top left, the heart top right, a big star bottom left.
+  and UwURDP's: Nyu as a pink spiral notebook with cat ears, slightly tilted,
+  rings on the left, a darker elastic band on the right and a yellow pencil
+  tucked behind her right ear. The cover is the face, with two ruled lines
+  below. A small star top left, the heart bottom right, a big star bottom left.
+  On macOS the tile sits inside Apple's icon grid (see `scripts/icons.mjs`).
 - **The tile.** Every UwU app's icon for the website and GitHub sits on
   UwUMail's pastel pink tile (`#FFF3F8` to `#FFD3E5`), never another colour.
   Each one gets sparkles and a heart, arranged differently around it.
 - **Taskbar icon.** On the Windows taskbar, in the setup and in Linux menus
-  Nyu stands alone: upright, no tile, white die-cut edge, a sheet with a
-  folded corner and three plum ruled lines, the last one short with the pink
-  caret at its end, so it reads as notes; the ears say Nyu
+  Nyu stands alone: upright, no tile, white die-cut edge, the notebook with
+  heavier outlines, rings and pencil, so it reads as notes; the ears say Nyu
   (`brand/uwunotes-taskbar-icon.svg`). At 16 and 24 px a simplified cut takes
   over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs`
   regenerates all desktop icons from these three.

@@ -32,7 +32,7 @@
     "active": false,
     "publisher": "UwUNotes",
     "homepage": "https://github.com/MinifyX/UwUNotes-Client",
-    "copyright": "GPL-3.0-only",
+    "copyright": "© 2026 MinifyX",
     "license": "GPL-3.0-only",
     "shortDescription": "Installs UwUNotes",
     "icon": ["../../desktop/src-tauri/icons/32x32.png", "../../desktop/src-tauri/icons/icon.ico"]

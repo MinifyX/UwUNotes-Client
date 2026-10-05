@@ -47,6 +47,7 @@ pub(crate) async fn pick_files(app: AppHandle) -> Vec<String> {
             paths
                 .into_iter()
                 .filter_map(|path| path.into_path().ok())
+                .inspect(|path| crate::sandbox_access::remember(path))
                 .map(|path| path.to_string_lossy().into_owned())
                 .collect()
         })
@@ -98,6 +99,7 @@ pub(crate) async fn pick_folder(app: AppHandle) -> Option<String> {
         .ok()
         .flatten()
         .and_then(|path| path.into_path().ok())
+        .inspect(|path| crate::sandbox_access::remember(path))
         .map(|path| path.to_string_lossy().into_owned())
 }
 

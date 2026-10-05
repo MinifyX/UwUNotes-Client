@@ -49,8 +49,15 @@
     "publisher": "UwUNotes",
     "homepage": "https://github.com/MinifyX/UwUNotes-Client",
     "category": "DeveloperTool",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
-    "copyright": "GPL-3.0-only",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "copyright": "© 2026 MinifyX",
     "license": "GPL-3.0-only",
     "shortDescription": "A text and code editor with cat ears",
     "longDescription": "The editor I build for myself, because Notepad++ is great and looks like 2004. Tabs, real syntax highlighting, find in files, splits — in pink."

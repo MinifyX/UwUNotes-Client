@@ -1,25 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none" stroke="currentColor" role="img" aria-label="Nyu, the UwUNotes notepad cat">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="256" height="256" fill="none" stroke="currentColor" role="img" aria-label="Nyu, the UwUNotes notebook cat">
   <title>Nyu (mono)</title>
-
   <!--
     One colour, taken from whatever is around it: menu items, the tray icon,
-    anything that must not carry pink. The ears stay open at the bottom because
-    a closed triangle over the sheet's edge doubles the line at this weight.
+    anything that must not carry pink. The ears stay open at the bottom so the
+    line does not double over the notebook's edge; the pencil is left out.
   -->
-
-  <g stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M62 88 L80 36 L114 88"/>
-    <path d="M142 88 L176 36 L194 88"/>
-    <path d="M42 74 H184 L228 118 V206 a14 14 0 0 1 -14 14 H42 a14 14 0 0 1 -14 -14 V88 a14 14 0 0 1 14 -14 Z"/>
-    <path d="M184 74 V118 H228"/>
-  </g>
-  <g stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M88 142 Q102 160 116 142"/>
-    <path d="M140 142 Q154 160 168 142"/>
-    <path d="M112 170 q8 13 16 0 q8 13 16 0"/>
-  </g>
-  <g stroke-width="7" stroke-linecap="round">
-    <path d="M56 196 H172"/>
-    <path d="M56 206 H136"/>
+  <g transform="translate(256 256) scale(1.08) translate(-270 -217)" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke-width="18"><path d="M118 200 L132 100 Q135 82 151 91 L230 156"/><path d="M394 200 L380 100 Q377 82 361 91 L282 156"/><rect x="100" y="152" width="312" height="230" rx="40"/><path d="M370 152 V382"/></g>
+    <g stroke-width="15"><path d="M128 182 H96 A14 14 0 0 0 96 210 H128"/><path d="M128 224 H96 A14 14 0 0 0 96 252 H128"/><path d="M128 266 H96 A14 14 0 0 0 96 294 H128"/><path d="M128 308 H96 A14 14 0 0 0 96 336 H128"/></g>
+    <g transform="translate(262 208) scale(1.15) translate(-256 -216)" stroke-width="14">
+      <path d="M210 194 v4 a12 12 0 0 0 24 0 v-4"/><path d="M278 194 v4 a12 12 0 0 0 24 0 v-4"/>
+      <path d="M236 230 q10 13 20 0 q10 13 20 0"/>
+    </g>
+    <g stroke-width="14"><path d="M164 306 H320"/><path d="M164 342 H270"/></g>
   </g>
 </svg>
