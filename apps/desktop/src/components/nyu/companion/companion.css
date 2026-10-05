@@ -101,7 +101,7 @@
 }
 
 .nyu-companion-body[data-motion='hop'] {
-  animation: nyu-hop 560ms cubic-bezier(0.3, 0, 0.4, 1) 2;
+  animation: nyu-companion-hop 560ms cubic-bezier(0.3, 0, 0.4, 1) 2;
 }
 
 .nyu-companion-body[data-motion='wiggle'] {
@@ -196,7 +196,7 @@
 
 .nyu-pomodoro-item[data-phase='break'],
 .nyu-pomodoro-item[data-phase='longBreak'] {
-  color: var(--uwu-online);
+  color: var(--uwu-success-ink);
 }
 
 .nyu-pomodoro-item[data-paused='true'] .nyu-pomodoro-time {
@@ -277,7 +277,7 @@
   }
 }
 
-@keyframes nyu-hop {
+@keyframes nyu-companion-hop {
   0%,
   100% {
     transform: translateY(0) scale(1, 1);

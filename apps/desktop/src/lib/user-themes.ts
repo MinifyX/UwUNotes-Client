@@ -24,7 +24,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { CODE_TOKENS, readToken, type CodeToken } from '@uwu/tokens';
+import { CODE_TOKENS, readToken, type CodeToken } from './tokens';
 import { N_ } from './i18n';
 
 /**
@@ -40,7 +40,7 @@ const GROUND_TOKENS = ['--uwu-deep', '--uwu-deep-gutter', '--uwu-ink', '--uwu-ha
 
 export type ThemeToken = CodeToken | (typeof GROUND_TOKENS)[number];
 
-/** Derived from the tokens package, so a token added there cannot go missing here. */
+/** Derived from `lib/tokens.ts`, so a token added there cannot go missing here. */
 export const THEME_TOKENS: readonly ThemeToken[] = [...CODE_TOKENS, ...GROUND_TOKENS];
 
 export type ThemeValues = Partial<Record<ThemeToken, string>>;
@@ -118,7 +118,7 @@ const LISTED_GROUPS: readonly TokenGroup[] = [
 /**
  * The groups the theme editor draws, plus whatever is left over.
  *
- * A token added to `@uwu/tokens` and forgotten here would otherwise be storable
+ * A token added to `lib/tokens.ts` and forgotten here would otherwise be storable
  * and invisible — editable data with no control, which is the worst of both.
  * The leftover group means the next token to arrive is ugly rather than absent.
  */
@@ -189,7 +189,7 @@ const EDITABLE = new Set<string>(THEME_TOKENS);
  * passes it, and that brace swallows the rest of the rule and every rule after
  * it, leaving the editor unstyled until the theme is deleted.
  *
- * Same reasoning and the same list as `fontStack()` in `editor/setup.ts`, minus
+ * Same reasoning and the same list as `editorFontStack()` in `lib/settings.ts`, minus
  * the brackets `rgb()`, `oklch()`, `color-mix()` and `var()` need.
  */
 const CSS_BREAKOUT = /[{};"'\\<>]|\/\*|\*\/|[\u0000-\u001f\u007f]/;

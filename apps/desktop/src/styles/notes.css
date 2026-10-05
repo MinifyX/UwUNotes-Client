@@ -151,7 +151,7 @@
 /* Red on hover only: it deletes for good, and says so before the click. */
 .notebook-delete:hover:not(:disabled) {
   background: var(--uwu-elevated);
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .notebook-empty {
@@ -211,7 +211,7 @@
 }
 
 .trash-entry-delete:hover:not(:disabled) {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .trash-entry-body {
@@ -287,7 +287,7 @@
 }
 
 .trash-entry-remove:hover:not(:disabled) {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 /* Emptying is asked in the panel, above the list it is about. */
@@ -297,7 +297,7 @@
   margin: 0 2px 8px;
   padding: 10px 11px;
   border: 1px solid var(--uwu-hairline);
-  border-left: 3px solid var(--uwu-alarm);
+  border-left: 3px solid var(--uwu-warning-ink);
   border-radius: var(--uwu-radius-control);
   background: var(--uwu-elevated);
 }
@@ -317,20 +317,6 @@
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 2px;
-}
-
-.trash-confirm-actions button {
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-.trash-confirm-danger {
-  color: var(--uwu-alarm);
-  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
-}
-
-.trash-confirm-danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
 }
 
 html[data-motion='reduced'] .trash-entry-tools,

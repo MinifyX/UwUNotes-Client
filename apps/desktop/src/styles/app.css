@@ -1,7 +1,7 @@
 /*
  * The application chrome: everything in the window that is not the text.
  *
- * Loaded after `@uwu/tokens`, so every colour below is a `var(--uwu-*)` and
+ * Loaded after `@uwusuite/design`, so every colour below is a `var(--uwu-*)` and
  * the whole window re-colours the moment `applyAppearance()` flips
  * `data-theme` on <html>. There is not one hex value in this file, and there
  * must not be: a literal colour is a colour that only looks right in one
@@ -16,65 +16,27 @@
  * its own: every value here is a token, and the tokens already know.
  */
 
-/*
- * Two values the palette does not carry, mixed here from ones it does.
- *
- * A scrim and a drop shadow are the one pair of things in the window that
- * must come out *dark* in both themes, and every token in the suite flips
- * with the theme by design: `--uwu-ink` is nearly black in light and nearly
- * white in dark, so a scrim mixed from it dims the light theme and then
- * politely turns the lights back on in the dark one. There is no token that
- * stays dark, so these are declared twice, against the same two selectors the
- * token file uses — mixed from tokens, never picked, so a change to the
- * palette still reaches them.
- *
- * Light leans on ink over a pale window; dark leans on `--uwu-deep`, which is
- * the darkest thing the suite has.
- */
-:root {
-  --app-shade: color-mix(in srgb, var(--uwu-ink) 26%, transparent);
-  --app-scrim: color-mix(in srgb, var(--uwu-ink) 34%, transparent);
-}
-
-:root[data-theme='dark'] {
-  --app-shade: color-mix(in srgb, var(--uwu-deep) 80%, transparent);
-  --app-scrim: color-mix(in srgb, var(--uwu-deep) 68%, transparent);
-}
-
 /* ── Reset and type ────────────────────────────────────── */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
 /*
+ * Tailwind's preflight and the package's base layer (`@uwusuite/design`) do the
+ * reset, the colours, the font and the scrollbars. What is left here is where
+ * an editor differs from the suite's defaults.
+ *
  * The page itself never scrolls. Every region that can overflow says so for
  * itself, and the editor does its own scrolling inside CodeMirror — a window
  * whose *document* can be scrolled is a window where the title bar slides
  * away under the mouse wheel.
+ *
+ * The chrome is set at the suite's meta size (13 px), not its body size: an
+ * editor's furniture is dense, Notepad++ dense, and the text it frames has its
+ * own size setting.
  */
 body {
   overflow: hidden;
-  background: var(--uwu-canvas);
-  color: var(--uwu-ink);
-  font-family: var(--uwu-font);
-  font-size: 13px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* The chrome is not selectable text. The editor and the few places that are
-   genuinely quotable turn it back on below. */
-body {
+  font-size: var(--uwu-text-meta);
+  /* The chrome is not selectable text. The editor and the few places that are
+     genuinely quotable turn it back on below. */
   user-select: none;
   cursor: default;
 }
@@ -85,97 +47,41 @@ body {
   display: none !important;
 }
 
-h1,
-h2,
-h3,
-p,
-dl,
-dd,
-figure {
-  margin: 0;
-}
-
-ul,
-ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-code,
-kbd,
-samp {
-  font-family: var(--uwu-mono);
-  font-size: 0.92em;
-}
-
 mark {
   background: none;
   color: inherit;
 }
 
-/* One ring, one colour, everywhere. Pink means "this one", and where the
-   keyboard is standing is the most literal "this one" in the window. */
+/* One ring, one colour, everywhere. An outline rather than the suite's
+   box-shadow ring, because the dense chrome draws many of its rings inwards
+   (`outline-offset: -2px`), where a shadow would be clipped by the strip. */
 :focus-visible {
   outline: 2px solid var(--uwu-pink);
   outline-offset: 2px;
   border-radius: 4px;
-}
-
-/* Reduced motion is handled globally in tokens.css, which collapses every
-   transition and animation to nothing. Nothing in this file uses `!important`
-   on either, so nothing in this file can escape it. */
-
-/*
- * Scrollbars.
- *
- * The default scrollbar is the single most obvious tell that a desktop window
- * is a web page: a wide light trough down the side of a dark editor that no
- * native app has had in fifteen years. Thin, in-palette, no track, and the
- * thumb pads itself with a transparent border so it does not touch the edge.
- */
-::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
-}
-
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
-  border-radius: var(--uwu-radius-pill);
-  background: color-mix(in srgb, var(--uwu-muted) 34%, transparent);
-  background-clip: padding-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--uwu-muted) 60%, transparent);
-  background-clip: padding-box;
-}
-
-::-webkit-scrollbar-thumb:active {
-  background: color-mix(in srgb, var(--uwu-pink) 60%, transparent);
-  background-clip: padding-box;
+  box-shadow: none;
 }
 
 /* ── Buttons and controls ──────────────────────────────── */
 
 /*
- * A base for every button in the window, so a control that has not been
- * dressed yet still looks like a control. Most of the families below strip
- * the border and the padding straight off again; that is fine, and cheaper
- * than a window with one unstyled button in it after a refactor.
+ * A base for every button of the app's own, so a control that has not been
+ * dressed yet still looks like a control: a pill, as everywhere in the suite.
+ * Most of the families below strip the border and the padding straight off
+ * again; that is fine, and cheaper than a window with one unstyled button in
+ * it after a refactor.
+ *
+ * `:where(:not(.rounded-full))` leaves the package's components alone (every
+ * one of their buttons is `rounded-full`) without changing this rule's weight:
+ * `:where()` counts for nothing, so the app's classes still win over it as
+ * they did before.
  */
-button {
-  font: inherit;
-  font-size: 13px;
+button:where(:not(.rounded-full)) {
+  font-size: var(--uwu-text-meta);
   font-weight: 600;
-  padding: 6px 13px;
+  padding: 6px 14px;
   border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-control);
+  border-radius: var(--uwu-radius-pill);
   background: var(--uwu-surface);
   color: var(--uwu-ink);
   cursor: pointer;
@@ -185,7 +91,7 @@ button {
     border-color 120ms ease;
 }
 
-button:hover:not(:disabled) {
+button:where(:not(.rounded-full)):hover:not(:disabled) {
   background: var(--uwu-elevated);
 }
 
@@ -197,11 +103,10 @@ button:disabled {
 input,
 select,
 textarea {
-  font: inherit;
-  font-size: 13px;
+  font-size: var(--uwu-text-meta);
   color: var(--uwu-ink);
   background: var(--uwu-canvas);
-  border: 1px solid var(--uwu-border);
+  border: 1px solid var(--uwu-control);
   border-radius: var(--uwu-radius-control);
   padding: 6px 9px;
 }
@@ -229,9 +134,9 @@ input[type='radio'] {
   cursor: pointer;
 }
 
-/* Icons take the colour of whatever they were put next to; `Icon.tsx` sets
-   the stroke to `currentColor` on the element itself. */
-.icon {
+/* Icons (`<Icon>` from the package, Lucide underneath) take the colour of
+   whatever they were put next to. */
+.uwu-icon {
   display: block;
   flex: none;
 }
@@ -256,139 +161,14 @@ input[type='radio'] {
     'statusbar';
 }
 
-.titlebar {
-  height: 36px;
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  padding-left: 12px;
-  background: var(--uwu-surface);
-  border-bottom: 1px solid var(--uwu-hairline);
-}
-
-.titlebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding-right: 8px;
-}
-
-.titlebar-wordmark {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.titlebar-wordmark span {
-  color: var(--uwu-pink);
-}
-
-.titlebar-tools {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: 4px;
-  padding-left: 8px;
-  border-left: 1px solid var(--uwu-hairline);
-}
-
-.titlebar-action {
-  align-self: center;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  color: var(--uwu-muted);
-}
-
-.titlebar-action:hover:not(:disabled) {
-  background: var(--uwu-elevated);
-  color: var(--uwu-ink);
-}
-
-/* The sidebar toggle is the one button up here that holds a state. */
-.titlebar-action[aria-pressed='true'] {
-  background: var(--uwu-pink-tint);
-  color: var(--uwu-pink-ink);
-}
-
 /*
- * The file name, in the draggable stretch. It grows to eat the slack so the
- * window buttons stay pinned to the corner, and the name itself is centred in
- * whatever is left over.
+ * The brand row is the package's title bar (`.uwu-titlebar`, see
+ * `components/TitleBar.tsx`). Nyu and the word mark let clicks through to the
+ * brand strip, so the whole strip drags the window: Tauri only drags on a
+ * direct hit of an element marked `data-tauri-drag-region`.
  */
-.titlebar-file {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 12px;
-  color: var(--uwu-muted);
-}
-
-.titlebar-file-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Amber, not pink: pink already means "this one" on the tab strip, and a file
-   with unsaved work in it is a state, not a selection. */
-.titlebar-file-dirty {
-  flex: none;
-  color: var(--uwu-code-modified);
-  font-size: 15px;
-  line-height: 0;
-}
-
-.titlebar-spacer {
-  flex: none;
-  width: 8px;
-}
-
-/* Windows' own caption buttons: 46 px wide, the full height of the bar. Any
-   other size and the corner of the window feels wrong under the mouse. */
-.window-controls {
-  display: flex;
-  align-self: stretch;
-}
-
-.window-control {
-  width: 46px;
-  height: 100%;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--uwu-ink);
-}
-
-.window-control svg {
-  width: 10px;
-  height: 10px;
-  stroke-width: 1;
-}
-
-.window-control:hover:not(:disabled) {
-  background: var(--uwu-elevated);
-}
-
-.window-control-close:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-/* The ring would be clipped by the window edge at the default offset. */
-.window-control:focus-visible {
-  outline-offset: -3px;
-  border-radius: 0;
+.uwu-titlebar-brand > * {
+  pointer-events: none;
 }
 
 /* ── Sidebar and file tree ─────────────────────────────── */
@@ -925,7 +705,7 @@ input[type='radio'] {
 /* A file that changed underneath us. Amber on the name, because the tab is
    about to disagree with the disk and that is worth reading before clicking. */
 .tabbar-tab[data-stale] .tabbar-tab-name {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
@@ -966,7 +746,7 @@ input[type='radio'] {
 }
 
 .tabbar-tab-close:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  background: color-mix(in srgb, var(--uwu-warning-ink) 22%, transparent);
   color: var(--uwu-ink);
 }
 
@@ -981,7 +761,7 @@ input[type='radio'] {
   display: none;
 }
 
-.tabbar-tab-close[data-dirty='true'] .icon {
+.tabbar-tab-close[data-dirty='true'] .uwu-icon {
   display: none;
 }
 
@@ -990,8 +770,8 @@ input[type='radio'] {
   display: none;
 }
 
-.tabbar-tab:hover .tabbar-tab-close[data-dirty='true'] .icon,
-.tabbar-tab-close[data-dirty='true']:focus-visible .icon {
+.tabbar-tab:hover .tabbar-tab-close[data-dirty='true'] .uwu-icon,
+.tabbar-tab-close[data-dirty='true']:focus-visible .uwu-icon {
   display: block;
 }
 
@@ -1267,7 +1047,7 @@ input[type='radio'] {
   color: var(--uwu-ink);
 }
 
-.emptypane-recent-item .icon {
+.emptypane-recent-item .uwu-icon {
   align-self: center;
   color: var(--uwu-muted);
 }
@@ -1347,7 +1127,7 @@ input[type='radio'] {
 }
 
 .findbar-input[aria-invalid='true'] {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .findbar-toggles {
@@ -1434,14 +1214,14 @@ input[type='radio'] {
 }
 
 .findbar-close:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  background: color-mix(in srgb, var(--uwu-warning-ink) 22%, transparent);
 }
 
 .findbar-error {
   margin: 0;
   padding: 0 2px;
   font-size: 12px;
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 /* ── Search panel ──────────────────────────────────────── */
@@ -1491,7 +1271,7 @@ input[type='radio'] {
 }
 
 .searchpanel-close:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
+  background: color-mix(in srgb, var(--uwu-warning-ink) 22%, transparent);
   color: var(--uwu-ink);
 }
 
@@ -1618,13 +1398,13 @@ input[type='radio'] {
 }
 
 .searchpanel-status-warn {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .searchpanel-error {
   padding: 7px 12px;
   font-size: 12px;
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .searchpanel-empty {
@@ -1793,7 +1573,7 @@ input[type='radio'] {
 }
 
 .update-hint[data-tone='error'] {
-  border-left-color: var(--uwu-alarm);
+  border-left-color: var(--uwu-warning-ink);
 }
 
 @keyframes update-hint-in {
@@ -1815,7 +1595,7 @@ input[type='radio'] {
 }
 
 .update-hint[data-tone='error'] .update-hint-mark {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 /* The sentence is what gives way when the window is narrow: the buttons keep
@@ -1890,17 +1670,6 @@ input[type='radio'] {
   text-underline-offset: 2px;
 }
 
-.update-hint-install {
-  border-color: var(--uwu-pink-solid);
-  background: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.update-hint-install:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
-}
-
 /* ── Status bar ────────────────────────────────────────── */
 
 /*
@@ -1938,13 +1707,13 @@ input[type='radio'] {
 }
 
 .statusbar-notice[data-tone='warning'] {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 /* The save confirmation and Nyu's line after it. Green, because it is the one
    message down here that is good news. */
 .statusbar-notice[data-tone='calm'] {
-  color: var(--uwu-online);
+  color: var(--uwu-success-ink);
 }
 
 .statusbar-items {
@@ -2178,6 +1947,13 @@ input[type='radio'] {
 
 /* ── Modals and settings ───────────────────────────────── */
 
+/*
+ * The dialog shell, in the suite's Dialog look (@uwusuite/design): radius 22,
+ * a hairline, the floating shadow, the blurred backdrop and the pop on the way
+ * in. `components/Modal.tsx` keeps its own focus trap and overlay stack rather
+ * than the package's `<dialog>`, because the find bar and the palette ask that
+ * stack which overlay is on top.
+ */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2190,87 +1966,71 @@ input[type='radio'] {
      dialog sat below the bottom of the window, unreachable (0.4.0). */
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
-  padding: 28px;
-  background: var(--app-scrim);
+  padding: 24px;
+  background: var(--uwu-backdrop);
+  backdrop-filter: blur(2px);
+  animation: uwu-fade 160ms ease-out;
 }
 
 .modal {
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(520px, 100%);
+  width: min(560px, 100%);
   max-height: 100%;
   border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-card);
+  border-radius: var(--uwu-radius-dialog);
   background: var(--uwu-surface);
-  box-shadow: 0 28px 64px -28px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
+  animation: uwu-pop 180ms var(--uwu-ease-pop);
+  overflow: hidden;
 }
 
 .modal[data-size='wide'] {
-  width: min(820px, 100%);
-  height: min(640px, 100%);
+  width: min(860px, 100%);
+  height: min(680px, 100%);
 }
 
 /* A warning never looks like a routine dialog: amber along the top edge, and
    deliberately not pink, which in this window only ever means "this one". */
 .modal[data-tone='warning'] {
-  border-color: var(--uwu-alarm);
-  border-top-width: 3px;
+  border-top: 4px solid var(--uwu-warning);
 }
 
 .modal-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 15px 14px 13px 20px;
-  border-bottom: 1px solid var(--uwu-hairline);
+  gap: 16px;
+  padding: 18px 16px 8px 24px;
 }
 
 .modal-title {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: var(--uwu-text-section);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .modal[data-tone='warning'] .modal-title {
-  color: var(--uwu-alarm);
-}
-
-.modal-close {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  color: var(--uwu-muted);
-}
-
-.modal-close:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 22%, transparent);
-  color: var(--uwu-ink);
+  color: var(--uwu-warning-ink);
 }
 
 .modal-body {
   min-height: 0;
   overflow-y: auto;
-  padding: 18px 20px;
+  padding: 10px 24px 20px;
   line-height: 1.55;
 }
 
 .modal-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 12px 20px 14px;
+  padding: 14px 24px 16px;
   border-top: 1px solid var(--uwu-hairline);
-  background: var(--uwu-elevated);
-  border-radius: 0 0 var(--uwu-radius-card) var(--uwu-radius-card);
 }
 
 /* Settings is the wide modal, and it is a single scrolling column of
@@ -2374,8 +2134,7 @@ input[type='radio'] {
 }
 
 /*
- * A short list of exclusive options, as a segmented control. Real radios
- * under the surface, so the arrow keys still behave.
+ * A short list of exclusive options: the suite's `Segmented`.
  *
  * These two live in <fieldset>s, and a <legend> is never an ordinary child:
  * the browser lifts it out of the box and draws it over the top border edge
@@ -2383,16 +2142,6 @@ input[type='radio'] {
  * grid row nor sit above a border without cutting a notch in it. Both
  * fieldsets therefore wear their label as a line of its own.
  */
-.settings-choice,
-.encmenu-choice {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-control);
-  background: var(--uwu-canvas);
-}
-
 .settings-field-choice {
   display: block;
 }
@@ -2412,51 +2161,7 @@ input[type='radio'] {
   padding-top: 4px;
 }
 
-.settings-choice-option,
-.encmenu-choice-option {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  padding: 4px 10px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
-  white-space: nowrap;
-  color: var(--uwu-muted);
-  cursor: pointer;
-}
-
-.settings-choice-option:hover,
-.encmenu-choice-option:hover {
-  color: var(--uwu-ink);
-}
-
-.settings-choice-option-active,
-.encmenu-choice-option-active {
-  background: var(--uwu-pink-tint);
-  color: var(--uwu-pink-ink);
-}
-
-/* The radio is the accessible control and the label is the visible one, so
-   the input is taken out of the picture rather than out of the tree. */
-.settings-choice-input,
-.encmenu-choice-input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.settings-choice-input:focus-visible + .settings-choice-label,
-.encmenu-choice-input:focus-visible + .encmenu-choice-label {
-  outline: 2px solid var(--uwu-pink);
-  outline-offset: 3px;
-  border-radius: 4px;
-}
-
-/* A switch, for the settings that are simply on or off. */
+/* A switch (the suite's `Switch`), for the settings that are simply on or off. */
 .settings-field-switch {
   grid-template-columns: minmax(0, 1fr) auto;
 }
@@ -2464,60 +2169,7 @@ input[type='radio'] {
 .settings-field-switch .settings-switch {
   grid-column: 2;
   grid-row: 1;
-}
-
-.settings-switch,
-.encmenu-switch,
-.theme-editor-dark-switch {
-  position: relative;
-  width: 38px;
-  height: 21px;
-  padding: 0;
-  border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-pill);
-  background: var(--uwu-canvas);
-  cursor: pointer;
-  transition: background-color 140ms ease;
-}
-
-.settings-switch[aria-checked='true'],
-.encmenu-switch[aria-checked='true'],
-.theme-editor-dark-switch[aria-checked='true'] {
-  background: var(--uwu-pink-solid);
-  border-color: var(--uwu-pink-solid);
-}
-
-.settings-switch:hover:not(:disabled),
-.encmenu-switch:hover:not(:disabled),
-.theme-editor-dark-switch:hover:not(:disabled) {
-  background: var(--uwu-elevated);
-}
-
-.settings-switch[aria-checked='true']:hover:not(:disabled),
-.encmenu-switch[aria-checked='true']:hover:not(:disabled),
-.theme-editor-dark-switch[aria-checked='true']:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
-}
-
-.settings-switch-knob,
-.encmenu-switch-knob,
-.theme-editor-dark-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--uwu-muted);
-  transition: translate 140ms ease;
-}
-
-.settings-switch[aria-checked='true'] .settings-switch-knob,
-.encmenu-switch[aria-checked='true'] .encmenu-switch-knob,
-.theme-editor-dark-switch[aria-checked='true'] .theme-editor-dark-knob {
-  translate: 17px 0;
-  background: var(--uwu-on-pink);
+  display: flex;
 }
 
 .settings-empty {
@@ -2638,6 +2290,7 @@ input[type='radio'] {
   justify-items: start;
   padding: 8px 12px;
   border: 1px solid var(--uwu-hairline);
+  border-radius: var(--uwu-radius-control);
   text-align: left;
   font-weight: 400;
 }
@@ -2792,17 +2445,6 @@ input[type='radio'] {
   gap: 7px;
 }
 
-.settings-update-install {
-  border-color: var(--uwu-pink-solid);
-  background: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.settings-update-install:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
-}
-
 .settings-update-spin {
   animation: settings-update-spin 900ms linear infinite;
 }
@@ -2840,7 +2482,7 @@ input[type='radio'] {
 }
 
 .settings-update-status[data-tone='error'] {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .settings-update-bar {
@@ -2901,12 +2543,6 @@ input[type='radio'] {
 
 .settings-reset {
   flex: none;
-  color: var(--uwu-alarm);
-  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
-}
-
-.settings-reset:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
 }
 
 /*
@@ -2963,7 +2599,7 @@ input[type='radio'] {
 /* "This throws away your unsaved changes" is not a hint. */
 .encmenu-note-danger,
 .encmenu-note-warning {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .encmenu-row {
@@ -3121,6 +2757,27 @@ input[type='radio'] {
   overflow-wrap: anywhere;
 }
 
+/* The fonts' OFL notices: folded away, selectable when opened. */
+.about-fonts {
+  width: 100%;
+  text-align: left;
+  font-size: 11.5px;
+  color: var(--uwu-muted);
+}
+
+.about-fonts summary {
+  cursor: pointer;
+}
+
+.about-fonts ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
 /* A path is quotable: somebody filing a bug report has to be able to select
    it, whatever the rest of the chrome does. */
 .about-path {
@@ -3206,18 +2863,12 @@ input[type='radio'] {
   font-size: 11.5px;
   color: var(--uwu-muted);
 }
-
-/* The one button in the box, and it exists for bug reports: quiet, because
-   nobody comes to an about box to press something. */
-.about-copy {
+/* The one button in the box,
+and it exists for bug reports: quiet {
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 500;
   color: var(--uwu-muted);
-}
-
-.about-copy:hover:not(:disabled) {
-  color: var(--uwu-ink);
 }
 
 /* Go to line: three rows, and the field is the whole point of the box. */
@@ -3240,7 +2891,7 @@ input[type='radio'] {
 }
 
 .gotoline-input[aria-invalid='true'] {
-  border-color: var(--uwu-alarm);
+  border-color: var(--uwu-warning-ink);
 }
 
 .gotoline-hint {
@@ -3255,24 +2906,6 @@ input[type='radio'] {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
-}
-
-.gotoline-cancel {
-  border-color: transparent;
-  background: transparent;
-  color: var(--uwu-muted);
-  font-weight: 500;
-}
-
-.gotoline-submit {
-  background: var(--uwu-pink-solid);
-  border-color: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.gotoline-submit:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
 }
 
 /* ── Context menu ──────────────────────────────────────── */
@@ -3326,12 +2959,12 @@ input[type='radio'] {
 }
 
 .contextmenu-item[data-danger] {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
 }
 
 .contextmenu-item[data-danger][data-active='true'] {
-  background: color-mix(in srgb, var(--uwu-alarm) 20%, transparent);
-  color: var(--uwu-alarm);
+  background: color-mix(in srgb, var(--uwu-warning-ink) 20%, transparent);
+  color: var(--uwu-warning-ink);
 }
 
 .contextmenu-item[aria-disabled='true'] {
@@ -3359,107 +2992,90 @@ input[type='radio'] {
 /* ── Toasts ────────────────────────────────────────────── */
 
 /*
- * Bottom right, above the status bar, newest at the bottom. `pointer-events`
- * off on the stack and back on for each toast, so the column does not swallow
- * clicks aimed at the text underneath it.
+ * The suite's toast (`Toaster` in @uwusuite/design): bottom centre, inverted —
+ * dark on a light window, light on a dark one — so it stands out from the
+ * chrome. It sits above the status bar, newest at the bottom; the store and
+ * the lifetimes stay the app's (`lib/toast.ts`). `pointer-events` off on the
+ * stack and back on for each toast, so the column does not swallow clicks
+ * aimed at the text underneath it.
  */
 .toasts {
   position: fixed;
-  right: 14px;
+  left: 50%;
   bottom: 34px;
-  z-index: 25;
+  z-index: var(--uwu-z-toast);
   display: grid;
   gap: 8px;
-  justify-items: end;
-  max-width: min(400px, calc(100vw - 28px));
+  justify-items: center;
+  width: min(440px, calc(100vw - 32px));
+  translate: -50% 0;
   pointer-events: none;
 }
 
 .toast {
   display: flex;
   align-items: center;
-  gap: 9px;
-  max-width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--uwu-border);
-  border-left-width: 3px;
-  border-radius: var(--uwu-radius-control);
-  background: var(--uwu-elevated);
-  box-shadow: 0 14px 34px -16px var(--app-shade);
+  gap: 12px;
+  width: 100%;
+  padding: 10px 8px 10px 16px;
+  border-radius: 16px;
+  background: var(--uwu-toast);
+  color: var(--uwu-toast-ink);
+  box-shadow: var(--uwu-shadow-float);
+  font-size: var(--uwu-text-meta);
+  font-weight: 500;
   pointer-events: auto;
-  animation: toast-in 140ms ease both;
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    translate: 0 6px;
-  }
+  animation: uwu-slide-up var(--uwu-duration-enter) var(--uwu-ease-out) both;
 }
 
 .toast-icon {
   display: grid;
   place-items: center;
   flex: none;
-}
-
-/* The tone lives on the left edge and the icon, never on the whole card: a
-   message you have to squint past is a message nobody reads twice. */
-.toast[data-tone='info'] {
-  border-left-color: var(--uwu-muted);
-}
-
-.toast[data-tone='info'] .toast-icon {
-  color: var(--uwu-muted);
-}
-
-.toast[data-tone='success'] {
-  border-left-color: var(--uwu-online);
-}
-
-.toast[data-tone='success'] .toast-icon {
-  color: var(--uwu-online);
-}
-
-.toast[data-tone='error'] {
-  border-left-color: var(--uwu-alarm);
+  color: var(--uwu-toast-accent);
 }
 
 .toast[data-tone='error'] .toast-icon {
-  color: var(--uwu-alarm);
+  color: var(--uwu-toast-danger);
 }
 
 .toast-text {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 12.5px;
   line-height: 1.45;
 }
 
 .toast-action {
   flex: none;
-  padding: 3px 9px;
-  border-color: var(--uwu-border);
-  background: var(--uwu-surface);
-  font-size: 12px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--uwu-toast-accent);
+  font-weight: 700;
+}
+
+.toast-action:hover:not(:disabled),
+.toast-dismiss:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-toast-ink) 10%, transparent);
 }
 
 .toast-dismiss {
   display: grid;
   place-items: center;
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border-color: transparent;
+  border: 0;
   background: transparent;
-  color: var(--uwu-muted);
+  color: inherit;
+  opacity: 0.7;
 }
 
 .toast-dismiss:hover:not(:disabled) {
-  background: var(--uwu-surface);
-  color: var(--uwu-ink);
+  opacity: 1;
+  background: color-mix(in srgb, var(--uwu-toast-ink) 10%, transparent);
 }
 
 /* ── Prompts ───────────────────────────────────────────── */
@@ -3478,38 +3094,6 @@ input[type='radio'] {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.prompt-choice[data-tone='primary'] {
-  background: var(--uwu-pink-solid);
-  border-color: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.prompt-choice[data-tone='primary']:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
-}
-
-.prompt-choice[data-tone='danger'] {
-  color: var(--uwu-alarm);
-  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
-}
-
-.prompt-choice[data-tone='danger']:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
-}
-
-.prompt-choice[data-tone='quiet'] {
-  border-color: transparent;
-  background: transparent;
-  color: var(--uwu-muted);
-  font-weight: 500;
-}
-
-.prompt-choice[data-tone='quiet']:hover:not(:disabled) {
-  background: var(--uwu-surface);
-  color: var(--uwu-ink);
 }
 
 /* ── Start-up screen ───────────────────────────────────── */
@@ -3563,10 +3147,10 @@ input[type='radio'] {
   align-items: center;
   gap: 10px 16px;
   padding: 12px 14px;
-  border: 1px solid var(--uwu-alarm);
+  border: 1px solid var(--uwu-warning-ink);
   border-left-width: 3px;
   border-radius: var(--uwu-radius-card);
-  background: color-mix(in srgb, var(--uwu-alarm) 13%, transparent);
+  background: color-mix(in srgb, var(--uwu-warning-ink) 13%, transparent);
 }
 
 .macro-recording-text {
@@ -3574,7 +3158,7 @@ input[type='radio'] {
   align-items: center;
   gap: 9px;
   min-width: 0;
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -3593,7 +3177,7 @@ input[type='radio'] {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--uwu-alarm);
+  background: var(--uwu-warning);
   animation: macro-recording 1.6s ease-in-out infinite;
 }
 
@@ -3602,7 +3186,7 @@ input[type='radio'] {
    it — is left holding a solid dot rather than a half-faded one. */
 @keyframes macro-recording {
   50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--uwu-alarm) 30%, transparent);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--uwu-warning-ink) 30%, transparent);
   }
 }
 
@@ -3626,27 +3210,20 @@ input[type='radio'] {
  * in the suite that flips with the theme the way this fill does.
  */
 .macro-stop {
-  background: var(--uwu-alarm);
-  border-color: var(--uwu-alarm);
+  background: var(--uwu-warning);
+  border-color: var(--uwu-warning-ink);
   color: var(--uwu-on-pink);
 }
 
 .macro-stop:hover:not(:disabled) {
-  background: var(--uwu-alarm);
+  background: var(--uwu-warning);
   filter: brightness(1.07);
 }
-
 /* Throwing the recording away is quiet on purpose: it stands next to the
-   button almost everyone wants, and it is the one that cannot be undone. */
-.macro-discard {
+   button almost everyone wants {
   border-color: transparent;
   background: transparent;
   color: var(--uwu-muted);
-}
-
-.macro-discard:hover:not(:disabled) {
-  background: var(--uwu-elevated);
-  color: var(--uwu-ink);
 }
 
 /* The recording that just ended, before it has a name. A box of its own,
@@ -3699,21 +3276,7 @@ input[type='radio'] {
 .macro-save-input {
   min-width: 0;
 }
-
-/* The two buttons that end a form by agreeing with it. Pink, because pressing
-   Return in the field is what the form is for and this is where that lands. */
-.macro-save-submit,
-.macro-rename-submit {
-  background: var(--uwu-pink-solid);
-  border-color: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.macro-save-submit:hover:not(:disabled),
-.macro-rename-submit:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
-}
+/* The two buttons that end a form by agreeing with it. Pink,
 
 .macro-empty {
   font-style: italic;
@@ -3831,15 +3394,6 @@ input[type='radio'] {
   background: var(--uwu-pink-tint-strong);
 }
 
-.macro-delete {
-  color: var(--uwu-alarm);
-  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
-}
-
-.macro-delete:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
-}
-
 /* Both of the dialogs added in this phase end in a footer with exactly one
    button in it. The floor is for the translations: a word like "Schließen"
    sets the width everywhere else, and "OK" on its own would leave a footer
@@ -3880,22 +3434,6 @@ input[type='radio'] {
 .theme-editor-none-text {
   max-width: 62ch;
   color: var(--uwu-muted);
-}
-
-/* The way out of both boxes, and the only thing in either of them that can be
-   pressed — so it is the pink one. The same class turns up again among the
-   actions below, where it is one button of three and stays plain. */
-.theme-editor-shipped .theme-editor-duplicate,
-.theme-editor-new {
-  background: var(--uwu-pink-solid);
-  border-color: var(--uwu-pink-solid);
-  color: var(--uwu-on-pink);
-}
-
-.theme-editor-shipped .theme-editor-duplicate:hover:not(:disabled),
-.theme-editor-new:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.07);
 }
 
 .theme-editor-head {
@@ -3957,12 +3495,6 @@ input[type='radio'] {
    those two makes a copy of the theme and this one throws it away. */
 .theme-editor-delete {
   margin-left: auto;
-  color: var(--uwu-alarm);
-  border-color: color-mix(in srgb, var(--uwu-alarm) 45%, transparent);
-}
-
-.theme-editor-delete:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--uwu-alarm) 14%, transparent);
 }
 
 .theme-editor-group {
@@ -4047,8 +3579,8 @@ input[type='radio'] {
    is being held, nothing has been written, and the next character may well
    finish it. */
 .theme-token[data-invalid='yes'] .theme-token-input {
-  border-color: var(--uwu-alarm);
-  color: var(--uwu-alarm);
+  border-color: var(--uwu-warning-ink);
+  color: var(--uwu-warning-ink);
 }
 
 /* Thirty of these on the page, one per row. Quiet, but never hidden until
@@ -4199,16 +3731,8 @@ input[type='radio'] {
   border-bottom: 1px solid var(--uwu-hairline);
 }
 
-.appheader .titlebar {
+.appheader .uwu-titlebar {
   border-bottom: 0;
-}
-
-.appheader .titlebar-wordmark {
-  font-size: 14px;
-}
-
-.appheader .titlebar-spacer {
-  flex: 1;
 }
 
 .menubar {
@@ -4305,7 +3829,7 @@ input[type='radio'] {
   flex: none;
   margin-left: 18px;
   color: var(--uwu-muted);
-  font-family: var(--uwu-font);
+  font-family: var(--font-ui);
   font-size: 11.5px;
 }
 
@@ -4614,7 +4138,7 @@ input[type='radio'] {
 }
 
 .hashtool-error {
-  color: var(--uwu-alarm);
+  color: var(--uwu-warning-ink);
   font-size: 12px;
 }
 
@@ -4717,7 +4241,7 @@ input[type='radio'] {
     margin-bottom: 10pt;
     padding-bottom: 4pt;
     border-bottom: 0.5pt solid gray;
-    font-family: var(--uwu-font);
+    font-family: var(--font-ui);
     font-size: 9pt;
     color: dimgray;
   }

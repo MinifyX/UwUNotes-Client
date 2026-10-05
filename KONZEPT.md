@@ -62,7 +62,7 @@ kaputt._
 | Editor-Font | **JetBrains Mono**, **Fira Code**           | Beide gebündelt, beide variabel. Ligaturen aus per Default.                                                                                      |
 | Encoding    | **`encoding_rs`** + **`chardetng`**         | Der eigentliche Grund für eine Rust-Seite. Jede Legacy-Codepage, sauber dekodiert und wieder kodiert.                                            |
 | Suche       | **`ignore`** + **`grep-searcher`**          | Respektiert `.gitignore`, liest große Dateien zeilenweise statt am Stück.                                                                        |
-| Tokens      | **`@uwu/tokens`**                           | Das Paket im Workspace, das die ganze Suite teilt. UwUNotes ist die erste App, die es importiert statt kopiert.                                  |
+| Tokens      | **`@uwusuite/design`**                      | Das Design-Paket der ganzen Suite (Tokens, Schrift, Icons, Komponenten). Seit 0.7.0 statt des früheren Workspace-Pakets `@uwu/tokens`.           |
 | Papierkorb  | **`trash`**                                 | Löschen aus dem Dateibaum geht in den Papierkorb, nie hart.                                                                                      |
 
 Kein Electron, kein Monaco, kein Node im Hintergrund. Was bleibt, ist ein
@@ -502,7 +502,6 @@ ganze Mechanismus. `scripts/check-i18n.mjs` sieht `apps/setup` nie; es liest
 | ------------------------- | ------------------------------------------------------------------- |
 | `apps/desktop`            | Die Tauri-2-App: React-Oberfläche, CodeMirror-Kern, Rust-Shell      |
 | `apps/setup`              | Das Setup: dieselbe Technik, ein Fenster, der Editor darin verpackt |
-| `packages/uwu-tokens`     | `@uwu/tokens` — die Palette der ganzen Suite                        |
 | `crates/uwunotes-fs`      | Bytes: Encoding, atomare Writes, Baum, Dateisuche                   |
 | `crates/uwunotes-session` | Sitzungsdatei, Entwürfe, Zuletzt-Listen                             |
 | `brand/`                  | Nyu im Notizblock-Körper: App-Icon, Symbol, Mono-Symbol             |

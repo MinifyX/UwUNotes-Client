@@ -148,8 +148,10 @@ export function registerTodoMarkers(): void {
 Two details that are not optional:
 
 - **Colours are tokens.** `var(--uwu-code-modified)`, never `#e0a500`. A
-  `baseTheme` is still CSS in the app, and the app has one palette in
-  [`packages/uwu-tokens`](../packages/uwu-tokens/src/tokens.css). Pink means
+  `baseTheme` is still CSS in the app, and the app has one palette: the
+  suite's from [@uwusuite/design](https://github.com/MinifyX/UwUSuite-Design)
+  plus the editor's own in
+  [`styles/code.css`](../apps/desktop/src/styles/code.css). Pink means
   "this one" and nothing else; see [design.md](design.md).
 - **Registration is a call, not a module side effect.** `registerTodoMarkers()`
   is invoked from `registerBuiltinPlugins()` in `builtin.ts`, which

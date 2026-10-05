@@ -194,7 +194,6 @@ are a Tauri build target away in theory and untried in practice.
 | ------------------------- | --------------------------------------------------------------------- |
 | `apps/desktop`            | The Tauri 2 app: React UI, CodeMirror editor core, Rust shell         |
 | `apps/setup`              | The installer: the same Tauri and React, one window, the editor in it |
-| `packages/uwu-tokens`     | `@uwu/tokens` — the palette the whole UwU Suite shares                |
 | `crates/uwunotes-fs`      | Bytes: encoding detection, atomic writes, the tree, find in files     |
 | `crates/uwunotes-session` | The session file, the drafts beside it, the note trash                |
 | `crates/uwunotes-history` | Zeitreise: compressed, thinned-out versions of every file and note    |
@@ -260,3 +259,13 @@ without touching anything.
 UwUNotes is free software under the [GNU GPL v3.0](LICENSE): use it, change it,
 fork it, share it. If you pass on a changed version, its source has to stay open
 too.
+
+### Fonts
+
+The bundled fonts are under the [SIL Open Font License 1.1](https://openfontlicense.org);
+the About dialog lists them too.
+
+- UwU Console — Copyright 2026 MinifyX, a modified version of Atkinson Hyperlegible Mono. Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono). SIL Open Font License 1.1. Source and build: [`brand/fonts/uwu-console`](brand/fonts/uwu-console).
+- UwU Sans, Manrope, Rubik, DM Sans and JetBrains Mono come with
+  [@uwusuite/design](https://github.com/MinifyX/UwUSuite-Design), Fira Code with
+  `@fontsource-variable/fira-code`; each under the SIL OFL 1.1 of its authors.

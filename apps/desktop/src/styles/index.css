@@ -1,0 +1,23 @@
+/*
+ * Every stylesheet of the window, in cascade order.
+ *
+ * The suite first: Tailwind (for the package's components) and
+ * `@uwusuite/design` — tokens, UwU Sans, the base layer, motion, Nyu and the
+ * title bar — plus the font picker's fonts. Then the app's own: its tokens
+ * (`--uwu-deep`), the code colours, the editor fonts and the chrome. The app's
+ * sheets are unlayered, so they win over the package's base layer wherever
+ * the two disagree (docs/design.md says where and why).
+ */
+@import 'tailwindcss';
+@import '@uwusuite/design/tailwind.css';
+@import '@uwusuite/design/font-picker.css';
+@import '@fontsource-variable/fira-code';
+
+@import './tokens.css';
+@import './code.css';
+@import './fonts.css';
+@import './app.css';
+@import './editor.css';
+@import './focus.css';
+@import './markdown.css';
+@import './outline.css';

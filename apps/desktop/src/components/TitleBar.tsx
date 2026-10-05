@@ -1,12 +1,12 @@
 /**
  * The top of the window, in three rows.
  *
- * 1. **The brand row**: Nyu and the word mark, and nothing else — except the
- *    three window buttons in the corner, which have to live somewhere because
- *    `decorations: false` in `tauri.conf.json` means there is no system frame.
- *    This row *is* the frame: the whole stretch carries
- *    `data-tauri-drag-region`, so it moves the window when dragged and
- *    maximises it on a double-click, like any other title bar.
+ * 1. **The brand row**: the suite's `<TitleBar>` from `@uwusuite/design` —
+ *    Nyu and the word mark on the left, the three window buttons in the
+ *    corner, because `decorations: false` in `tauri.conf.json` means there is
+ *    no system frame. The empty stretch carries `data-tauri-drag-region`, so it
+ *    moves the window when dragged and maximises it on a double-click, like
+ *    any other title bar.
  * 2. **The menu row**: Datei, Suchen, Ansicht, Codierung, Sprache,
  *    Einstellungen, Werkzeuge. See `MenuBar.tsx` and `lib/menus.ts`.
  * 3. **The icon row**: the ten things reached for most, as icons only, each
@@ -16,27 +16,24 @@
  * icon, the menu entry, the shortcut and the palette entry are one code path
  * and cannot drift apart.
  *
- * On macOS the first two rows are not drawn at all: the window has the
- * system's title bar with the traffic lights (`tauri.macos.conf.json`) and the
- * menus are in the menu bar at the top of the screen (`lib/native-menu.ts`).
- * Only the icon row is left.
- *
- * The window buttons are Windows' own size — 46 px wide, the full height of the
- * row — because that is what the corner of every other window on the machine
- * feels like, and close turns brand pink on hover, as in UwUMail and UwUSSH.
+ * On macOS the first two rows are not drawn at all (the package's title bar
+ * renders nothing there): the window has the system's title bar with the
+ * traffic lights (`tauri.macos.conf.json`) and the menus are in the menu bar at
+ * the top of the screen (`lib/native-menu.ts`). Only the icon row is left.
  */
 
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Fragment, useEffect, useState, useSyncExternalStore } from 'react';
+import { Icon, TitleBar as SuiteTitleBar, Wordmark } from '@uwusuite/design';
+import { useTauriWindow } from '@uwusuite/design/tauri';
+import { Fragment, useSyncExternalStore, type MouseEvent } from 'react';
 import { allCommands, runCommand } from '../lib/commands';
 import { useCompare } from '../lib/compare';
 import { documentsVersion, subscribeDocuments } from '../lib/documents';
 import { N_, t, useLanguage } from '../lib/i18n';
+import { APP_ICONS, type AppIcon } from '../lib/icons';
 import { MENUS } from '../lib/menus';
 import { isMac } from '../lib/platform';
 import { shortcutLabel } from '../lib/shortcuts';
 import { useWorkspace } from '../lib/workspace';
-import { Icon, type IconName } from './Icon';
 import { MenuBar } from './MenuBar';
 import { Nyu } from './nyu/Nyu';
 
@@ -45,13 +42,13 @@ import { Nyu } from './nyu/Nyu';
  * because the labels are decided here, before a language is, and translated
  * where they are drawn.
  */
-const TOOLBAR: { command: string; icon: IconName; label: string }[][] = [
+const TOOLBAR: { command: string; icon: AppIcon; label: string }[][] = [
   [
-    { command: 'file.new', icon: 'filePlus', label: N_('Neu') },
+    { command: 'file.new', icon: 'newFile', label: N_('Neu') },
     { command: 'file.open', icon: 'folderOpen', label: N_('Öffnen') },
     { command: 'file.save', icon: 'save', label: N_('Speichern') },
     { command: 'file.saveAll', icon: 'saveAll', label: N_('Alle Dateien speichern') },
-    { command: 'file.close', icon: 'fileClose', label: N_('Schließen') },
+    { command: 'file.close', icon: 'closeFile', label: N_('Schließen') },
     { command: 'file.closeAll', icon: 'closeAll', label: N_('Alle schließen') },
   ],
   [{ command: 'file.print', icon: 'print', label: N_('Drucken') }],
@@ -59,7 +56,13 @@ const TOOLBAR: { command: string; icon: IconName; label: string }[][] = [
     { command: 'find.find', icon: 'search', label: N_('Suchen') },
     { command: 'find.replace', icon: 'replace', label: N_('Ersetzen') },
   ],
-  [{ command: 'view.compare', icon: 'diff', label: N_('Diff-Ansicht: zwei Dateien vergleichen') }],
+  [
+    {
+      command: 'view.compare',
+      icon: 'compare',
+      label: N_('Diff-Ansicht: zwei Dateien vergleichen'),
+    },
+  ],
 ];
 
 /** `Speichern (Strg+S)`, or just the name when nothing is bound. */
@@ -68,44 +71,44 @@ function hint(label: string, command: string): string {
   return keys ? t('{action} ({keys})', { action: label, keys }) : label;
 }
 
+/**
+ * Tauri maximises on a double-click of a drag region by itself (its drag
+ * script), and the package's title bar does it again in React — the two would
+ * cancel out. The capture phase runs first and keeps the second one away; the
+ * window buttons are not drag regions, so they are never touched by this.
+ */
+function leaveDoubleClickToTauri(event: MouseEvent) {
+  if ((event.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
+    event.stopPropagation();
+  }
+}
+
+function WindowRow() {
+  // Only mounted off the Mac, where the window has no frame of its own.
+  const controls = useTauriWindow();
+  return (
+    <div className="appheader-titlebar" onDoubleClickCapture={leaveDoubleClickToTauri}>
+      <SuiteTitleBar
+        platform="windows"
+        controls={controls}
+        brand={
+          <>
+            <Nyu size={22} blink={false} title="" />
+            <Wordmark product="Notes" />
+          </>
+        }
+      />
+    </div>
+  );
+}
+
 export function TitleBar() {
   useLanguage();
   // Neither is read directly; both decide which icons are greyed out.
   useWorkspace();
   useSyncExternalStore(subscribeDocuments, documentsVersion);
   const compare = useCompare();
-  const [maximized, setMaximized] = useState(false);
   const mac = isMac();
-
-  useEffect(() => {
-    // The system draws the Mac's window buttons and knows their state itself.
-    if (mac) return;
-    const window = getCurrentWindow();
-    let gone = false;
-    let unlisten: (() => void) | undefined;
-    const sync = () => {
-      void window
-        .isMaximized()
-        .then((value) => {
-          if (!gone) setMaximized(value);
-        })
-        .catch(() => undefined);
-    };
-    sync();
-    void window
-      .onResized(sync)
-      .then((stop) => {
-        // The listener can land after the component is gone; drop it straight
-        // away rather than leaving it to fire into nothing.
-        if (gone) stop();
-        else unlisten = stop;
-      })
-      .catch(() => undefined);
-    return () => {
-      gone = true;
-      unlisten?.();
-    };
-  }, [mac]);
 
   const commands = allCommands();
   const enabled = (id: string) => {
@@ -115,78 +118,7 @@ export function TitleBar() {
 
   return (
     <header className="appheader" data-platform={mac ? 'mac' : undefined}>
-      {mac ? null : (
-        <div className="titlebar" data-tauri-drag-region>
-          <span className="titlebar-brand" data-tauri-drag-region>
-            <Nyu size={22} blink={false} title="UwUNotes" />
-            <span className="titlebar-wordmark" data-tauri-drag-region>
-              <span>UwU</span>Notes
-            </span>
-          </span>
-
-          <span className="titlebar-spacer" data-tauri-drag-region />
-
-          <div className="window-controls">
-            <button
-              type="button"
-              className="window-control"
-              onClick={() => void getCurrentWindow().minimize()}
-              aria-label={t('Minimieren')}
-              title={t('Minimieren')}
-            >
-              <svg
-                viewBox="0 0 10 10"
-                aria-hidden
-                focusable="false"
-                stroke="currentColor"
-                fill="none"
-              >
-                <path d="M0 5.5h10" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="window-control"
-              onClick={() => void getCurrentWindow().toggleMaximize()}
-              aria-label={maximized ? t('Verkleinern') : t('Maximieren')}
-              title={maximized ? t('Verkleinern') : t('Maximieren')}
-            >
-              <svg
-                viewBox="0 0 10 10"
-                aria-hidden
-                focusable="false"
-                stroke="currentColor"
-                fill="none"
-              >
-                {maximized ? (
-                  <path d="M2.5 2.5V.5h7v7h-2 M.5 2.5h7v7h-7z" />
-                ) : (
-                  <path d="M.5.5h9v9h-9z" />
-                )}
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="window-control window-control-close"
-              // `close()`, not `destroy()`: this has to go through the window's
-              // close request so `App.tsx` can ask about unsaved files first.
-              onClick={() => void getCurrentWindow().close()}
-              aria-label={t('Schließen')}
-              title={t('Schließen')}
-            >
-              <svg
-                viewBox="0 0 10 10"
-                aria-hidden
-                focusable="false"
-                stroke="currentColor"
-                fill="none"
-              >
-                <path d="M.5.5l9 9 M9.5.5l-9 9" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
+      {mac ? null : <WindowRow />}
 
       {mac ? null : <MenuBar menus={MENUS} />}
 
@@ -205,7 +137,7 @@ export function TitleBar() {
                 aria-pressed={action.command === 'view.compare' ? compare.active : undefined}
                 title={hint(t(action.label), action.command)}
               >
-                <Icon name={action.icon} size={17} />
+                <Icon icon={APP_ICONS[action.icon]} size="md" />
               </button>
             ))}
           </Fragment>

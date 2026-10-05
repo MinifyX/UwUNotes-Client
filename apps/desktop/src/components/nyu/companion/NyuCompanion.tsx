@@ -36,7 +36,7 @@ import './companion.css';
 /** Pupils that can look somewhere: the "happy" eyes, wrapped in a group CSS moves. */
 const LOOKING_EYES = (
   <g className="nyu-look">
-    <g fill={NYU.outline}>
+    <g fill={NYU.ink}>
       <ellipse cx="102" cy="148" rx="8" ry="10" />
       <ellipse cx="154" cy="148" rx="8" ry="10" />
     </g>
@@ -240,7 +240,7 @@ function Particle({ kind, index, size }: { kind: Burst; index: number; size: num
         rx="2"
         transform={`rotate(${index * 47})`}
         fill={CONFETTI_COLOURS[index % CONFETTI_COLOURS.length]}
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={2.5}
       />
     );

@@ -1,10 +1,9 @@
 /*
- * UwU Suite code tokens — syntax colour on top of tokens.css.
+ * UwUNotes code tokens — syntax colour on top of the suite tokens.
  *
- * Split off from the base palette because not every app in the suite shows
- * code: UwUNotes lives in here, UwUMail only needs it for a code block in a
- * message. Import tokens.css first; these names build on --uwu-deep and the
- * brand pink.
+ * Lives in the app rather than in @uwusuite/design because no other app shows
+ * code yet; it moves into the package when one does. These names build on
+ * --uwu-deep (styles/tokens.css) and the brand pink.
  *
  * The hues are Nyu's sticker palette pushed to text contrast — lilac, mint,
  * sky, star gold — so highlighted code still reads as the same family as the
@@ -83,4 +82,57 @@
   --uwu-code-added: #5cc7ac;
   --uwu-code-modified: #d8a25c;
   --uwu-code-deleted: #ff8080;
+}
+
+/*
+ * High contrast: the quiet parts of the editor (comments, operators, line
+ * numbers, guides) go up to 7:1 against the black or white ground, and the
+ * selection becomes a solid band. The hues stay, so a theme still reads as UwU.
+ */
+html:root[data-contrast='high'] {
+  --uwu-code-keyword: #8a0046;
+  --uwu-code-string: #00564a;
+  --uwu-code-number: #5c3d00;
+  --uwu-code-comment: #4d4d4d;
+  --uwu-code-function: #003d73;
+  --uwu-code-type: #4b1f99;
+  --uwu-code-variable: #000000;
+  --uwu-code-constant: #7a003c;
+  --uwu-code-operator: #333333;
+  --uwu-code-tag: #8a0046;
+  --uwu-code-attribute: #4b1f99;
+  --uwu-code-heading: #7a003c;
+  --uwu-code-link: #003d73;
+  --uwu-code-invalid: #8a0017;
+  --uwu-code-cursor: #000000;
+  --uwu-code-selection: #ffc2d9;
+  --uwu-code-selection-blur: #e6e6e6;
+  --uwu-code-active-line: #f2f2f2;
+  --uwu-code-line-number: #595959;
+  --uwu-code-line-number-active: #000000;
+  --uwu-code-indent-guide: #bfbfbf;
+}
+
+html:root[data-contrast='high'][data-theme='dark'] {
+  --uwu-code-keyword: #ffa6c9;
+  --uwu-code-string: #7fe0c6;
+  --uwu-code-number: #ffd08a;
+  --uwu-code-comment: #bfbfbf;
+  --uwu-code-function: #a8dcff;
+  --uwu-code-type: #d7c7ff;
+  --uwu-code-variable: #ffffff;
+  --uwu-code-constant: #ffc2d9;
+  --uwu-code-operator: #e6e6e6;
+  --uwu-code-tag: #ffa6c9;
+  --uwu-code-attribute: #d7c7ff;
+  --uwu-code-heading: #ffc2d9;
+  --uwu-code-link: #a8dcff;
+  --uwu-code-invalid: #ff9aa8;
+  --uwu-code-cursor: #ffffff;
+  --uwu-code-selection: #5c1236;
+  --uwu-code-selection-blur: #333333;
+  --uwu-code-active-line: #141414;
+  --uwu-code-line-number: #a8a8a8;
+  --uwu-code-line-number-active: #ffffff;
+  --uwu-code-indent-guide: #4d4d4d;
 }

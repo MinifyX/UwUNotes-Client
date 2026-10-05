@@ -11,12 +11,21 @@
  * that turned `fontSize` into `"big"` must not brick the editor.
  */
 
+import {
+  applyAppearance as applyToRoot,
+  applyUiFont,
+  isFontChoice,
+  QUERIES,
+  resolveAppearance,
+  type ContrastSetting,
+  type FontChoice,
+} from '@uwusuite/design';
 import { useSyncExternalStore } from 'react';
 import pkg from '../../package.json';
 import { language } from './i18n';
-import { applyUiFont, isUiFont, type UiFont } from './ui-fonts';
 
 export type ThemeSetting = 'system' | 'light' | 'dark';
+export type { ContrastSetting };
 /** German or English; "system" follows what the system prefers. */
 export type LanguageSetting = 'system' | 'de' | 'en';
 /** Animations: follow the system's reduced-motion setting, or override it. */
@@ -32,10 +41,12 @@ export type Settings = {
   theme: ThemeSetting;
   /** The id of a theme from `editor/themes.ts`; the UwU one by default. */
   editorTheme: string;
+  /** High contrast: black on white or white on black, the suite's own. */
+  contrast: ContrastSetting;
   motion: MotionSetting;
   tone: ToneSetting;
   /** The interface's font (menus, dialogs, sidebar); the editor has `fontFamily`. */
-  uiFont: UiFont;
+  uiFont: FontChoice;
 
   /** The editor's font: a bundled one or any family the system has. */
   fontFamily: string;
@@ -139,14 +150,46 @@ export const POMODORO_LIMITS = {
   longEvery: [2, 8],
 } as const;
 
-/** The monospace faces bundled with the app, plus whatever the system has. */
-export const BUNDLED_FONTS = ['JetBrains Mono Variable', 'Fira Code Variable'] as const;
+/**
+ * The monospace faces bundled with the app, plus whatever the system has.
+ * JetBrains Mono comes from @uwusuite/design, Fira Code from @fontsource and
+ * UwU Console is the app's own (`styles/fonts.css`). JetBrains Mono stays the
+ * default; the other two are a choice.
+ */
+export const BUNDLED_FONTS = [
+  'JetBrains Mono Variable',
+  'Fira Code Variable',
+  'UwU Console',
+] as const;
+
+/**
+ * Faces that fall back to something other than the suite's mono stack. UwU
+ * Console is narrower than JetBrains Mono, so a missing glyph should come from
+ * the system's own monospace rather than jump to a wider bundled face.
+ */
+const FONT_FALLBACKS: Readonly<Record<string, string>> = {
+  'UwU Console': 'ui-monospace, monospace',
+};
+
+/**
+ * An editor font name as a CSS `font-family` value. A user font name goes
+ * into a CSS string, so it may not carry quotes out — nor a newline, which
+ * ends a CSS string just as surely and takes the rest of the rule with it.
+ * `sanitize` strips control characters on the way in; this is the second
+ * line of the same defence.
+ */
+export function editorFontStack(family: string, fallback = 'var(--uwu-mono)'): string {
+  const safe = family.replace(/["\\;{}]|\p{Cc}/gu, '').trim();
+  if (!safe) return fallback;
+  return `"${safe}", ${FONT_FALLBACKS[safe] ?? fallback}`;
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   language: 'system',
   // Dark by default, unlike its siblings: an editor is stared at for hours.
   theme: 'dark',
   editorTheme: 'uwu',
+  contrast: 'system',
   motion: 'system',
   tone: 'playful',
   uiFont: 'uwu',
@@ -245,9 +288,11 @@ export function sanitize(raw: unknown): Settings {
     language: oneOf(input.language, ['system', 'de', 'en'] as const, d.language),
     theme: oneOf(input.theme, ['system', 'light', 'dark'] as const, d.theme),
     editorTheme: text(input.editorTheme, d.editorTheme, 40),
+    contrast: oneOf(input.contrast, ['system', 'normal', 'high'] as const, d.contrast),
     motion: oneOf(input.motion, ['system', 'on', 'off'] as const, d.motion),
     tone: oneOf(input.tone, ['playful', 'neutral'] as const, d.tone),
-    uiFont: isUiFont(input.uiFont) ? input.uiFont : d.uiFont,
+    // An old or hand-edited value falls back to UwU Sans, the suite's default.
+    uiFont: isFontChoice(input.uiFont) ? input.uiFont : d.uiFont,
 
     fontFamily: text(input.fontFamily, d.fontFamily),
     fontSize: int(input.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX, d.fontSize),
@@ -390,35 +435,49 @@ export function useSettings(): Settings {
 /** The app's own version, for the About box and the session file. */
 export const APP_VERSION: string = pkg.version;
 
-const darkQuery = () => window.matchMedia('(prefers-color-scheme: dark)');
-const reducedQuery = () => window.matchMedia('(prefers-reduced-motion: reduce)');
+const darkQuery = () => window.matchMedia(QUERIES.dark);
+const contrastQuery = () => window.matchMedia(QUERIES.contrast);
+const reducedQuery = () => window.matchMedia(QUERIES.reducedMotion);
+
+/** Theme, contrast and motion as they apply right now, by setting and system. */
+function resolved(settings: Settings = current) {
+  return resolveAppearance(
+    { theme: settings.theme, contrast: settings.contrast, motion: settings.motion },
+    {
+      dark: darkQuery().matches,
+      contrast: contrastQuery().matches,
+      reducedMotion: reducedQuery().matches,
+    },
+  );
+}
 
 /** Whether animations should play right now, by setting and system. */
 export function motionAllowed(settings: Settings = current): boolean {
-  const { motion } = settings;
-  return motion === 'on' || (motion === 'system' && !reducedQuery().matches);
+  return resolved(settings).motion === 'full';
 }
 
 /** Whether the dark palette applies right now, by setting and system. */
 export function darkActive(settings: Settings = current): boolean {
-  return settings.theme === 'dark' || (settings.theme === 'system' && darkQuery().matches);
+  return resolved(settings).theme === 'dark';
 }
 
 /**
- * Puts theme, language, motion and the interface font on `<html>`, now and whenever the setting or
- * the system changes. Called once from `main.tsx` before React mounts, so the
- * first paint is already the right colour.
+ * Puts theme, contrast, motion, language and the interface font on `<html>`,
+ * now and whenever the setting or the system changes — through the suite's
+ * `applyAppearance()` and `applyUiFont()` from @uwusuite/design, so the
+ * attributes mean what they mean in every other app. Called once from
+ * `main.tsx` before React mounts, so the first paint is already the right
+ * colour; outside React because the editor's own code reads it too.
  */
 export function applyAppearance() {
   const apply = () => {
-    document.documentElement.dataset.theme = darkActive() ? 'dark' : 'light';
+    applyToRoot(resolved());
     document.documentElement.lang = language(current);
     applyUiFont(current.uiFont);
-    if (motionAllowed()) delete document.documentElement.dataset.motion;
-    else document.documentElement.dataset.motion = 'reduced';
   };
   apply();
   subscribeSettings(apply);
   darkQuery().addEventListener('change', apply);
+  contrastQuery().addEventListener('change', apply);
   reducedQuery().addEventListener('change', apply);
 }

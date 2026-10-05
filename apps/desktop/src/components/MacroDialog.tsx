@@ -12,6 +12,7 @@
  * rules, limits and failure messages all live in `lib/macros.ts`.
  */
 
+import { Button } from '@uwusuite/design';
 import { useEffect, useState } from 'react';
 import { closeDialog, useUiState } from '../lib/commands';
 import { t } from '../lib/i18n';
@@ -91,9 +92,15 @@ function MacroManager() {
       title={t('Makros')}
       onClose={closeDialog}
       footer={
-        <button type="button" className="macro-done" onClick={closeDialog}>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          className="macro-done"
+          onClick={closeDialog}
+        >
           {t('Schließen')}
-        </button>
+        </Button>
       }
       wide
     >
@@ -107,9 +114,15 @@ function MacroManager() {
               <button type="button" className="macro-stop" onClick={stopRecording}>
                 {t('Aufzeichnung beenden')}
               </button>
-              <button type="button" className="macro-discard" onClick={cancelRecording}>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                className="macro-discard"
+                onClick={cancelRecording}
+              >
                 {t('Verwerfen')}
-              </button>
+              </Button>
             </div>
           </section>
         ) : hasLastRecording() ? (
@@ -154,9 +167,9 @@ function MacroManager() {
                 placeholder={t('Name des Makros')}
                 onChange={(event) => setName(event.target.value)}
               />
-              <button type="submit" className="macro-save-submit">
+              <Button variant="primary" size="sm" type="submit" className="macro-save-submit">
                 {t('Speichern')}
-              </button>
+              </Button>
             </form>
           </section>
         ) : null}
@@ -190,9 +203,14 @@ function MacroManager() {
                         aria-label={t('Neuer Name')}
                         onChange={(event) => setRenameText(event.target.value)}
                       />
-                      <button type="submit" className="macro-rename-submit">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        type="submit"
+                        className="macro-rename-submit"
+                      >
                         {t('Übernehmen')}
-                      </button>
+                      </Button>
                       <button
                         type="button"
                         className="macro-rename-cancel"
@@ -279,9 +297,15 @@ function MacroManager() {
                       {t('Kürzel entfernen')}
                     </button>
                   ) : null}
-                  <button type="button" className="macro-delete" onClick={() => void remove(macro)}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    type="button"
+                    className="macro-delete"
+                    onClick={() => void remove(macro)}
+                  >
                     {t('Löschen')}
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}

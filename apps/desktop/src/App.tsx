@@ -37,6 +37,7 @@ import { useSettings } from './lib/settings';
 import { useZen } from './lib/zen';
 import { AboutDialog } from './components/AboutDialog';
 import { CompareBar } from './components/CompareBar';
+import { UwuLabels } from '@uwusuite/design';
 import { NativeMenu } from './components/NativeMenu';
 import { HashDialog } from './components/HashDialog';
 import { CommandPalette } from './components/CommandPalette';
@@ -60,7 +61,7 @@ import { NyuDialog } from './components/nyu/companion/NyuDialog';
 import { pickGreeting } from './components/nyu/greetings';
 
 export function App() {
-  useLanguage();
+  const lang = useLanguage();
   const [ready, setReady] = useState(false);
   // Zen mode does not close the sidebar, it just does not draw it — so
   // leaving zen finds the sidebar exactly as it was. See `lib/zen.ts`.
@@ -156,53 +157,57 @@ export function App() {
   if (!ready) return <Startup />;
 
   return (
-    <div
-      className="app"
-      data-sidebar={sidebarOpen ? 'open' : zen ? 'closed' : 'rail'}
-      data-zen={zen ? true : undefined}
-      style={zen ? ({ '--zen-columns': zenWidth } as CSSProperties) : undefined}
-    >
-      {/* Before the title bar on purpose: `styles/focus.css` reveals the bar
+    // The few words the suite's components say themselves (the window
+    // buttons, a close cross) follow the app's language.
+    <UwuLabels labels={lang === 'en' ? 'en' : 'de'}>
+      <div
+        className="app"
+        data-sidebar={sidebarOpen ? 'open' : zen ? 'closed' : 'rail'}
+        data-zen={zen ? true : undefined}
+        style={zen ? ({ '--zen-columns': zenWidth } as CSSProperties) : undefined}
+      >
+        {/* Before the title bar on purpose: `styles/focus.css` reveals the bar
           from the edge strip with a sibling selector. */}
-      {zen ? <ZenEdge edge="top" /> : null}
-      <TitleBar />
+        {zen ? <ZenEdge edge="top" /> : null}
+        <TitleBar />
 
-      <div className="app-body">
-        {sidebarOpen ? <Sidebar /> : zen ? null : <SidebarRail />}
-        <div className="app-editors">
-          <CompareBar />
-          <SplitContainer />
-          {/* A bar and a panel, never a dialog: both of these are about the text
+        <div className="app-body">
+          {sidebarOpen ? <Sidebar /> : zen ? null : <SidebarRail />}
+          <div className="app-editors">
+            <CompareBar />
+            <SplitContainer />
+            {/* A bar and a panel, never a dialog: both of these are about the text
               behind them, and a modal over that text hides the answer. `find`
               and `replace` are the same bar — it reads the dialog slot itself
               to decide whether the replace row is showing. */}
-          {dialog === 'find' || dialog === 'replace' ? <FindBar /> : null}
-          {dialog === 'projectSearch' ? <SearchPanel /> : null}
+            {dialog === 'find' || dialog === 'replace' ? <FindBar /> : null}
+            {dialog === 'projectSearch' ? <SearchPanel /> : null}
+          </div>
         </div>
-      </div>
 
-      {/* Between the text and the status bar, and nothing at all when there is
+        {/* Between the text and the status bar, and nothing at all when there is
           no update to mention: a new version is worth a row of the window and
           never a dialog over the file somebody is writing. */}
-      {zen ? null : <UpdateHint />}
+        {zen ? null : <UpdateHint />}
 
-      {zen ? <ZenEdge edge="bottom" /> : null}
-      <StatusBar />
-      {zen ? <ZenHint /> : null}
+        {zen ? <ZenEdge edge="bottom" /> : null}
+        <StatusBar />
+        {zen ? <ZenHint /> : null}
 
-      {isMac() ? <NativeMenu /> : null}
-      <NyuCameos />
-      <Toasts />
-      <PromptHost />
+        {isMac() ? <NativeMenu /> : null}
+        <NyuCameos />
+        <Toasts />
+        <PromptHost />
 
-      {dialog === 'palette' ? <CommandPalette /> : null}
-      {dialog === 'gotoLine' ? <GoToLine /> : null}
-      {dialog === 'macros' ? <MacroDialog /> : null}
-      {dialog === 'settings' ? <SettingsDialog /> : null}
-      {dialog === 'about' ? <AboutDialog /> : null}
-      {dialog === 'hash' ? <HashDialog /> : null}
-      {dialog === 'nyu' ? <NyuDialog /> : null}
-    </div>
+        {dialog === 'palette' ? <CommandPalette /> : null}
+        {dialog === 'gotoLine' ? <GoToLine /> : null}
+        {dialog === 'macros' ? <MacroDialog /> : null}
+        {dialog === 'settings' ? <SettingsDialog /> : null}
+        {dialog === 'about' ? <AboutDialog /> : null}
+        {dialog === 'hash' ? <HashDialog /> : null}
+        {dialog === 'nyu' ? <NyuDialog /> : null}
+      </div>
+    </UwuLabels>
   );
 }
 

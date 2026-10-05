@@ -24,7 +24,8 @@ import {
 } from '../../lib/notebook';
 import { matchesQuery, previewLine, relativeAge } from '../../lib/notebook-list';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
-import { Icon } from '../Icon';
+import { Icon, Button } from '@uwusuite/design';
+import { APP_ICONS } from '../../lib/icons';
 import { NyuScene } from '../nyu/scenes';
 import '../../styles/notes.css';
 
@@ -126,7 +127,7 @@ export function TrashView() {
             disabled={trash.length === 0 || confirming}
             onClick={() => setConfirming(true)}
           >
-            <Icon name="trash" size={14} title={t('Papierkorb leeren…')} />
+            <Icon icon={APP_ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
           </button>
         </div>
       </header>
@@ -156,7 +157,9 @@ export function TrashView() {
                   )}
             </p>
             <div className="trash-confirm-actions">
-              <button
+              <Button
+                variant="danger"
+                size="sm"
                 type="button"
                 className="trash-confirm-danger"
                 onClick={() => {
@@ -166,10 +169,16 @@ export function TrashView() {
                 }}
               >
                 {t('Leeren')}
-              </button>
-              <button type="button" ref={cancelRef} onClick={() => setConfirming(false)}>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                type="button"
+                ref={cancelRef}
+                onClick={() => setConfirming(false)}
+              >
                 {t('Abbrechen')}
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -186,7 +195,7 @@ export function TrashView() {
         ) : (
           <>
             <div className="notebook-search">
-              <Icon name="search" size={13} className="notebook-search-icon" />
+              <Icon icon={APP_ICONS.search} size="xs" className="notebook-search-icon" />
               <input
                 type="search"
                 className="notebook-search-input"
@@ -252,7 +261,7 @@ export function TrashView() {
                           title={t('Wiederherstellen')}
                           onClick={() => restore(entry.id)}
                         >
-                          <Icon name="restore" size={13} title={t('Wiederherstellen')} />
+                          <Icon icon={APP_ICONS.restore} size="xs" label={t('Wiederherstellen')} />
                         </button>
                         <button
                           type="button"
@@ -260,7 +269,7 @@ export function TrashView() {
                           title={t('Endgültig löschen')}
                           onClick={() => remove(entry.id)}
                         >
-                          <Icon name="trash" size={13} title={t('Endgültig löschen')} />
+                          <Icon icon={APP_ICONS.delete} size="xs" label={t('Endgültig löschen')} />
                         </button>
                       </div>
                       {isOpen ? (
@@ -279,7 +288,7 @@ export function TrashView() {
                               className="trash-entry-restore"
                               onClick={() => restore(entry.id)}
                             >
-                              <Icon name="restore" size={13} />
+                              <Icon icon={APP_ICONS.restore} size="xs" />
                               {t('Wiederherstellen')}
                             </button>
                             <button
@@ -288,7 +297,11 @@ export function TrashView() {
                               title={t('Endgültig löschen')}
                               onClick={() => remove(entry.id)}
                             >
-                              <Icon name="trash" size={13} title={t('Endgültig löschen')} />
+                              <Icon
+                                icon={APP_ICONS.delete}
+                                size="xs"
+                                label={t('Endgültig löschen')}
+                              />
                             </button>
                           </div>
                         </div>

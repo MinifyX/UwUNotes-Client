@@ -10,6 +10,7 @@
  * border helps nobody.
  */
 
+import { Button } from '@uwusuite/design';
 import { useState } from 'react';
 import { EditorSelection } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -89,12 +90,24 @@ function GoToLineBody() {
             : t('1 bis {max}. Eine Spalte kann nach einem Doppelpunkt folgen.', { max: lines })}
         </p>
         <div className="gotoline-actions">
-          <button type="button" className="gotoline-cancel" onClick={closeDialog}>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="gotoline-cancel"
+            onClick={closeDialog}
+          >
             {t('Abbrechen')}
-          </button>
-          <button type="submit" className="gotoline-submit" disabled={!target || !view}>
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            className="gotoline-submit"
+            disabled={!target || !view}
+          >
             {t('Springen')}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

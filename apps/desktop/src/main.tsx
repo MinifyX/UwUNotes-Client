@@ -4,12 +4,14 @@
  * Three things happen here and nowhere else, in this order:
  *
  * 1. **Stylesheets and fonts**, imported rather than linked, so Vite bundles
- *    them and the app never asks the network for a typeface. Tokens first, then
- *    the app's own rules, because the later files are allowed to lean on the
- *    custom properties the earlier ones define.
+ *    them and the app never asks the network for a typeface. `styles/index.css`
+ *    puts the suite's design (`@uwusuite/design`) first and the app's own
+ *    rules after it, because the later files lean on the custom properties the
+ *    earlier ones define.
  * 2. **Appearance before React.** `applyAppearance()` writes `data-theme`,
- *    `data-motion` and `lang` onto `<html>` while the root is still empty, so
- *    the first paint is already dark and nothing flashes white on the way there.
+ *    `data-contrast`, `data-motion` and `lang` onto `<html>` while the root is
+ *    still empty, so the first paint is already dark and nothing flashes white
+ *    on the way there.
  * 3. **The editor's base extensions** are handed to the document store. The
  *    store builds an `EditorState` for every file that is opened and must not
  *    import CodeMirror itself to do it; this is the wire between the two.
@@ -18,20 +20,7 @@
  * belongs to `App.tsx`, which can show something while it happens.
  */
 
-import '@fontsource-variable/rubik';
-import '@fontsource-variable/dm-sans';
-import '@fontsource-variable/jetbrains-mono';
-import '@fontsource-variable/fira-code';
-
-import '@uwu/tokens/tokens.css';
-import '@uwu/tokens/code.css';
-import './styles/fonts.css';
-import './components/nyu/nyu.css';
-import './styles/app.css';
-import './styles/editor.css';
-import './styles/focus.css';
-import './styles/markdown.css';
-import './styles/outline.css';
+import './styles/index.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

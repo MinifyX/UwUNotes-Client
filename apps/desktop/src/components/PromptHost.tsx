@@ -15,6 +15,7 @@
  * call site in the app writes as the one that backs out.
  */
 
+import { Button } from '@uwusuite/design';
 import {
   answerPrompt,
   dismissPrompt,
@@ -50,7 +51,11 @@ export function PromptHost() {
       footer={
         <div className="prompt-choices">
           {request.choices.map((choice) => (
-            <button
+            <Button
+              variant={
+                choice.tone === 'danger' ? 'danger' : choice.tone === 'quiet' ? 'ghost' : 'primary'
+              }
+              size="sm"
               key={choice.id}
               type="button"
               className="prompt-choice"
@@ -59,7 +64,7 @@ export function PromptHost() {
               onClick={() => answerPrompt(request.id, choice.id)}
             >
               {choice.label}
-            </button>
+            </Button>
           ))}
         </div>
       }

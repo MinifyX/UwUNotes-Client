@@ -4,8 +4,9 @@
  * The same three steps as the editor's `main.tsx`, minus everything the editor
  * needs and this does not:
  *
- * 1. **Stylesheets and the font**, imported so Vite packs them into the
- *    executable. A setup that asked the network for a typeface would be a setup
+ * 1. **Stylesheets and the font** — `@uwusuite/design/plain.css` brings the
+ *    suite's tokens, UwU Sans, the base rules and Nyu — imported so Vite packs
+ *    them into the executable. A setup that asked the network for a typeface would be a setup
  *    that looks wrong on the machine that has no network yet.
  * 2. **Appearance before React.** `data-theme="dark"` is already on `<html>` in
  *    `index.html`, so the very first paint is dark with no script involved at
@@ -17,9 +18,7 @@
  * theme picker.
  */
 
-import '@fontsource-variable/manrope';
-
-import '@uwu/tokens/tokens.css';
+import '@uwusuite/design/plain.css';
 import './styles.css';
 
 import { StrictMode } from 'react';
@@ -29,7 +28,7 @@ import { isGerman } from './texts';
 
 document.documentElement.lang = isGerman ? 'de' : 'en';
 
-// The attribute both `tokens.css` and `nyu.css` look for. The editor decides
+// The attribute the suite's `base.css` and `nyu.css` look for. The editor decides
 // this from its settings; here the system is the only opinion there is.
 if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   document.documentElement.dataset.motion = 'reduced';

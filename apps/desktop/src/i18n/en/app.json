@@ -66,7 +66,6 @@
   "Umschalt": "Shift",
   "Minimieren": "Minimize",
   "Verkleinern": "Restore",
-  "Maximieren": "Maximize",
   "Befehl fehlgeschlagen: {message}": "Command failed: {message}",
   "Löschen": "Delete",
   "Das lässt sich nicht rückgängig machen.": "This cannot be undone.",

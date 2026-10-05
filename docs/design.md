@@ -1,58 +1,44 @@
 # Design
 
-Goth-clean with pink highlights. Same design system as
-[UwUMail](https://github.com/MinifyX/UwUMail-Client) and
-[UwUSSH](https://github.com/MinifyX/UwUSSH-Client), same cat, one confident
-bubblegum pink — but this app opens dark, and the text you are staring at sits
-in the deepest part of the window.
+Goth-clean with pink highlights. The suite's design system lives in
+[@uwusuite/design](https://github.com/MinifyX/UwUSuite-Design): colour
+tokens, UwU Sans and the interface font picker, Lucide and suite icons, pill
+buttons, switches, dialogs, the title bar, Nyu's face and motion, and the tone
+rules. Read its docs for all of that — [colour](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/color.md),
+[typography](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/typography.md), [icons](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/icons.md),
+[components](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/components.md), [window](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/window.md),
+[Nyu](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/nyu.md), [motion](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/motion.md), [tone](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/tone.md),
+[app icons](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/app-icons.md).
 
-## Colour
+This file is only what is special about UwUNotes: an editor that opens dark,
+with the text you are staring at in the deepest part of the window.
 
-Tokens come from the workspace package `@uwu/tokens` and are shared with the
-rest of the suite, names included. Components never use raw hex values; if a
-colour is missing, the fix is a new token, not an inline one.
+## What stays in the app
 
-```ts
-import '@uwu/tokens/tokens.css'; // colour, radius, type
-import '@uwu/tokens/code.css'; // syntax colour, editor furniture
-```
+| Where                                      | What                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------- |
+| `apps/desktop/src/styles/tokens.css`       | `--uwu-deep`, `--uwu-deep-gutter`, the app's shade and scrim          |
+| `apps/desktop/src/styles/code.css`         | Syntax colours and editor furniture (below)                           |
+| `apps/desktop/src/styles/fonts.css`        | UwU Console, the app's own editor font                                |
+| `apps/desktop/src/lib/icons.ts`            | `APP_ICONS`: the suite's `ICONS` plus the editor's meanings           |
+| `apps/desktop/src/components/nyu/`         | Nyu as a notebook, built on the package's `NYU`, `NyuFace`, `Sticker` |
+| `apps/desktop/src/components/TitleBar.tsx` | The package `TitleBar` off the Mac, plus the menu bar and toolbar     |
 
-| Token                    | Light     | Dark      | Use                                          |
-| ------------------------ | --------- | --------- | -------------------------------------------- |
-| `--uwu-canvas`           | `#f8f4f6` | `#141016` | App background, behind the chrome            |
-| `--uwu-surface`          | `#ffffff` | `#1c171f` | Sidebar, panels, dialogs                     |
-| `--uwu-elevated`         | `#fcf8fa` | `#241e28` | Hover rows, popovers, menus                  |
-| `--uwu-ink`              | `#1c1420` | `#f8f2f6` | Primary text                                 |
-| `--uwu-muted`            | `#716672` | `#b3a8b3` | Secondary text, path segments                |
-| `--uwu-hairline`         | `#f2e8ee` | `#2c2430` | Dividers                                     |
-| `--uwu-border`           | `#e9dde4` | `#3a3040` | Control borders                              |
-| `--uwu-pink`             | `#ff4d8d` | `#ff7fac` | **Brand.** Active tab, focus ring, the caret |
-| `--uwu-pink-solid`       | `#e11d74` | `#ff7fac` | Filled buttons with text on them             |
-| `--uwu-on-pink`          | `#ffffff` | `#1c1420` | Text on a pink fill                          |
-| `--uwu-pink-ink`         | `#a3154f` | `#ffa3c4` | Pink text on a normal surface                |
-| `--uwu-pink-tint`        | `#ffe4ef` | `#3a1a2a` | Selected row, current search match           |
-| `--uwu-pink-tint-strong` | `#ffd0e2` | `#4d2338` | Text selection in the editor                 |
-| `--uwu-online`           | `#17796a` | `#5cc7ac` | Saved, added, success                        |
-| `--uwu-offline`          | `#b3a8b3` | `#6d6474` | Disabled, ignored, untracked                 |
-| `--uwu-alarm`            | `#8e5510` | `#d8a25c` | Modified on disk, mixed line endings         |
-| `--uwu-deep`             | `#ffffff` | `#0e0b11` | **The editor ground.** Where the text lives  |
-| `--uwu-deep-gutter`      | `#f8f4f6` | `#141016` | Line numbers, fold markers, git bar          |
+Everything else imports from `@uwusuite/design`. Components never use raw hex
+values; if a colour is missing, the fix is a token, not an inline value.
 
-**Why two pinks?** White text on `#ff4d8d` reaches only 3.1:1. Filled buttons
-therefore use `#e11d74` (4.5:1, WCAG AA), and the brighter brand pink stays for
-everything that is not small text on a pink fill — a caret, a focus ring, a
-1 px edge on the active tab. The dark theme needs only one, because its pink
-sits on a dark ground where contrast is not the problem.
+## The editor ground
 
-**`--uwu-deep` is new here**, and it is where "goth, not pastel" actually comes
-from. In dark mode it is _darker_ than `--uwu-canvas`, not lighter: the text
-sits at the bottom of the window and the chrome floats above it. The token is
-in the shared package rather than this app, because a mail body and a log view
-want the same thing.
+**`--uwu-deep`** is where "goth, not pastel" actually comes from. In dark mode
+it is _darker_ than `--uwu-canvas`, not lighter: the text sits at the bottom of
+the window and the chrome floats above it. Light `#ffffff`, dark `#0e0b11`; with
+high contrast plain white or plain black. `--uwu-deep-gutter` is the line
+numbers, fold markers and git bar beside it.
 
 **State colour is not brand colour.** Pink means "this one" — selected, active,
-focused, found. Saved is mint, modified is amber, deleted is red. An editor that
-also used pink for "unsaved" would have taught you nothing at a glance.
+focused, found. Saved is mint (`--uwu-success-ink`), modified is amber
+(`--uwu-warning-ink`), deleted is red. An editor that also used pink for
+"unsaved" would have taught you nothing at a glance.
 
 ## Syntax
 
@@ -92,25 +78,30 @@ active search match, and the git bar in the gutter (`--uwu-code-added`,
 `editor/themes.ts` map onto these names; the default one, `uwu`, is these values
 exactly.
 
+High contrast (Settings → Erscheinungsbild → Kontrast) swaps these for plain
+black or white text with the hue kept only where it carries meaning.
+
 ## Type
 
-- **Manrope** (variable, bundled, no network calls) for the interface.
-  Sizes: 12 caption · 13 meta · 14 body/list · 16 panel body · 18 section ·
-  22 title. Weights 400, 500, 600 for titles and file names, 700 only for the
-  wordmark.
-- **JetBrains Mono** (default) and **Fira Code** for the editor, both variable,
-  both bundled. Ligatures are **off** by default: Fira Code's arrows are lovely
-  and not everyone agrees, and an editor should not surprise you with them.
+- The interface uses the suite's font and picker (Settings → Schrift →
+  Oberflächenschrift): UwU Sans by default, Manrope, Rubik, DM Sans or the
+  system font.
+- The editor has its own list: **JetBrains Mono** (default), **Fira Code** and
+  **UwU Console**, all variable and bundled, plus any font the system has. UwU
+  Console is the suite's monospace sibling of UwU Sans, built from Atkinson
+  Hyperlegible Mono in `brand/fonts/uwu-console`; it falls back to the system
+  monospace, not to JetBrains Mono.
+- Ligatures are **off** in the editor and in inputs: `->`, `!=` and `==` stay
+  what was typed. `:3` and `<3` are no longer turned into symbols anywhere.
 - Font size 8–36, line height 1.55 by default. Both are per-app, not per-file;
   Ctrl+scroll changes the size and it stays changed.
+- The chrome is dense: 13 px for menus, tabs and the status bar.
 
-## Shape and space
+## Shape
 
-- Radius: 10 px controls, 16 px cards and dialogs, 999 px pills and badges.
-- Spacing on a 4 px grid.
-- Shadows only for floating layers: menus, the command palette, toasts.
-- The editor itself has **no** radius and no shadow. Rounded corners on a text
-  surface eat the first character of line one.
+The editor itself has **no** radius and no shadow. Rounded corners on a text
+surface eat the first character of line one. Everything around it follows the
+suite: pills for buttons, 16 px dialogs, shadows only on floating layers.
 
 ## Layout
 
@@ -129,9 +120,9 @@ exactly.
 └────────────────────────────────────────────────────────────────┘
 ```
 
-- **Custom title bar**, no OS chrome edge. It carries its own minimize,
-  maximize/restore and close buttons at Windows' own size (46 px wide, the full
-  bar high); close turns brand pink on hover, as in the siblings.
+- **Title bar.** Off the Mac it is the package's `TitleBar` with Nyu and the
+  wordmark, the menu bar below it. On macOS the window keeps the native
+  traffic lights and the app menu lives in the system menu bar.
 - **Tabs** sit above each pane, one per document. The active tab gets a 1 px
   pink top edge and the editor's own background, so it reads as continuous with
   the text under it. A modified document shows a dot where its close button is,
@@ -178,10 +169,10 @@ behind the right ear. The cover is the face: UwU eyes, `w` mouth, blush.
   Nyu stands alone: upright, no tile, white die-cut edge, the notebook with
   heavier outlines, rings and pencil, so it reads as notes; the ears say Nyu
   (`brand/uwunotes-taskbar-icon.svg`). At 16 and 24 px a simplified cut takes
-  over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs`
-  regenerates all desktop icons from these three.
-- **The face.** Wherever Nyu has one, it's UwU: two U eyes and a **round `w`**
-  (two soft arcs, never a zigzag).
+  over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs` runs the
+  suite's `uwu-icons` on these three and then builds the Mac icon.
+- **The face** is the package's `NyuFace`; the notebook, its ears, the pencil
+  and the paw are drawn here.
 - **Sources** in `brand/` (icon, symbol, mono symbol) and
   `apps/desktop/src/components/nyu/` (React).
 
@@ -206,7 +197,7 @@ does not greet you every morning. They are `N_()` constants translated where
 they are shown.
 
 **Motion.** Nyu blinks in scenes, twitches her ears on hover, and the caret on
-her page blinks at the editor's own rhythm. Settings → Appearance → Animations
+her page blinks at the editor's own rhythm. Settings → Erscheinungsbild → Animationen
 (System / On / Off) resolves to `<html data-motion="reduced">`, and with
 `reduced` every transition in the app collapses to 1 ms and Nyu holds still.
 
@@ -221,8 +212,8 @@ the pictures and says "UwUNotes".
 
 ## Tone of voice
 
-Playful by default: kaomoji, warm little jokes, soft animation. Settings → Tone
-→ **Neutral** replaces the words, never the layout or the colours.
+The suite's rules apply ([tone](https://github.com/MinifyX/UwUSuite-Design/blob/main/docs/tone.md)): playful by default, Settings →
+Tonfall → **Sachlich** replaces the words, never the layout or the colours.
 
 | Situation       | Neutral                             | Playful                                 |
 | --------------- | ----------------------------------- | --------------------------------------- |
@@ -232,14 +223,8 @@ Playful by default: kaomoji, warm little jokes, soft animation. Settings → Ton
 | Session back    | Sitzung wiederhergestellt           | Alles wieder da (๑˃ᴗ˂)ﻭ                 |
 | Draft recovered | 3 nicht gespeicherte Dateien zurück | Hab deine 3 Entwürfe aufgehoben (๑˃ᴗ˂)ﻭ |
 
-Rules for playful copy:
-
-1. **Information first.** The joke never replaces what happened or what to do.
-2. **Short.** One kaomoji at most, never in a button that acts on data.
-3. **Kind.** Never mock the user; the app laughs at itself.
-4. **Warnings and errors are never playful.** In _both_ tones.
-
-Rule 4 is not negotiable, and in an editor it has a precise meaning: anything
+**Warnings and errors are never playful**, in either tone. In an editor that
+has a precise meaning: anything
 that could cost text is plain. Overwriting a file that changed on disk, closing
 an unsaved buffer, replacing across a folder, saving a file that decoded lossily
 — no kaomoji, no Nyu, no exclamation marks. A sad cat next to "this will
@@ -267,7 +252,8 @@ The installer is the first thing anybody sees of UwUNotes, so it is UwUNotes and
 not a grey box with a progress bar in it. `apps/setup` is the same Tauri and the
 same React as the editor: one window, 460 × 640, not resizable, its own title
 bar, `--uwu-canvas` behind everything and the same type scale. It imports
-`@uwu/tokens` rather than copying values out of it, and it imports Nyu herself
+`@uwusuite/design/plain.css` (tokens, UwU Sans, Nyu) rather than copying values
+out of it, and it imports Nyu herself
 out of `apps/desktop/src/components/nyu` rather than redrawing her — a second
 copy of the cat is a cat that slowly stops looking like the app's.
 
@@ -281,13 +267,12 @@ copy of the cat is a cat that slowly stops looking like the app's.
   runs once, and a colour scheme to choose is a question nobody came here to
   answer.
 - **Animations follow the system.** The same `prefers-reduced-motion` rule as
-  the app, through the same `data-motion` attribute in `tokens.css`. Nyu holds
+  the app, through the same `data-motion` attribute the suite's CSS reads. Nyu holds
   still when the machine asks for that.
-- **Failure is plain.** Rule 4 above, applied to the one window where it is
+- **Failure is plain.** The warning rule above, applied to the one window where it is
   easiest to get wrong: the failure scene is Nyu looking sorry, her shadow and
   one dropped page — no stars, no hearts, no hopping. The heading says what
-  went wrong, the line under
-  it says what to do, and Windows' own message sits below that in the muted
+  went wrong, the line under it says what to do, and Windows' own message sits below that in the muted
   colour. Nothing playful appears anywhere near a disk that is full.
 - **Sound is on, with a switch in the title bar.** The editor's rule reversed,
   deliberately: this window plays exactly one thing, the A5 → E6 chirp the

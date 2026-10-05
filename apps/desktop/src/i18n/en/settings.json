@@ -7,6 +7,8 @@
   "Plattform": "Platform",
   "Einstellungen liegen in": "Settings live in",
   "Lizenz": "Licence",
+  "Schriften": "Fonts",
+  "Schriften und ihre Urheber": "Fonts and their authors",
   "Quellcode und Fehlerberichte": "Source code and bug reports",
   "Teil der UwU Suite. Dieselbe Katze, dieselben Farben, andere Aufgabe.": "Part of the UwU Suite. Same cat, same colours, different job.",
   "Versionsangaben kopiert.": "Version details copied.",
@@ -151,7 +153,7 @@
   "Textfarbe": "Text colour",
   "Trennlinie": "Divider",
   "Schrift der Oberfläche": "Interface font",
-  "Menüs, Dialoge und Nyu: 0123 :3": "Menus, dialogs and Nyu: 0123 :3",
+  "Menüs, Dialoge und Nyu: 0123 ♥": "Menus, dialogs and Nyu: 0123 ♥",
   "Für Menüs, Dialoge, Seitenleiste und Statusleiste. Der Text im Editor hat seine eigene Schrift.": "For menus, dialogs, the sidebar and the status bar. The text in the editor has a font of its own.",
   "Editorschrift": "Editor font",
   "Eigener Name": "Your own name",
@@ -160,5 +162,9 @@
   "Mitgeliefert oder eine Schrift vom System. Monospace-Schriften stehen oben.": "Bundled, or a font from this computer. Monospace fonts come first.",
   "Schriften durchsuchen oder Namen eingeben": "Search fonts or type a name",
   "„{name}“ verwenden": "Use “{name}”",
-  "Schriften des Systems werden gelesen …": "Reading this computer's fonts …"
+  "Schriften des Systems werden gelesen …": "Reading this computer's fonts …",
+  "Kontrast": "Contrast",
+  "Normal": "Normal",
+  "Hoch": "High",
+  "„Hoch“ setzt Text und Linien schwarz auf weiß oder weiß auf schwarz.": "“High” sets text and lines black on white or white on black."
 }

@@ -23,7 +23,8 @@ import {
   useUpdatesAvailableInApp,
   useUpdateState,
 } from '../../lib/updates';
-import { Icon } from '../Icon';
+import { Icon, Button } from '@uwusuite/design';
+import { APP_ICONS } from '../../lib/icons';
 
 /** `children` is the auto-check switch, drawn by the settings page like its neighbours. */
 export function UpdatesSection({ children }: { children: ReactNode }) {
@@ -62,36 +63,42 @@ export function UpdatesSection({ children }: { children: ReactNode }) {
           {t('Installiert: UwUNotes {version}', { version: APP_VERSION })}
         </p>
         <div className="settings-update-row">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             type="button"
             className="settings-update-check"
             disabled={busy}
             onClick={() => checkForUpdateNow({ quiet: true })}
           >
             <Icon
-              name="refresh"
-              size={13}
+              icon={APP_ICONS.refresh}
+              size="xs"
               className={state.phase === 'checking' ? 'settings-update-spin' : undefined}
             />
             {t('Jetzt nach Updates suchen')}
-          </button>
+          </Button>
           {state.phase === 'available' ? (
             state.installable ? (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 type="button"
                 className="settings-update-install"
                 onClick={() => void installUpdateNow()}
               >
                 {t('Installieren und neu starten')}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 type="button"
                 className="settings-update-install"
                 onClick={() => void openExternal(RELEASES_URL).catch(() => undefined)}
               >
                 {t('Zur Download-Seite')}
-              </button>
+              </Button>
             )
           ) : null}
           {state.phase === 'failed' ? (
@@ -106,8 +113,8 @@ export function UpdatesSection({ children }: { children: ReactNode }) {
             data-tone={state.phase === 'failed' ? 'error' : state.phase}
             role={state.phase === 'failed' ? 'alert' : 'status'}
           >
-            {state.phase === 'current' ? <Icon name="check" size={13} /> : null}
-            {state.phase === 'failed' ? <Icon name="warning" size={13} /> : null}
+            {state.phase === 'current' ? <Icon icon={APP_ICONS.done} size="xs" /> : null}
+            {state.phase === 'failed' ? <Icon icon={APP_ICONS.warning} size="xs" /> : null}
             {line}
           </p>
         ) : null}

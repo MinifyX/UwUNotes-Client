@@ -17,7 +17,7 @@ Markdown works in both. A first line with a blank line under it reads as a headl
 
 1. One version everywhere: `Cargo.toml` (under `workspace.package`),
    `apps/desktop/src-tauri/tauri.conf.json`, `apps/setup/src-tauri/tauri.conf.json`, and the
-   `package.json` files — the root one, `apps/desktop`, `apps/setup` and `packages/uwu-tokens`.
+   `package.json` files — the root one, `apps/desktop` and `apps/setup`.
    The setup says a version out loud in three places nobody else does: its window, Windows' list of
    installed apps, and the file name its update is signed under.
 2. Add `release-notes/<version>.json`, with a non-empty `en`.

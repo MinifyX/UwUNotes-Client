@@ -11,7 +11,7 @@ const system = [
 describe('the editor font groups', () => {
   it('lists bundled faces once, then the system monospace ones, then the rest', () => {
     expect(groupFonts(system, '')).toEqual({
-      bundled: ['JetBrains Mono Variable', 'Fira Code Variable'],
+      bundled: ['JetBrains Mono Variable', 'Fira Code Variable', 'UwU Console'],
       monospace: ['Cascadia Code', 'Noto Sans Mono'],
       other: ['Arial'],
     });
@@ -31,5 +31,6 @@ describe('a preview stack', () => {
     expect(previewStack('Cascadia Code')).toBe('"Cascadia Code", var(--uwu-mono)');
     expect(previewStack('a"}\\b')).toBe('"ab", var(--uwu-mono)');
     expect(previewStack('')).toBe('var(--uwu-mono)');
+    expect(previewStack('UwU Console')).toBe('"UwU Console", ui-monospace, monospace');
   });
 });
