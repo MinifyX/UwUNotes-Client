@@ -15,6 +15,7 @@
 //! - [`system`] — version, links out of the app, and Windows DLL hygiene
 //! - [`updates`] — whether there is a newer UwUNotes, and installing it
 //! - [`menu`] — the macOS menu bar, built from what the page sends
+//! - [`quit`] — quitting from the Dock or at logout saves first, on macOS
 //!
 //! What this layer deliberately does not do: anything worth a unit test. A
 //! command that grows a second `if` has grown logic, and that logic belongs in
@@ -25,6 +26,7 @@ mod files;
 mod git;
 mod history;
 mod menu;
+mod quit;
 mod search;
 mod session;
 mod system;
@@ -99,6 +101,7 @@ pub fn run() {
             // the app has anything to say about updates, and the type it holds
             // belongs to the updater plugin.
             app.manage(updates::Updates::default());
+            quit::install(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -148,6 +151,7 @@ pub fn run() {
             updates::check_for_update,
             updates::install_update,
             menu::set_app_menu,
+            quit::finish_quit,
         ])
         .run(tauri::generate_context!())
         .expect("failed to start UwUNotes");
