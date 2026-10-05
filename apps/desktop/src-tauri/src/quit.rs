@@ -86,6 +86,7 @@ mod mac {
         // Asked twice while the page is still saving: the first question is
         // still open, so the answer is the same and the page is not asked again.
         if !PENDING.swap(true, Ordering::SeqCst) {
+            start_patience_timer();
             if let Err(error) = app.emit(QUIT_EVENT, ()) {
                 // Nobody to ask means nobody to wait for.
                 tracing::warn!(%error, "could not ask the page before quitting");
@@ -127,23 +128,66 @@ mod mac {
         }
     }
 
-    pub(super) fn reply(app: &AppHandle, proceed: bool) {
+    pub(super) fn reply(_app: &AppHandle, proceed: bool) {
         if !PENDING.swap(false, Ordering::SeqCst) {
             return;
         }
         if proceed {
             ALLOWED.store(true, Ordering::SeqCst);
         }
-        let result = app.run_on_main_thread(move || {
-            // SAFETY: on the main thread, with a quit waiting for this answer.
-            unsafe {
-                let ns_app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
-                let _: () =
-                    msg_send![ns_app, replyToApplicationShouldTerminate: Bool::new(proceed)];
+        answer_on_main_queue(proceed);
+    }
+
+    /// How long a quit waits for the page before it goes ahead anyway. The
+    /// session is written continuously, so the worst case is the last few
+    /// keystrokes, never a quit that hangs a logout.
+    const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
+
+    fn start_patience_timer() {
+        std::thread::spawn(|| {
+            std::thread::sleep(PATIENCE);
+            if PENDING.swap(false, Ordering::SeqCst) {
+                tracing::warn!("the page did not answer the quit in time; quitting anyway");
+                ALLOWED.store(true, Ordering::SeqCst);
+                answer_on_main_queue(true);
             }
         });
-        if let Err(error) = result {
-            tracing::warn!(%error, "could not answer the quit");
+    }
+
+    // While a `terminate:` waits for its answer, AppKit runs the main run loop
+    // in `NSModalPanelRunLoopMode`. Tao's own event-loop proxy (what
+    // `run_on_main_thread` uses) may not be serviced in that mode; the main
+    // dispatch queue is, in every common mode. So the answer goes through GCD.
+    #[repr(C)]
+    struct DispatchQueue {
+        _private: [u8; 0],
+    }
+    extern "C" {
+        static _dispatch_main_q: DispatchQueue;
+        fn dispatch_async_f(
+            queue: *const DispatchQueue,
+            context: *mut std::ffi::c_void,
+            work: extern "C" fn(*mut std::ffi::c_void),
+        );
+    }
+
+    extern "C" fn answer(context: *mut std::ffi::c_void) {
+        let proceed = !context.is_null();
+        // SAFETY: on the main queue, i.e. the main thread, with a quit waiting.
+        unsafe {
+            let ns_app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+            let _: () = msg_send![ns_app, replyToApplicationShouldTerminate: Bool::new(proceed)];
         }
+    }
+
+    fn answer_on_main_queue(proceed: bool) {
+        // The flag travels as a null or non-null context pointer.
+        let context = if proceed {
+            std::ptr::dangling_mut::<u8>().cast()
+        } else {
+            std::ptr::null_mut()
+        };
+        // SAFETY: `_dispatch_main_q` is libdispatch's main queue, part of libSystem.
+        unsafe { dispatch_async_f(&raw const _dispatch_main_q, context, answer) };
     }
 }
