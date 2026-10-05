@@ -40,7 +40,8 @@ import {
 import { focusActiveView } from '../lib/views';
 import { useWorkspace } from '../lib/workspace';
 import { NyuScene } from './nyu/scenes';
-import { Icon } from './Icon';
+import { Icon } from '@uwusuite/design';
+import { APP_ICONS } from '../lib/icons';
 import { SearchToggle } from './FindBar';
 
 /** The line, with the part that matched marked up. */
@@ -76,7 +77,7 @@ function FileRow({
         onClick={() => toggleFileCollapsed(result.id)}
       >
         <Icon
-          name={collapsed ? 'chevronRight' : 'chevronDown'}
+          icon={collapsed ? APP_ICONS.next : APP_ICONS.expand}
           className="searchpanel-file-twisty"
         />
         <span className="searchpanel-file-name">{result.name}</span>
@@ -167,7 +168,7 @@ export function SearchPanel() {
           title={t('Suche schließen')}
           onClick={dismiss}
         >
-          <Icon name="close" />
+          <Icon icon={APP_ICONS.close} />
         </button>
       </header>
 

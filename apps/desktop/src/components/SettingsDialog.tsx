@@ -23,6 +23,7 @@
  * place that does own them.
  */
 
+import { Button, Segmented, Switch } from '@uwusuite/design';
 import { useId, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { closeDialog, openDialog, useUiState } from '../lib/commands';
 import {
@@ -142,6 +143,17 @@ function SettingsBody() {
                 { value: 'dark', label: t('Dunkel') },
               ]}
               onChange={(theme) => write({ theme })}
+            />
+            <ChoiceField
+              label={t('Kontrast')}
+              hint={t('„Hoch“ setzt Text und Linien schwarz auf weiß oder weiß auf schwarz.')}
+              value={settings.contrast}
+              options={[
+                { value: 'system', label: t('System') },
+                { value: 'normal', label: t('Normal') },
+                { value: 'high', label: t('Hoch') },
+              ]}
+              onChange={(contrast) => write({ contrast })}
             />
             <ThemeField
               value={currentTheme.id}
@@ -634,9 +646,15 @@ function SettingsBody() {
             <p className="settings-footer-note">
               {t('Änderungen gelten sofort. Es gibt nichts zu bestätigen.')}
             </p>
-            <button type="button" className="settings-reset" onClick={() => void resetEverything()}>
+            <Button
+              variant="danger"
+              size="sm"
+              type="button"
+              className="settings-reset"
+              onClick={() => void resetEverything()}
+            >
               {t('Alles zurücksetzen')}
-            </button>
+            </Button>
           </footer>
         </div>
       </Modal>
@@ -777,15 +795,33 @@ function ThemeField({ value, themes, onChange, onEdit, onDuplicate, onImport }: 
         ) : null}
       </select>
       <div className="settings-theme-actions">
-        <button type="button" className="settings-theme-edit" onClick={onEdit}>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          className="settings-theme-edit"
+          onClick={onEdit}
+        >
           {t('Bearbeiten…')}
-        </button>
-        <button type="button" className="settings-theme-duplicate" onClick={onDuplicate}>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          className="settings-theme-duplicate"
+          onClick={onDuplicate}
+        >
           {t('Duplizieren')}
-        </button>
-        <button type="button" className="settings-theme-import" onClick={onImport}>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          className="settings-theme-import"
+          onClick={onImport}
+        >
           {t('Importieren…')}
-        </button>
+        </Button>
       </div>
       <Hint id={`${id}-hint`} text={t('Färbt nur den Text, nicht die Oberfläche.')} />
     </div>
@@ -846,7 +882,10 @@ type ChoiceFieldProps<T extends string> = {
   onChange: (value: T) => void;
 };
 
-/** Two to four options, side by side. Real radios, so the arrow keys work. */
+/**
+ * Two to four options, side by side: the suite's `Segmented`, whose arrow keys
+ * move the choice. The fieldset names the group and carries the hint.
+ */
 function ChoiceField<T extends string>({
   label,
   hint,
@@ -856,29 +895,17 @@ function ChoiceField<T extends string>({
 }: ChoiceFieldProps<T>) {
   const id = useId();
   return (
-    <fieldset className="settings-field settings-field-choice">
+    <fieldset
+      className="settings-field settings-field-choice"
+      aria-describedby={hint ? `${id}-hint` : undefined}
+    >
       <legend className="settings-label">{label}</legend>
-      <div className="settings-choice">
-        {options.map((option) => (
-          <label
-            key={option.value}
-            className={`settings-choice-option${
-              option.value === value ? ' settings-choice-option-active' : ''
-            }`}
-          >
-            <input
-              type="radio"
-              className="settings-choice-input"
-              name={id}
-              value={option.value}
-              checked={option.value === value}
-              aria-describedby={hint ? `${id}-hint` : undefined}
-              onChange={() => onChange(option.value)}
-            />
-            <span className="settings-choice-label">{option.label}</span>
-          </label>
-        ))}
-      </div>
+      <Segmented
+        label={label}
+        value={value}
+        options={options.map((option) => ({ value: option.value, label: option.label }))}
+        onChange={onChange}
+      />
       <Hint id={`${id}-hint`} text={hint} />
     </fieldset>
   );
@@ -892,6 +919,7 @@ type SwitchFieldProps = {
   onChange: (checked: boolean) => void;
 };
 
+/** A setting that is simply on or off: the suite's `Switch`, named by its label. */
 function SwitchField({ label, hint, checked, disabled, onChange }: SwitchFieldProps) {
   const id = useId();
   return (
@@ -899,18 +927,9 @@ function SwitchField({ label, hint, checked, disabled, onChange }: SwitchFieldPr
       <span className="settings-label" id={`${id}-label`}>
         {label}
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-labelledby={`${id}-label`}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        className="settings-switch"
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-      >
-        <span className="settings-switch-knob" aria-hidden="true" />
-      </button>
+      <span className="settings-switch">
+        <Switch checked={checked} disabled={disabled} label={label} onChange={onChange} />
+      </span>
       <Hint id={`${id}-hint`} text={hint} />
     </div>
   );

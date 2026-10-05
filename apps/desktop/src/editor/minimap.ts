@@ -26,7 +26,7 @@
  * would notice.
  */
 
-import { readToken, type Token } from '@uwu/tokens';
+import { readToken, type Token } from '../lib/tokens';
 import type { Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 

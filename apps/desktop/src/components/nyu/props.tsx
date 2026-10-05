@@ -10,7 +10,7 @@
 
 import { NYU } from './Nyu';
 
-const S = { stroke: NYU.outline, strokeWidth: 6, strokeLinejoin: 'round' as const };
+const S = { stroke: NYU.ink, strokeWidth: 6, strokeLinejoin: 'round' as const };
 const TOMATO = '#FF6B57';
 const LEAF = '#7FD6A4';
 const PUMPKIN = '#FFA94D';
@@ -35,7 +35,7 @@ export function Tomato(props: Placed & { face?: boolean }) {
         strokeWidth={4}
       />
       {props.face !== false ? (
-        <g className="no-edge" fill="none" stroke={NYU.outline} strokeWidth={4}>
+        <g className="no-edge" fill="none" stroke={NYU.ink} strokeWidth={4}>
           <path d="M-14 0 q4 6 8 0" />
           <path d="M6 0 q4 6 8 0" />
           <path d="M-5 9 q2.5 4 5 0 q2.5 4 5 0" />
@@ -48,11 +48,11 @@ export function Tomato(props: Placed & { face?: boolean }) {
 export function Pumpkin(props: Placed) {
   return (
     <g transform={place(props)}>
-      <path d="M0 -24 q2 -10 10 -12" fill="none" stroke={NYU.outline} strokeWidth={6} />
+      <path d="M0 -24 q2 -10 10 -12" fill="none" stroke={NYU.ink} strokeWidth={6} />
       <ellipse cx="-12" cy="0" rx="16" ry="22" fill={PUMPKIN} {...S} />
       <ellipse cx="12" cy="0" rx="16" ry="22" fill={PUMPKIN} {...S} />
       <ellipse cx="0" cy="0" rx="14" ry="23" fill={PUMPKIN} {...S} />
-      <g className="no-edge" fill={NYU.outline}>
+      <g className="no-edge" fill={NYU.ink}>
         <path d="M-12 -6 l5 -6 l5 6 Z" />
         <path d="M2 -6 l5 -6 l5 6 Z" />
         <path d="M-10 8 q10 8 20 0 l-4 2 l-3 -3 l-3 3 l-3 -3 l-3 3 Z" />
@@ -64,7 +64,7 @@ export function Pumpkin(props: Placed) {
 export function Snowflake(props: Placed) {
   return (
     <g transform={place(props)} fill="none" stroke={NYU.sky} strokeWidth={5}>
-      <g stroke={NYU.outline} strokeWidth={10}>
+      <g stroke={NYU.ink} strokeWidth={10}>
         <path d="M0 -20 V20 M-17 -10 L17 10 M-17 10 L17 -10" />
       </g>
       <path d="M0 -20 V20 M-17 -10 L17 10 M-17 10 L17 -10" stroke={NYU.paper} />
@@ -111,14 +111,14 @@ export function Cake(props: Placed) {
         height="18"
         rx="2"
         fill={NYU.sky}
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={4}
       />
       <path
         className="nyu-flame"
         d="M0 -40 q7 8 0 13 q-7 -5 0 -13 Z"
         fill={NYU.star}
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={3}
       />
     </g>
@@ -145,22 +145,22 @@ export function Bat(props: Placed) {
       <g className="nyu-bat-wing nyu-bat-wing-l">
         <path
           d="M-10 0 Q-30 -22 -52 -8 Q-42 -4 -40 6 Q-30 0 -24 10 Q-18 2 -10 6 Z"
-          fill={NYU.outline}
-          stroke={NYU.outline}
+          fill={NYU.ink}
+          stroke={NYU.ink}
           strokeWidth={4}
         />
       </g>
       <g className="nyu-bat-wing nyu-bat-wing-r">
         <path
           d="M10 0 Q30 -22 52 -8 Q42 -4 40 6 Q30 0 24 10 Q18 2 10 6 Z"
-          fill={NYU.outline}
-          stroke={NYU.outline}
+          fill={NYU.ink}
+          stroke={NYU.ink}
           strokeWidth={4}
         />
       </g>
       <path
         d="M-10 -12 L-8 -24 L-2 -14 L2 -14 L8 -24 L10 -12 Q14 4 0 10 Q-14 4 -10 -12 Z"
-        fill={NYU.outline}
+        fill={NYU.ink}
       />
       <g className="no-edge" fill={NYU.star}>
         <circle cx="-4" cy="-6" r="2.6" />
@@ -177,18 +177,10 @@ export function Note(props: Placed) {
       <path
         d="M4 -18 V8 M4 -18 L16 -14 V-6 L4 -10"
         fill={NYU.lilac}
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={5}
       />
-      <ellipse
-        cx="-2"
-        cy="10"
-        rx="8"
-        ry="6"
-        fill={NYU.lilac}
-        stroke={NYU.outline}
-        strokeWidth={5}
-      />
+      <ellipse cx="-2" cy="10" rx="8" ry="6" fill={NYU.lilac} stroke={NYU.ink} strokeWidth={5} />
     </g>
   );
 }

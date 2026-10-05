@@ -1,0 +1,41 @@
+/*
+ * UwUNotes' own tokens, on top of @uwusuite/design.
+ *
+ * `--uwu-deep` is the ground under a long stretch of text — the editor, the
+ * Markdown preview, the diff. One step away from `--uwu-canvas`, so the
+ * reading surface is distinct from the chrome around it. In dark it is darker
+ * than the canvas, not lighter: the text you stare at sits in the deepest part
+ * of the window and the chrome floats above it. Only this app needs it so
+ * far; it moves into the package when a second app does (docs/design.md).
+ *
+ * `--app-shade` and `--app-scrim` are the one pair of things that must come
+ * out dark in both themes, so they are mixed from ink in light and from the
+ * deep ground in dark.
+ */
+
+:root {
+  --uwu-deep: #ffffff;
+  --uwu-deep-gutter: #f8f4f6;
+
+  --app-shade: color-mix(in srgb, var(--uwu-ink) 26%, transparent);
+  --app-scrim: color-mix(in srgb, var(--uwu-ink) 34%, transparent);
+}
+
+:root[data-theme='dark'] {
+  --uwu-deep: #0e0b11;
+  --uwu-deep-gutter: #141016;
+
+  --app-shade: color-mix(in srgb, var(--uwu-deep) 80%, transparent);
+  --app-scrim: color-mix(in srgb, var(--uwu-deep) 68%, transparent);
+}
+
+/* High contrast: the text ground is plain white or plain black, like the rest. */
+html:root[data-contrast='high'] {
+  --uwu-deep: #ffffff;
+  --uwu-deep-gutter: #eeeeee;
+}
+
+html:root[data-contrast='high'][data-theme='dark'] {
+  --uwu-deep: #000000;
+  --uwu-deep-gutter: #1f1f1f;
+}

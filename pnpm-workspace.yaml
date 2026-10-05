@@ -1,6 +1,5 @@
 packages:
   - 'apps/*'
-  - 'packages/*'
 
 # Vite's bundler. esbuild's install script links the platform binary, and pnpm
 # refuses to run any dependency's build script until it is named here — with

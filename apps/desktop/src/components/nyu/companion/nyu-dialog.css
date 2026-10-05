@@ -143,17 +143,6 @@
   cursor: pointer;
 }
 
-.nyu-page-button-primary {
-  border-color: var(--uwu-pink-solid);
-  background: var(--uwu-pink-solid);
-  color: #fff;
-}
-
-.nyu-page-button-primary:hover:not(:disabled) {
-  background: var(--uwu-pink-solid);
-  filter: brightness(1.06);
-}
-
 /* ── Overview ── */
 
 .nyu-highlights {

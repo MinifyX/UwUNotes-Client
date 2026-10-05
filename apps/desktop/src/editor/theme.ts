@@ -21,7 +21,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorView } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import type { Extension } from '@codemirror/state';
-import type { Token } from '@uwu/tokens';
+import type { Token } from '../lib/tokens';
 import type { CaretStyle } from '../lib/settings';
 
 /**

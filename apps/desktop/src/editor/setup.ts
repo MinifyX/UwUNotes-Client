@@ -49,7 +49,7 @@ import {
   rectangularSelection,
 } from '@codemirror/view';
 import { allDocs, getDoc, setBaseExtensions, setDocState, type DocId } from '../lib/documents';
-import { getSettings, subscribeSettings, type Settings } from '../lib/settings';
+import { editorFontStack, getSettings, subscribeSettings, type Settings } from '../lib/settings';
 import { viewFor } from '../lib/views';
 import { getWorkspace } from '../lib/workspace';
 import { subscribeZen, zenActive } from '../lib/zen';
@@ -104,17 +104,6 @@ export function baseExtensions(): Extension {
     languageCompartment.of([]),
     settingsCompartment.of(settingsExtensions(getSettings())),
   ];
-}
-
-/**
- * A user font name goes into a CSS string, so it may not carry quotes out —
- * nor a newline, which ends a CSS string just as surely and takes the rest of
- * the rule with it. `lib/settings.ts` strips control characters on the way in;
- * this is the second line of the same defence.
- */
-function fontStack(family: string): string {
-  const safe = family.replace(/["\\;{}]|\p{Cc}/gu, '').trim();
-  return safe ? `"${safe}", var(--uwu-mono)` : 'var(--uwu-mono)';
 }
 
 /**
@@ -303,7 +292,7 @@ function buildTypography(settings: Settings): Extension {
       fontSize: `calc(${settings.fontSize}px * var(--editor-zoom, 1))`,
     },
     '.cm-scroller': {
-      fontFamily: fontStack(settings.fontFamily),
+      fontFamily: editorFontStack(settings.fontFamily),
       lineHeight: `${settings.lineHeight}`,
     },
     '.cm-content, .cm-gutters': {

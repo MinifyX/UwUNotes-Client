@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -5,7 +6,9 @@ import { defineConfig } from 'vite';
 // silently moving to 1422 would leave the app pointing at nothing. 1421 rather
 // than 1420, so UwUNotes and UwUSSH can run side by side.
 export default defineConfig({
-  plugins: [react()],
+  // Tailwind for the suite's components (@uwusuite/design); the app's own
+  // chrome is plain CSS against the same tokens.
+  plugins: [react(), tailwindcss()],
   clearScreen: false,
   server: {
     port: 1421,

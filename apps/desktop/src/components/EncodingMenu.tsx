@@ -19,6 +19,7 @@
  * {@link usePopoverPosition} for the geometry.
  */
 
+import { Segmented, Switch } from '@uwusuite/design';
 import {
   useEffect,
   useId,
@@ -177,23 +178,16 @@ export function EncodingMenu({ docId, anchor, onClose }: EncodingMenuProps) {
 
       <section className="encmenu-section encmenu-section-bom">
         <div className="encmenu-row">
-          <span className="encmenu-title" id={`${ids}-bom`}>
-            {t('Byte-Order-Mark')}
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={meta.bom}
-            aria-labelledby={`${ids}-bom`}
-            aria-describedby={`${ids}-bom-note`}
-            className="encmenu-switch"
+          <span className="encmenu-title">{t('Byte-Order-Mark')}</span>
+          <Switch
+            size="sm"
+            checked={meta.bom}
+            label={t('Byte-Order-Mark')}
             disabled={!bomApplies}
-            onClick={() => setDocBom(forDoc, !meta.bom)}
-          >
-            <span className="encmenu-switch-knob" aria-hidden="true" />
-          </button>
+            onChange={(bom) => setDocBom(forDoc, bom)}
+          />
         </div>
-        <p className="encmenu-note" id={`${ids}-bom-note`}>
+        <p className="encmenu-note">
           {bomApplies
             ? t('Drei Bytes am Dateianfang, die die Kodierung ankündigen.')
             : t('Nur bei Unicode-Kodierungen sinnvoll.')}
@@ -202,26 +196,12 @@ export function EncodingMenu({ docId, anchor, onClose }: EncodingMenuProps) {
 
       <fieldset className="encmenu-section encmenu-section-eol">
         <legend className="encmenu-title">{t('Zeilenenden')}</legend>
-        <div className="encmenu-choice">
-          {EOLS.map((eol: Eol) => (
-            <label
-              key={eol}
-              className={`encmenu-choice-option${
-                meta.eol === eol ? ' encmenu-choice-option-active' : ''
-              }`}
-            >
-              <input
-                type="radio"
-                className="encmenu-choice-input"
-                name={`${ids}-eol`}
-                value={eol}
-                checked={meta.eol === eol}
-                onChange={() => setDocEol(forDoc, eol)}
-              />
-              <span className="encmenu-choice-label">{eolName(eol)}</span>
-            </label>
-          ))}
-        </div>
+        <Segmented
+          label={t('Zeilenenden')}
+          value={meta.eol}
+          options={EOLS.map((eol: Eol) => ({ value: eol, label: eolName(eol) }))}
+          onChange={(eol) => setDocEol(forDoc, eol)}
+        />
         {meta.mixedEol && (
           <p className="encmenu-note encmenu-note-warning">
             {t(

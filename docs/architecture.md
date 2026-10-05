@@ -350,9 +350,9 @@ around with them so that duplicating one hands back a whole theme rather than
 the handful of lines it happened to override.
 
 What it buys the suite is that a theme travels. It exports as JSON, it can be
-pasted in from a message, and the token names are `@uwu/tokens`' own — so a
-theme written here already means something in any sibling app that loads
-`code.css`. Nothing else needs to know which theme is active either: the
+pasted in from a message, and the token names are the suite's own
+`--uwu-code-*` — so a theme written here already means something in any
+sibling app that uses the same names. Nothing else needs to know which theme is active either: the
 minimap, the decorations and the gutter all read the tokens off the editor
 element and get the right answer for free.
 
@@ -408,22 +408,25 @@ and warns about catalogue entries nobody uses any more.
 language is chosen. It does nothing at runtime; it marks the string so the
 checker finds it, and the actual `t()` happens where the string is shown.
 
-## `@uwu/tokens`, and what it means for the suite
+## `@uwusuite/design`, and what it means for the suite
 
-UwUMail wrote the palette, UwUSSH copied the file, and UwUNotes is the first app
-to depend on the package instead of keeping its own copy:
-`packages/uwu-tokens`, published into the workspace as `@uwu/tokens`.
+Since 0.7.0 the palette, UwU Sans, the interface font picker, the icons, the
+buttons, switches and dialogs, the title bar and Nyu's face come from the suite
+package [@uwusuite/design](https://github.com/MinifyX/UwUSuite-Design), pinned
+to a release tarball. It replaced the workspace package `@uwu/tokens`, which
+UwUNotes had been the first app to depend on.
 
-- `tokens.css` — colour, radius, type. Every app loads it.
-- `code.css` — syntax colour and editor furniture, on top of the base. Only
-  apps that show code load it, which today is this one and one code block in
-  UwUMail.
-- `index.ts` — the token names as a union type, `token()` for a `var()` a
+What the app keeps is what only an editor needs:
+
+- `styles/code.css` — syntax colour and editor furniture, checked against
+  `--uwu-deep`, with high-contrast variants.
+- `styles/tokens.css` — `--uwu-deep` and its gutter, the editor ground.
+- `lib/tokens.ts` — the token names as a union type, `token()` for a `var()` a
   compiler can check, and `readToken()` for the rare place that needs a resolved
-  colour string, such as a `<canvas>`.
+  colour string, such as the minimap's `<canvas>`.
+- `lib/icons.ts` — `APP_ICONS`, the suite's `ICONS` plus the editor's own
+  meanings (save all, compare, outline …), each a Lucide glyph no suite meaning
+  uses.
 
-The names did not change in the move, so the other two apps can switch to the
-package whenever they are next touched. That is the point of the split: a
-component moved between UwUMail, UwUSSH and UwUNotes keeps looking like itself,
-and a new token is a suite-wide decision rather than a local one. The details of
-what the values are and why live in [design.md](design.md).
+The app's CSS is plain and unlayered against the tokens; Tailwind v4 is only
+there for the package's components. The details live in [design.md](design.md).

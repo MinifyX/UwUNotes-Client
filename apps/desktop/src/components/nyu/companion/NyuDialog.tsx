@@ -19,6 +19,7 @@
  * but shows no level, no XP and no achievements.
  */
 
+import { Button, Switch as SuiteSwitch } from '@uwusuite/design';
 import { useId, useMemo, useRef, type ReactNode } from 'react';
 import {
   closeDialog,
@@ -227,12 +228,18 @@ function Overview({ progress, format }: { progress: NyuProgress; format: Intl.Nu
         <Stats progress={progress} format={format} />
       </section>
       <footer className="nyu-page-footer">
-        <button type="button" className="nyu-page-button" onClick={() => openDialog('settings')}>
+        <Button variant="secondary" size="sm" type="button" onClick={() => openDialog('settings')}>
           {t('Einstellungen…')}
-        </button>
-        <button type="button" className="settings-reset" onClick={() => void reset()}>
+        </Button>
+        <Button
+          variant="danger"
+          size="sm"
+          type="button"
+          className="settings-reset"
+          onClick={() => void reset()}
+        >
           {t('Fortschritt zurücksetzen')}
-        </button>
+        </Button>
       </footer>
     </div>
   );
@@ -385,36 +392,41 @@ function Pomodoro({ progress, format }: { progress: NyuProgress; format: Intl.Nu
         <div className="nyu-pomodoro-actions">
           {active ? (
             <>
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
-                className="nyu-page-button"
                 onClick={() => runCommand('pomodoro.pause')}
               >
                 {running ? t('Pausieren') : t('Fortsetzen')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
-                className="nyu-page-button"
                 onClick={() => runCommand('pomodoro.skip')}
               >
                 {t('Überspringen')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 type="button"
                 className="settings-reset"
                 onClick={() => runCommand('pomodoro.stop')}
               >
                 {t('Beenden')}
-              </button>
+              </Button>
             </>
           ) : (
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               type="button"
-              className="nyu-page-button nyu-page-button-primary"
               onClick={() => runCommand('pomodoro.start')}
             >
               {t('Pomodoro starten')}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -554,18 +566,9 @@ function Switch({
       <span className="settings-label" id={`${id}-label`}>
         {label}
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-labelledby={`${id}-label`}
-        aria-describedby={`${id}-hint`}
-        className="settings-switch"
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-      >
-        <span className="settings-switch-knob" aria-hidden="true" />
-      </button>
+      <span className="settings-switch">
+        <SuiteSwitch checked={checked} disabled={disabled} label={label} onChange={onChange} />
+      </span>
       <p className="settings-hint" id={`${id}-hint`}>
         {hint}
       </p>

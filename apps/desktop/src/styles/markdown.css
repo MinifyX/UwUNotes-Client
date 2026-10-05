@@ -73,7 +73,7 @@
   overflow: auto;
   min-height: 0;
   padding: 20px 28px 48px;
-  font-family: var(--uwu-font);
+  font-family: var(--font-ui);
   font-size: 14.5px;
   line-height: 1.65;
   color: var(--uwu-ink);

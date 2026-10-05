@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { systemFonts, type SystemFont } from './api';
-import { BUNDLED_FONTS } from './settings';
+import { BUNDLED_FONTS, editorFontStack } from './settings';
 
 let asked: Promise<readonly SystemFont[]> | null = null;
 
@@ -72,7 +72,6 @@ export function groupFonts(system: readonly SystemFont[], query: string): FontGr
 }
 
 /** A family as a CSS `font-family` value for showing a name in its own font. */
-export function previewStack(family: string, fallback = 'var(--uwu-mono)'): string {
-  const safe = family.replace(/["\\;{}]|\p{Cc}/gu, '').trim();
-  return safe ? `"${safe}", ${fallback}` : fallback;
+export function previewStack(family: string): string {
+  return editorFontStack(family);
 }

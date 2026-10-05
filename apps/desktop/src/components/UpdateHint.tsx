@@ -24,7 +24,8 @@ import {
   updateHeadline,
   useUpdateState,
 } from '../lib/updates';
-import { Icon } from './Icon';
+import { Icon, Button } from '@uwusuite/design';
+import { APP_ICONS } from '../lib/icons';
 import { Nyu } from './nyu/Nyu';
 
 export function UpdateHint() {
@@ -59,7 +60,7 @@ export function UpdateHint() {
         {withCat ? (
           <Nyu size={26} mood="sparkle" blink={false} />
         ) : (
-          <Icon name={failed ? 'warning' : 'refresh'} size={15} />
+          <Icon icon={failed ? APP_ICONS.warning : APP_ICONS.refresh} />
         )}
       </span>
 
@@ -98,23 +99,27 @@ export function UpdateHint() {
               {t('Später')}
             </button>
             {state.installable ? (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 type="button"
                 className="update-hint-install"
                 onClick={() => void installUpdateNow()}
               >
                 {t('Installieren und neu starten')}
-              </button>
+              </Button>
             ) : (
               // macOS and Linux: the setup there is a DMG or an archive the
               // user opens by hand, so the hint takes them to it instead.
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 type="button"
                 className="update-hint-install"
                 onClick={() => void openExternal(RELEASES_URL).catch(() => undefined)}
               >
                 {t('Zur Download-Seite')}
-              </button>
+              </Button>
             )}
           </>
         ) : null}

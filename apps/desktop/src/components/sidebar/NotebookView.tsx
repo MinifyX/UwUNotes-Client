@@ -26,7 +26,8 @@ import { matchesQuery, previewLine, relativeAge } from '../../lib/notebook-list'
 import { focusActiveView } from '../../lib/views';
 import { activateDoc, useWorkspace } from '../../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
-import { Icon } from '../Icon';
+import { Icon } from '@uwusuite/design';
+import { APP_ICONS } from '../../lib/icons';
 import { NyuScene } from '../nyu/scenes';
 import '../../styles/notes.css';
 
@@ -111,7 +112,7 @@ export function NotebookView() {
             title={t('Neue Notiz')}
             onClick={newFile}
           >
-            <Icon name="plus" size={14} title={t('Neue Notiz')} />
+            <Icon icon={APP_ICONS.add} size="xs" label={t('Neue Notiz')} />
           </button>
           <button
             type="button"
@@ -120,14 +121,14 @@ export function NotebookView() {
             disabled={trash.length === 0}
             onClick={() => void emptyTrashAsked()}
           >
-            <Icon name="trash" size={14} title={t('Papierkorb leeren…')} />
+            <Icon icon={APP_ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
           </button>
         </div>
       </header>
 
       <div className="notebook-body">
         <div className="notebook-search">
-          <Icon name="search" size={13} className="notebook-search-icon" />
+          <Icon icon={APP_ICONS.search} size="xs" className="notebook-search-icon" />
           <input
             type="search"
             className="notebook-search-input"
@@ -220,7 +221,7 @@ export function NotebookView() {
                         title={t('Endgültig löschen')}
                         onClick={() => void deleteTrashed(entry.id)}
                       >
-                        <Icon name="trash" size={13} title={t('Endgültig löschen')} />
+                        <Icon icon={APP_ICONS.delete} size="xs" label={t('Endgültig löschen')} />
                       </button>
                     </li>
                   ))}

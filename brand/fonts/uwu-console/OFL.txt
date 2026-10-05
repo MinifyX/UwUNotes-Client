@@ -1,5 +1,5 @@
-Copyright 2026 MinifyX (UwU Sans, a modified version of Atkinson Hyperlegible Next)
-Copyright 2020-2024 The Atkinson Hyperlegible Next Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next)
+Copyright 2026 MinifyX (UwU Console, a modified version of Atkinson Hyperlegible Mono)
+Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

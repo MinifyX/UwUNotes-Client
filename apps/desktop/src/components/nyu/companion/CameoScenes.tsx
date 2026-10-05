@@ -21,7 +21,7 @@ const EDGE = 30;
 /** Nyu's pupils, wrapped so CSS can make her look left and right. */
 const LOOKING = (
   <g className="nyu-cameo-look">
-    <g fill={NYU.outline}>
+    <g fill={NYU.ink}>
       <ellipse cx="102" cy="148" rx="8" ry="10" />
       <ellipse cx="154" cy="148" rx="8" ry="10" />
     </g>
@@ -98,7 +98,7 @@ function Confetti() {
             rx="2"
             transform={`rotate(${rotate} ${x} ${y})`}
             fill={fill}
-            stroke={NYU.outline}
+            stroke={NYU.ink}
             strokeWidth={3}
           />
         </g>
@@ -221,7 +221,7 @@ function Snow({ hat }: SceneProps) {
 function Hearts({ hat }: SceneProps) {
   const hearts: [number, number, number, string, number][] = [
     [232, 62, 0.9, NYU.body, 0],
-    [90, 70, 0.7, NYU.blush, 200],
+    [90, 70, 0.7, NYU.blushSolid, 200],
     [264, 112, 0.65, NYU.lilac, 400],
     [64, 128, 0.6, NYU.body, 600],
   ];

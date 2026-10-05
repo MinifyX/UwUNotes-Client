@@ -36,7 +36,8 @@ import { PomodoroItem } from './nyu/companion/PomodoroItem';
 import { pickGreeting } from './nyu/greetings';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { EncodingMenu } from './EncodingMenu';
-import { Icon } from './Icon';
+import { Icon } from '@uwusuite/design';
+import { APP_ICONS } from '../lib/icons';
 import { LanguagePicker } from './LanguagePicker';
 import {
   activeState,
@@ -202,7 +203,7 @@ export function StatusBar() {
       <div className="statusbar-message" aria-live="polite">
         {meta?.staleOnDisk ? (
           <span className="statusbar-notice" data-tone="warning">
-            <Icon name="warning" size={13} />
+            <Icon icon={APP_ICONS.warning} size="xs" />
             {t('Auf dem Datenträger geändert')}
           </span>
         ) : savedMessage ? (
@@ -302,7 +303,7 @@ export function StatusBar() {
             onClick={() => refreshGitStatus()}
             title={t('Git-Status aktualisieren')}
           >
-            <Icon name="gitBranch" size={13} />
+            <Icon icon={APP_ICONS.gitBranch} size="xs" />
             <span className="statusbar-branch-name">{branch}</span>
           </button>
         ) : null}

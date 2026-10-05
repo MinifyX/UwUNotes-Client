@@ -12,7 +12,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   AUTOSAVE_CHOICES,
+  BUNDLED_FONTS,
   DEFAULT_SETTINGS,
+  editorFontStack,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   getSettings,
@@ -169,6 +171,23 @@ describe('sanitising nonsense', () => {
       uiFont: 'uwu',
       fontFamily: 'Fira Code Variable',
     });
+  });
+
+  it('offers UwU Console as a bundled editor font, not as the default', () => {
+    expect(BUNDLED_FONTS).toContain('UwU Console');
+    expect(DEFAULT_SETTINGS.fontFamily).toBe('JetBrains Mono Variable');
+    const settings = sanitize({ fontFamily: 'UwU Console' });
+    expect(settings.fontFamily).toBe('UwU Console');
+    // An editor font only: the interface font stays where it was.
+    expect(settings.uiFont).toBe(DEFAULT_SETTINGS.uiFont);
+    expect(sanitize({ uiFont: 'UwU Console' }).uiFont).toBe('uwu');
+  });
+
+  it('gives UwU Console the system monospace as fallback', () => {
+    expect(editorFontStack('UwU Console')).toBe('"UwU Console", ui-monospace, monospace');
+    expect(editorFontStack('JetBrains Mono Variable')).toBe(
+      '"JetBrains Mono Variable", var(--uwu-mono)',
+    );
   });
 
   it('takes a blank name as no name', () => {

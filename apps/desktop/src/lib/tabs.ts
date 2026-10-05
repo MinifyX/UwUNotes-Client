@@ -18,7 +18,7 @@ import { N_ } from './i18n';
  *
  * Five, and none of them pink: pink already means "the active tab" and a
  * coloured tab must never be mistaken for the one you are typing in. Each one
- * is a syntax colour from `@uwu/tokens`' `code.css`, which are checked against
+ * is a syntax colour from `styles/code.css`, which are checked against
  * both grounds — so a stripe stays visible in light and dark without a second
  * palette.
  */

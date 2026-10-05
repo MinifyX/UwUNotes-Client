@@ -1,9 +1,9 @@
 /*
  * The setup window, dressed the way the editor is.
  *
- * Loaded after `@uwu/tokens`, and there is not one hex value below: every
- * colour is a `var(--uwu-*)`, so this window and the editor it installs are
- * demonstrably the same product. The title bar, the caption buttons and the
+ * Loaded after `@uwusuite/design/plain.css`, and there is not one hex value
+ * below: every colour is a `var(--uwu-*)`, so this window and the editor it
+ * installs are demonstrably the same product. The title bar, the caption buttons and the
  * pink primary button are deliberately the app's own rules, copied because an
  * installer that shares a stylesheet with an application it has not installed
  * yet would be a strange dependency to explain.
@@ -15,8 +15,8 @@
  * Nyu's animations belong to `nyu.css`, which she imports herself. What is
  * below are the four the installer adds — the fade between screens, the pop on
  * the finish, and the hop and the toss in the working scene. Motion off is
- * handled by `tokens.css` against `[data-motion='reduced']`, which `main.tsx`
- * sets; nothing here uses `!important`, so nothing here escapes it.
+ * handled by the suite's `base.css` against `[data-motion='reduced']`, which
+ * `main.tsx` sets; nothing here uses `!important`, so nothing here escapes it.
  */
 
 *,
@@ -36,7 +36,7 @@ body {
   overflow: hidden;
   background: var(--uwu-canvas);
   color: var(--uwu-ink);
-  font-family: var(--uwu-font);
+  font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;

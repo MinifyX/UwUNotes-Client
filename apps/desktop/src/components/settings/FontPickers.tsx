@@ -3,53 +3,55 @@
  * editor. Deliberately separate — the interface reads best in a proportional
  * face, code and columns of text need a monospace one.
  *
- * - {@link UiFontPicker}: four choices, each shown in itself, applied to the
- *   whole window the moment it is clicked (`lib/ui-fonts.ts`).
+ * - {@link UiFontPicker}: the suite's choices (`FONT_CHOICES` from
+ *   @uwusuite/design: UwU Sans, Manrope, Rubik, DM Sans, System), each shown in
+ *   itself, applied to the whole window the moment it is clicked.
  * - {@link EditorFontPicker}: the bundled faces and every family installed on
  *   this computer, monospace ones first, each name drawn in its own font, with
  *   a search. Any name can still be typed: a value saved before this picker
  *   existed, or a font the scan could not see, keeps working.
  */
 
+import {
+  FONT_CHOICES,
+  FONT_NAMES,
+  FONT_STACKS,
+  FONT_TRACKING,
+  Icon,
+  type FontChoice,
+} from '@uwusuite/design';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { groupFonts, previewStack, useSystemFonts } from '../../lib/editor-fonts';
 import { t } from '../../lib/i18n';
+import { APP_ICONS } from '../../lib/icons';
 import { scrollToShow } from '../../lib/menu-placement';
-import {
-  UI_FONT_CHOICES,
-  UI_FONT_NAMES,
-  UI_FONT_STACKS,
-  UI_FONT_TRACKING,
-  type UiFont,
-} from '../../lib/ui-fonts';
-import { Icon } from '../Icon';
 
 export function UiFontPicker({
   value,
   onChange,
 }: {
-  value: UiFont;
-  onChange: (value: UiFont) => void;
+  value: FontChoice;
+  onChange: (value: FontChoice) => void;
 }) {
   const id = useId();
   return (
     <fieldset className="settings-field settings-field-uifont">
       <legend className="settings-label">{t('Schrift der Oberfläche')}</legend>
       <div className="uifont-choices" role="radiogroup" aria-describedby={`${id}-hint`}>
-        {UI_FONT_CHOICES.map((choice) => (
+        {FONT_CHOICES.map((choice) => (
           <button
             key={choice}
             type="button"
             role="radio"
             aria-checked={value === choice}
             className="uifont-choice"
-            style={{ fontFamily: UI_FONT_STACKS[choice], letterSpacing: UI_FONT_TRACKING[choice] }}
+            style={{ fontFamily: FONT_STACKS[choice], letterSpacing: FONT_TRACKING[choice] }}
             onClick={() => onChange(choice)}
           >
             <span className="uifont-choice-name">
-              {choice === 'system' ? t('System') : UI_FONT_NAMES[choice]}
+              {choice === 'system' ? t('System') : FONT_NAMES[choice]}
             </span>
-            <span className="uifont-choice-sample">{t('Menüs, Dialoge und Nyu: 0123 :3')}</span>
+            <span className="uifont-choice-sample">{t('Menüs, Dialoge und Nyu: 0123 ♥')}</span>
           </button>
         ))}
       </div>
@@ -155,7 +157,7 @@ export function EditorFontPicker({
 
       <div className="editorfont">
         <div className="editorfont-search">
-          <Icon name="search" size={13} className="editorfont-search-icon" />
+          <Icon icon={APP_ICONS.search} size="xs" className="editorfont-search-icon" />
           <input
             type="search"
             className="editorfont-search-input"
@@ -218,7 +220,7 @@ export function EditorFontPicker({
                     onClick={() => pick(option)}
                   >
                     <span className="editorfont-tick" aria-hidden>
-                      {selected ? <Icon name="check" size={13} /> : null}
+                      {selected ? <Icon icon={APP_ICONS.done} size="xs" /> : null}
                     </span>
                     <span
                       className="editorfont-name"

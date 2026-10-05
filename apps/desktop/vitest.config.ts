@@ -18,5 +18,13 @@ export default defineConfig({
     // Module-level singletons are most of what is being tested here; a shared
     // process would let one file's store leak into the next file's assertions.
     isolate: true,
+    server: {
+      deps: {
+        // @uwusuite/design 1.1.0 ships ESM with extensionless relative imports
+        // (`./components/Button`), which Vite resolves and plain Node does not.
+        // Inlining lets Vite resolve them in tests as it does in the build.
+        inline: ['@uwusuite/design'],
+      },
+    },
   },
 });

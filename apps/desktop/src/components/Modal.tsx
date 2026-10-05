@@ -16,9 +16,9 @@
  * one dialog slot.
  */
 
+import { ICONS, IconButton } from '@uwusuite/design';
 import { useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { t } from '../lib/i18n';
-import { Icon } from './Icon';
 
 const FOCUSABLE =
   'input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
@@ -120,7 +120,7 @@ type ModalProps = {
 };
 
 /**
- * A centred dialog with a backdrop.
+ * A centred dialog with a backdrop, drawn like the suite's `Dialog`.
  *
  * A click on the backdrop does nothing on purpose. Closing by a stray click
  * throws away whatever was typed, and every dialog here has a real way out:
@@ -154,17 +154,14 @@ export function Modal({
           <h2 id={titleId} className="modal-title">
             {title}
           </h2>
-          <button
-            type="button"
-            className="modal-close"
+          <IconButton
+            icon={ICONS.close}
+            label={t('Schließen')}
             onClick={onClose}
-            aria-label={t('Schließen')}
             // Not the first thing Enter reaches: the cross is the way out, not
             // the answer, and dialogs put their real answer in the footer.
             data-secondary
-          >
-            <Icon name="close" size={14} />
-          </button>
+          />
         </header>
         <div className="modal-body">{children}</div>
         {footer ? <footer className="modal-footer">{footer}</footer> : null}

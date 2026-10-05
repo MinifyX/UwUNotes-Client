@@ -27,7 +27,7 @@ import {
 } from '../../desktop/src/components/nyu/scenes';
 
 /** Props are drawn at scene scale: a 6 px outline and an 18 px die-cut edge. */
-const S = { stroke: NYU.outline, strokeWidth: 6 } as const;
+const S = { stroke: NYU.ink, strokeWidth: 6 } as const;
 const EDGE = 18;
 /** Nyu's own edge at scene scale: 30 × 0.6 ≈ the props' 18 px. */
 const NYU_EDGE = 30;

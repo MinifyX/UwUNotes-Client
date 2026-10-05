@@ -20,6 +20,7 @@
  * stylesheet cannot know what the user typed four keystrokes ago.
  */
 
+import { Button, Switch } from '@uwusuite/design';
 import { useId, useState } from 'react';
 import { t } from '../lib/i18n';
 import { ask } from '../lib/prompt';
@@ -106,9 +107,15 @@ export function ThemeEditor({ themeId, onClose }: ThemeEditorProps) {
       title={mine || shipped ? t('Theme bearbeiten') : t('Theme importieren')}
       onClose={onClose}
       footer={
-        <button type="button" className="theme-editor-done" onClick={onClose}>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          className="theme-editor-done"
+          onClick={onClose}
+        >
           {t('Fertig')}
-        </button>
+        </Button>
       }
       wide
     >
@@ -128,14 +135,16 @@ export function ThemeEditor({ themeId, onClose }: ThemeEditorProps) {
                 { name: shipped.name },
               )}
             </p>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               type="button"
               className="theme-editor-duplicate"
               data-autofocus
               onClick={() => startFrom(shipped)}
             >
               {t('Kopie anlegen und bearbeiten')}
-            </button>
+            </Button>
           </section>
         ) : (
           <section className="theme-editor-none">
@@ -144,7 +153,9 @@ export function ThemeEditor({ themeId, onClose }: ThemeEditorProps) {
                 'Kein Theme ausgewählt. Füge unten eins ein, das dir jemand geschickt hat, oder fang bei den Farben an, die gerade zu sehen sind.',
               )}
             </p>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               type="button"
               className="theme-editor-new"
               data-autofocus
@@ -155,7 +166,7 @@ export function ThemeEditor({ themeId, onClose }: ThemeEditorProps) {
               }}
             >
               {t('Neues Theme anlegen')}
-            </button>
+            </Button>
           </section>
         )}
 
@@ -213,20 +224,17 @@ function ThemeForm({ theme, active, onDuplicate, onDelete }: ThemeFormProps) {
           <span className="theme-editor-dark-label" id={`${darkId}-label`}>
             {t('Dunkler Grund')}
           </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={theme.dark}
-            aria-labelledby={`${darkId}-label`}
-            aria-describedby={`${darkId}-hint`}
-            className="theme-editor-dark-switch"
-            onClick={() => {
-              setUserThemeDark(theme.id, !theme.dark);
-              applied();
-            }}
-          >
-            <span className="theme-editor-dark-knob" aria-hidden="true" />
-          </button>
+          <span className="theme-editor-dark-switch">
+            <Switch
+              size="sm"
+              checked={theme.dark}
+              label={t('Dunkler Grund')}
+              onChange={(dark) => {
+                setUserThemeDark(theme.id, dark);
+                applied();
+              }}
+            />
+          </span>
           {/* Honest about what it does, which today is nothing: everything that
               needs a colour reads the tokens below directly, including the
               minimap. The flag travels with the theme so that the next thing to
@@ -237,12 +245,18 @@ function ThemeForm({ theme, active, onDuplicate, onDelete }: ThemeFormProps) {
         </div>
 
         <div className="theme-editor-actions">
-          <button type="button" className="theme-editor-duplicate" onClick={onDuplicate}>
+          <Button variant="secondary" size="sm" type="button" onClick={onDuplicate}>
             {t('Duplizieren')}
-          </button>
-          <button type="button" className="theme-editor-delete" onClick={onDelete}>
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            type="button"
+            className="theme-editor-delete"
+            onClick={onDelete}
+          >
             {t('Löschen')}
-          </button>
+          </Button>
         </div>
       </div>
 

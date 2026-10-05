@@ -12,6 +12,7 @@
  * the system browser.
  */
 
+import { Button } from '@uwusuite/design';
 import { useEffect, useState } from 'react';
 import { appInfo, openExternal, type AppInfo } from '../lib/api';
 import { closeDialog, useUiState } from '../lib/commands';
@@ -25,6 +26,21 @@ import { Modal } from './Modal';
 
 const REPOSITORY = 'https://github.com/MinifyX/UwUNotes-Client';
 const LICENCE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
+const OFL_URL = 'https://openfontlicense.org';
+
+/**
+ * The OFL asks for each bundled face's copyright to travel with it. Kept in
+ * English on purpose: these are legal notices, quoted as their authors wrote
+ * them. UwU Console is the one face built in this repository
+ * (`brand/fonts/uwu-console`), so it gets its full notice.
+ */
+const FONT_NOTICES = [
+  'UwU Console — Copyright 2026 MinifyX, a modified version of Atkinson Hyperlegible Mono. Copyright 2020-2024 The Atkinson Hyperlegible Mono Project Authors (https://github.com/googlefonts/atkinson-hyperlegible-next-mono). SIL Open Font License 1.1.',
+  'UwU Sans — Copyright 2026 MinifyX, a modified version of Atkinson Hyperlegible Next (via @uwusuite/design). SIL Open Font License 1.1.',
+  'JetBrains Mono — Copyright 2020 The JetBrains Mono Project Authors. SIL Open Font License 1.1.',
+  'Fira Code — Copyright 2014-2020 The Fira Code Project Authors. SIL Open Font License 1.1.',
+  'Manrope, Rubik, DM Sans — Copyright their respective project authors. SIL Open Font License 1.1.',
+] as const;
 
 /** The suite, in the order the three were written. */
 const SIBLINGS = [
@@ -103,7 +119,24 @@ function AboutBody() {
               </button>
             </dd>
           </div>
+          <div className="about-fact">
+            <dt>{t('Schriften')}</dt>
+            <dd>
+              <button type="button" className="about-inline-link" onClick={() => open(OFL_URL)}>
+                SIL OFL 1.1
+              </button>
+            </dd>
+          </div>
         </dl>
+
+        <details className="about-fonts">
+          <summary>{t('Schriften und ihre Urheber')}</summary>
+          <ul lang="en">
+            {FONT_NOTICES.map((notice) => (
+              <li key={notice}>{notice}</li>
+            ))}
+          </ul>
+        </details>
 
         <ul className="about-links">
           <AboutLink label={t('Quellcode und Fehlerberichte')} url={REPOSITORY} />
@@ -116,7 +149,9 @@ function AboutBody() {
           <p className="about-note">
             {t('Teil der UwU Suite. Dieselbe Katze, dieselben Farben, andere Aufgabe.')}
           </p>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             className="about-copy"
             onClick={() => {
@@ -127,7 +162,7 @@ function AboutBody() {
             }}
           >
             {t('Versionsangaben kopieren')}
-          </button>
+          </Button>
         </footer>
       </div>
     </Modal>

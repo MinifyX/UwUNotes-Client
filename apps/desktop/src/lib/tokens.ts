@@ -1,14 +1,17 @@
 /**
- * The token names, typed, plus the one thing CSS cannot do for us.
+ * The token names TypeScript reads, typed, plus the one thing CSS cannot do.
  *
- * The stylesheets are the source of truth for every value — nothing is
- * duplicated here. What TypeScript adds is a name a compiler can check
- * (`token('--uwu-pink')` fails to build after a rename, a raw string does not)
- * and {@link readToken}, for the few places that need the resolved colour as a
- * string: a `<canvas>` cannot take `var(--uwu-pink)` as a fill.
+ * The suite's tokens (`--uwu-canvas`, `--uwu-pink`, …) come from
+ * `@uwusuite/design`; the editor's own — the code colours in
+ * `styles/code.css` and `--uwu-deep`, the ground under the text, in
+ * `styles/tokens.css` — live in this app, because no other app shows code yet.
+ * What this module adds is a name a compiler can check (`token('--uwu-pink')`
+ * fails to build after a rename, a raw string does not) and {@link readToken},
+ * for the few places that need the resolved colour as a string: a `<canvas>`
+ * cannot take `var(--uwu-pink)` as a fill.
  */
 
-/** Colour, shape and type of the suite itself — every app has these. */
+/** Suite tokens this app reads from TypeScript, plus the editor's ground. */
 export const BASE_TOKENS = [
   '--uwu-canvas',
   '--uwu-surface',
@@ -23,19 +26,15 @@ export const BASE_TOKENS = [
   '--uwu-pink-ink',
   '--uwu-pink-tint',
   '--uwu-pink-tint-strong',
-  '--uwu-online',
+  '--uwu-success-ink',
+  '--uwu-warning-ink',
   '--uwu-offline',
-  '--uwu-alarm',
   '--uwu-deep',
   '--uwu-deep-gutter',
-  '--uwu-radius-control',
-  '--uwu-radius-card',
-  '--uwu-radius-pill',
-  '--uwu-font',
   '--uwu-mono',
 ] as const;
 
-/** Syntax colour and editor furniture — only apps that show code load these. */
+/** Syntax colour and editor furniture (`styles/code.css`). */
 export const CODE_TOKENS = [
   '--uwu-code-keyword',
   '--uwu-code-string',

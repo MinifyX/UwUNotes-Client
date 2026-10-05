@@ -5,23 +5,23 @@
 // Everything below comes from the SVGs in brand/, so a new logo is a new SVG
 // there and one run of this script — nothing else to touch.
 //
-// The taskbar, the window, the setup and Linux menus get Nyu without the tile:
-// brand/uwunotes-taskbar-icon.svg, upright, on a transparent background. At 16 and 24 px the ICO
-// uses brand/uwunotes-taskbar-icon-small.svg instead: thicker outlines, two lines and a bigger
-// caret, where the full one turns to mush. The Square*/StoreLogo tiles come from the app icon,
-// brand/uwunotes-app-icon.svg, like the website and GitHub.
+// Most of the work is the suite's own tool, `uwu-icons` from @uwusuite/design:
+// the tiles (Square*/StoreLogo) from brand/uwunotes-app-icon.svg, the taskbar,
+// window and Linux icons from brand/uwunotes-taskbar-icon.svg, and the 16 and
+// 24 px ICO frames from brand/uwunotes-taskbar-icon-small.svg.
 //
-// The Mac gets its own master, because macOS draws no frame around an app
-// icon: the file has to be the frame. Apple's grid puts the tile at 824 of
-// 1024 pixels, centred, with a soft shadow in the 100 pixel margin, and every
-// icon in the Dock is drawn to it. The full-bleed tile looked a size too big
-// next to everyone else's. So the app icon is scaled into that grid, clipped
-// to Apple's rounded square, given the shadow, rendered at every size from 16
-// to 1024 and written into icon.icns by hand (see `writeIcns`). The master is
-// also kept as icons/macos/icon-1024.png, to look at.
+// What stays here is the Mac. macOS draws no frame around an app icon: the file
+// has to be the frame. Apple's grid puts the tile at 824 of 1024 pixels,
+// centred, with a soft shadow in the 100 pixel margin, and every icon in the
+// Dock is drawn to it. The full-bleed tile `uwu-icons` 1.1 writes looks a size
+// too big next to everyone else's. So the app icon is scaled into that grid,
+// clipped to Apple's rounded square, given the shadow, rendered at every size
+// from 16 to 1024 and written into icon.icns by hand (see `writeIcns`),
+// replacing the one `uwu-icons` wrote. The master is also kept as
+// icons/macos/icon-1024.png, to look at.
 
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,21 +31,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const brand = join(root, 'brand');
 const desktop = join(root, 'apps/desktop');
 const icons = join(desktop, 'src-tauri/icons');
-const TILE_FILES = [
-  'StoreLogo.png',
-  ...[30, 44, 71, 89, 107, 142, 150, 284, 310].map((n) => `Square${n}x${n}Logo.png`),
-];
-const DESKTOP_FILES = [
-  'icon.ico',
-  'icon.png',
-  '32x32.png',
-  '64x64.png',
-  '128x128.png',
-  '128x128@2x.png',
-];
-/** ICO sizes drawn from the small symbol. */
-const SMALL = new Set([16, 24]);
-
 /** Apple's macOS icon grid, in pixels of the 1024 canvas. */
 const MAC = {
   canvas: 1024,
@@ -79,46 +64,6 @@ function tauriIcon(svgPath, out, sizes) {
     ['tauri', 'icon', svgPath, '-o', out, ...(sizes ? ['-p', sizes.join(',')] : [])],
     { cwd: desktop, stdio: 'ignore', shell: process.platform === 'win32' },
   );
-}
-
-/** Tauri's own set of icons for one SVG in brand/, in a temporary folder. */
-function render(svg) {
-  const out = mkdtempSync(join(tmpdir(), 'uwunotes-icons-'));
-  tauriIcon(join(brand, svg), out);
-  return out;
-}
-
-/** ICO entries by size: { size → image bytes }. A width byte of 0 means 256. */
-function readIco(path) {
-  const buf = readFileSync(path);
-  const entries = new Map();
-  for (let i = 0; i < buf.readUInt16LE(4); i++) {
-    const at = 6 + i * 16;
-    const size = buf[at] || 256;
-    entries.set(
-      size,
-      buf.subarray(buf.readUInt32LE(at + 12), buf.readUInt32LE(at + 12) + buf.readUInt32LE(at + 8)),
-    );
-  }
-  return entries;
-}
-
-function writeIco(path, entries) {
-  const sizes = [...entries.keys()].sort((a, b) => a - b);
-  const header = Buffer.alloc(6 + sizes.length * 16);
-  header.writeUInt16LE(1, 2);
-  header.writeUInt16LE(sizes.length, 4);
-  let offset = header.length;
-  sizes.forEach((size, i) => {
-    const at = 6 + i * 16;
-    header[at] = header[at + 1] = size % 256;
-    header.writeUInt16LE(1, at + 4); // planes
-    header.writeUInt16LE(32, at + 6); // bits per pixel
-    header.writeUInt32LE(entries.get(size).length, at + 8);
-    header.writeUInt32LE(offset, at + 12);
-    offset += entries.get(size).length;
-  });
-  writeFileSync(path, Buffer.concat([header, ...sizes.map((size) => entries.get(size))]));
 }
 
 /**
@@ -330,18 +275,14 @@ function checkIcns(path) {
   return found.size;
 }
 
-const app = render('uwunotes-app-icon.svg');
-const large = render('uwunotes-taskbar-icon.svg');
-const small = render('uwunotes-taskbar-icon-small.svg');
+execFileSync('pnpm', ['exec', 'uwu-icons', '--brand', brand, '--name', 'uwunotes'], {
+  cwd: desktop,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
+
 const mac = mkdtempSync(join(tmpdir(), 'uwunotes-icons-mac-'));
 try {
-  for (const file of TILE_FILES) copyFileSync(join(app, file), join(icons, file));
-  for (const file of DESKTOP_FILES) copyFileSync(join(large, file), join(icons, file));
-  const ico = readIco(join(large, 'icon.ico'));
-  for (const [size, image] of readIco(join(small, 'icon.ico')))
-    if (SMALL.has(size)) ico.set(size, image);
-  writeIco(join(icons, 'icon.ico'), ico);
-
   const master = join(mac, 'macos-master.svg');
   writeFileSync(master, macMasterSvg(readFileSync(join(brand, 'uwunotes-app-icon.svg'), 'utf8')));
   const sizes = [...new Set(ICNS_ENTRIES.map((entry) => entry.size))];
@@ -352,5 +293,5 @@ try {
   writeFileSync(join(icons, 'macos', 'icon-1024.png'), pngs.get(1024));
   console.log(`icon.icns: ${checkIcns(join(icons, 'icon.icns'))} images, 16 to 1024 px`);
 } finally {
-  for (const dir of [app, large, small, mac]) rmSync(dir, { recursive: true, force: true });
+  rmSync(mac, { recursive: true, force: true });
 }

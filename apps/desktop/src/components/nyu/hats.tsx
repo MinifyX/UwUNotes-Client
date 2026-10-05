@@ -47,7 +47,7 @@ export const HAT_IDS: readonly HatId[] = [
 const SANTA = '#F0525E';
 const WITCH = '#7A4FD0';
 
-const ink = { stroke: NYU.outline, strokeWidth: 8, strokeLinejoin: 'round' as const };
+const ink = { stroke: NYU.ink, strokeWidth: 8, strokeLinejoin: 'round' as const };
 
 function Witch() {
   return (
@@ -63,7 +63,7 @@ function Witch() {
         className="no-edge"
         d="M128 60 L131 67 L138 67 L132 71 L135 78 L128 73 L121 78 L124 71 L118 67 L125 67 Z"
         fill={NYU.star}
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={3}
       />
     </g>
@@ -103,11 +103,11 @@ function BunnyBehind() {
     <g>
       <g transform="rotate(-10 112 80)">
         <path d="M100 84 Q92 10 112 -14 Q132 10 124 84 Z" fill={NYU.paper} {...ink} />
-        <path className="no-edge" d="M106 70 Q102 20 112 4 Q122 20 118 70 Z" fill={NYU.screen} />
+        <path className="no-edge" d="M106 70 Q102 20 112 4 Q122 20 118 70 Z" fill={NYU.flap} />
       </g>
       <g transform="rotate(10 144 80)">
         <path d="M132 84 Q124 10 144 -14 Q164 10 156 84 Z" fill={NYU.paper} {...ink} />
-        <path className="no-edge" d="M138 70 Q134 20 144 4 Q154 20 150 70 Z" fill={NYU.screen} />
+        <path className="no-edge" d="M138 70 Q134 20 144 4 Q154 20 150 70 Z" fill={NYU.flap} />
       </g>
     </g>
   );
@@ -138,24 +138,22 @@ function Nightcap() {
 function Bow() {
   return (
     <g transform="translate(176 82) rotate(-14)">
-      <path d="M0 0 L-30 -18 Q-38 0 -30 18 Z" fill={NYU.blush} {...ink} />
-      <path d="M0 0 L30 -18 Q38 0 30 18 Z" fill={NYU.blush} {...ink} />
+      <path d="M0 0 L-30 -18 Q-38 0 -30 18 Z" fill={NYU.blushSolid} {...ink} />
+      <path d="M0 0 L30 -18 Q38 0 30 18 Z" fill={NYU.blushSolid} {...ink} />
       <circle cx="0" cy="0" r="9" fill={NYU.body} {...ink} />
     </g>
   );
 }
 
 function Glasses({ dark = false }: { dark?: boolean }) {
-  const lens = dark
-    ? { fill: NYU.outline, fillOpacity: 0.9 }
-    : { fill: NYU.sky, fillOpacity: 0.35 };
+  const lens = dark ? { fill: NYU.ink, fillOpacity: 0.9 } : { fill: NYU.sky, fillOpacity: 0.35 };
   // Written around the eyes' own coordinates, so `Face` carries them along.
   return (
     <Face>
-      <path d="M124 148 Q128 142 132 148" fill="none" stroke={NYU.outline} strokeWidth={6} />
-      <circle cx="102" cy="148" r="21" {...lens} stroke={NYU.outline} strokeWidth={6} />
-      <circle cx="154" cy="148" r="21" {...lens} stroke={NYU.outline} strokeWidth={6} />
-      <path d="M81 144 L52 138 M175 144 L204 138" stroke={NYU.outline} strokeWidth={6} />
+      <path d="M124 148 Q128 142 132 148" fill="none" stroke={NYU.ink} strokeWidth={6} />
+      <circle cx="102" cy="148" r="21" {...lens} stroke={NYU.ink} strokeWidth={6} />
+      <circle cx="154" cy="148" r="21" {...lens} stroke={NYU.ink} strokeWidth={6} />
+      <path d="M81 144 L52 138 M175 144 L204 138" stroke={NYU.ink} strokeWidth={6} />
       {dark ? (
         <g className="no-edge" fill="none" stroke={NYU.paper} strokeWidth={4}>
           <path d="M90 140 l8 -6" />
@@ -179,11 +177,11 @@ function Flower() {
           ry="13"
           transform={`rotate(${angle})`}
           fill={NYU.paper}
-          stroke={NYU.outline}
+          stroke={NYU.ink}
           strokeWidth={5}
         />
       ))}
-      <circle cx="0" cy="0" r="8" fill={NYU.star} stroke={NYU.outline} strokeWidth={5} />
+      <circle cx="0" cy="0" r="8" fill={NYU.star} stroke={NYU.ink} strokeWidth={5} />
     </g>
   );
 }
@@ -194,7 +192,7 @@ function Headphones() {
       <path
         d="M36 128 Q30 20 128 18 Q226 20 220 128"
         fill="none"
-        stroke={NYU.outline}
+        stroke={NYU.ink}
         strokeWidth={14}
       />
       <path
@@ -213,8 +211,12 @@ function Headphones() {
 function Beret() {
   return (
     <g transform="rotate(-8 128 64)">
-      <path d="M70 76 Q66 36 128 32 Q192 34 190 70 Q160 84 70 76 Z" fill={NYU.blush} {...ink} />
-      <path d="M124 32 l2 -12" stroke={NYU.outline} strokeWidth={8} />
+      <path
+        d="M70 76 Q66 36 128 32 Q192 34 190 70 Q160 84 70 76 Z"
+        fill={NYU.blushSolid}
+        {...ink}
+      />
+      <path d="M124 32 l2 -12" stroke={NYU.ink} strokeWidth={8} />
     </g>
   );
 }
@@ -223,8 +225,8 @@ function Crown() {
   return (
     <g>
       <path d="M90 76 L84 26 L108 48 L128 14 L148 48 L172 26 L166 76 Z" fill={NYU.star} {...ink} />
-      <g className="no-edge" stroke={NYU.outline} strokeWidth={3}>
-        <circle cx="128" cy="60" r="7" fill={NYU.blush} />
+      <g className="no-edge" stroke={NYU.ink} strokeWidth={3}>
+        <circle cx="128" cy="60" r="7" fill={NYU.blushSolid} />
         <circle cx="104" cy="64" r="5" fill={NYU.sky} />
         <circle cx="152" cy="64" r="5" fill={NYU.mint} />
       </g>

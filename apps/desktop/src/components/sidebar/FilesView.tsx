@@ -25,7 +25,8 @@ import { setFolder, useWorkspace } from '../../lib/workspace';
 import { NyuScene } from '../nyu/scenes';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FileTree, type FileTreeHandle } from '../FileTree';
-import { Icon } from '../Icon';
+import { Icon } from '@uwusuite/design';
+import { APP_ICONS } from '../../lib/icons';
 
 /** How long the overflow button refuses to reopen a menu it just closed. */
 const REOPEN_GUARD_MS = 300;
@@ -108,7 +109,7 @@ export function FilesView() {
             title={t('Neue Datei')}
             onClick={() => tree.current?.newFile()}
           >
-            <Icon name="plus" size={14} title={t('Neue Datei')} />
+            <Icon icon={APP_ICONS.newFile} size="xs" label={t('Neue Datei')} />
           </button>
           <button
             type="button"
@@ -116,7 +117,7 @@ export function FilesView() {
             title={t('Neuer Ordner')}
             onClick={() => tree.current?.newFolder()}
           >
-            <Icon name="folder" size={14} title={t('Neuer Ordner')} />
+            <Icon icon={APP_ICONS.newFolder} size="xs" label={t('Neuer Ordner')} />
           </button>
           <button
             type="button"
@@ -124,7 +125,7 @@ export function FilesView() {
             title={t('Alles zuklappen')}
             onClick={() => tree.current?.collapseAll()}
           >
-            <Icon name="minus" size={14} title={t('Alles zuklappen')} />
+            <Icon icon={APP_ICONS.collapseAll} size="xs" label={t('Alles zuklappen')} />
           </button>
           <button
             type="button"
@@ -138,7 +139,7 @@ export function FilesView() {
               setMenuAt({ x: box.left, y: box.bottom });
             }}
           >
-            <Icon name="dots" size={14} title={t('Weitere Ordneraktionen')} />
+            <Icon icon={APP_ICONS.more} size="xs" label={t('Weitere Ordneraktionen')} />
           </button>
         </div>
       </header>
@@ -150,7 +151,7 @@ export function FilesView() {
       <footer className="sidebar-footer">
         {branch ? (
           <span className="sidebar-branch" title={t('Aktueller Git-Branch')}>
-            <Icon name="gitBranch" size={13} />
+            <Icon icon={APP_ICONS.gitBranch} size="xs" />
             <span className="sidebar-branch-name">{branch}</span>
           </span>
         ) : (
