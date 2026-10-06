@@ -10,8 +10,7 @@
 import { setSidebarOpen, setSidebarView, useSidebarView } from '../../lib/chrome';
 import { t } from '../../lib/i18n';
 import { shortcutLabel } from '../../lib/shortcuts';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 import { SIDEBAR_VIEWS } from './views';
 
 /** "Seitenleiste ausblenden (Strg+B)": the label, and the key that does the same. */
@@ -40,7 +39,7 @@ export function Sidebar() {
               title={t(view.label)}
               onClick={() => setSidebarView(view.id)}
             >
-              <Icon icon={APP_ICONS[view.icon]} size="xs" label={t(view.label)} />
+              <Icon icon={ICONS[view.icon]} size="xs" label={t(view.label)} />
             </button>
           ))}
         </nav>
@@ -50,7 +49,7 @@ export function Sidebar() {
           title={withShortcut(t('Seitenleiste ausblenden'))}
           onClick={() => setSidebarOpen(false)}
         >
-          <Icon icon={APP_ICONS.sidebarHide} label={t('Seitenleiste ausblenden')} />
+          <Icon icon={ICONS.sidebarHide} label={t('Seitenleiste ausblenden')} />
         </button>
       </div>
       <Component />
@@ -72,7 +71,7 @@ export function SidebarRail() {
         title={withShortcut(t('Seitenleiste einblenden'))}
         onClick={() => setSidebarOpen(true)}
       >
-        <Icon icon={APP_ICONS.sidebarShow} label={t('Seitenleiste einblenden')} />
+        <Icon icon={ICONS.sidebarShow} label={t('Seitenleiste einblenden')} />
       </button>
       <span className="sidebar-rail-rule" aria-hidden />
       {SIDEBAR_VIEWS.map((view) => (
@@ -84,7 +83,7 @@ export function SidebarRail() {
           title={t(view.label)}
           onClick={() => setSidebarView(view.id)}
         >
-          <Icon icon={APP_ICONS[view.icon]} size="xs" label={t(view.label)} />
+          <Icon icon={ICONS[view.icon]} size="xs" label={t(view.label)} />
         </button>
       ))}
     </nav>

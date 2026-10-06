@@ -34,8 +34,7 @@ import {
 import { t, useLanguage } from '../lib/i18n';
 import { keysText } from '../lib/shortcuts';
 import { focusActiveView } from '../lib/views';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 /**
  * One option toggle: a short glyph, an accessible name, and `aria-pressed` so
@@ -194,7 +193,7 @@ export function FindBar() {
           title={t('Suchleiste schließen')}
           onClick={dismiss}
         >
-          <Icon icon={APP_ICONS.close} />
+          <Icon icon={ICONS.close} />
         </button>
       </div>
 
@@ -298,7 +297,7 @@ export function FindBar() {
         aria-expanded={advanced}
         onClick={() => setAdvanced((value) => !value)}
       >
-        <Icon icon={advanced ? APP_ICONS.expand : APP_ICONS.next} size="xs" />
+        <Icon icon={advanced ? ICONS.expand : ICONS.next} size="xs" />
         {t('Erweitert')}
         {!advanced && optionsOn ? (
           <span className="findbar-advanced-dot" title={t('Eine erweiterte Option ist an')} />

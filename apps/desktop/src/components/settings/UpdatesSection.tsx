@@ -23,8 +23,7 @@ import {
   useUpdatesAvailableInApp,
   useUpdateState,
 } from '../../lib/updates';
-import { Icon, Button } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, Button, ICONS } from '@uwusuite/design';
 
 /** `children` is the auto-check switch, drawn by the settings page like its neighbours. */
 export function UpdatesSection({ children }: { children: ReactNode }) {
@@ -72,7 +71,7 @@ export function UpdatesSection({ children }: { children: ReactNode }) {
             onClick={() => checkForUpdateNow({ quiet: true })}
           >
             <Icon
-              icon={APP_ICONS.refresh}
+              icon={ICONS.refresh}
               size="xs"
               className={state.phase === 'checking' ? 'settings-update-spin' : undefined}
             />
@@ -113,8 +112,8 @@ export function UpdatesSection({ children }: { children: ReactNode }) {
             data-tone={state.phase === 'failed' ? 'error' : state.phase}
             role={state.phase === 'failed' ? 'alert' : 'status'}
           >
-            {state.phase === 'current' ? <Icon icon={APP_ICONS.done} size="xs" /> : null}
-            {state.phase === 'failed' ? <Icon icon={APP_ICONS.warning} size="xs" /> : null}
+            {state.phase === 'current' ? <Icon icon={ICONS.done} size="xs" /> : null}
+            {state.phase === 'failed' ? <Icon icon={ICONS.warning} size="xs" /> : null}
             {line}
           </p>
         ) : null}

@@ -17,8 +17,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../lib/i18n';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 export type ContextMenuItem = {
   id: string;
@@ -169,7 +168,7 @@ export function ContextMenu({ x, y, items, label, onClose, grow = 'down' }: Cont
           onClick={() => choose(item)}
         >
           <span className="contextmenu-tick" aria-hidden>
-            {item.checked ? <Icon icon={APP_ICONS.done} size="xs" /> : null}
+            {item.checked ? <Icon icon={ICONS.done} size="xs" /> : null}
           </span>
           <span className="contextmenu-label">{item.label}</span>
         </div>

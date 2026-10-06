@@ -62,8 +62,7 @@ import { getSettings, updateSettings } from '../lib/settings';
 import { toast } from '../lib/toast';
 import { applyDocLanguage } from '../editor/setup';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 /** Folders opened by memory rather than by a click, per opened root, per run. */
 const AUTO_EXPAND_LIMIT = 200;
@@ -754,15 +753,11 @@ function TreeRow({
           onContextMenu={onMenu}
         >
           <span className="filetree-twisty" aria-hidden="true">
-            {folder ? (
-              <Icon icon={row.expanded ? APP_ICONS.expand : APP_ICONS.next} size="xs" />
-            ) : null}
+            {folder ? <Icon icon={row.expanded ? ICONS.expand : ICONS.next} size="xs" /> : null}
           </span>
           <span className="filetree-icon" aria-hidden="true">
             <Icon
-              icon={
-                folder ? (row.expanded ? APP_ICONS.folderOpen : APP_ICONS.folder) : APP_ICONS.file
-              }
+              icon={folder ? (row.expanded ? ICONS.folderOpen : ICONS.folder) : ICONS.file}
               size="xs"
             />
           </span>
@@ -818,7 +813,7 @@ function NameField({ depth, kind, initial, onCommit, onCancel }: NameFieldProps)
     >
       <span className="filetree-twisty" aria-hidden="true" />
       <span className="filetree-icon" aria-hidden="true">
-        <Icon icon={kind === 'dir' ? APP_ICONS.folder : APP_ICONS.file} size="xs" />
+        <Icon icon={kind === 'dir' ? ICONS.folder : ICONS.file} size="xs" />
       </span>
       <input
         className="filetree-name-input"

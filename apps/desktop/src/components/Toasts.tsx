@@ -14,10 +14,9 @@
 
 import { dismissToast, useToasts, type Toast } from '../lib/toast';
 import { t, useLanguage } from '../lib/i18n';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS, type AppIcon } from '../lib/icons';
+import { Icon, ICONS, type IconMeaning } from '@uwusuite/design';
 
-const TONE_ICONS: Record<Toast['tone'], AppIcon> = {
+const TONE_ICONS: Record<Toast['tone'], IconMeaning> = {
   info: 'info',
   success: 'success',
   error: 'error',
@@ -38,7 +37,7 @@ export function Toasts() {
           role={entry.tone === 'error' ? 'alert' : 'status'}
         >
           <span className="toast-icon" aria-hidden>
-            <Icon icon={APP_ICONS[TONE_ICONS[entry.tone]]} />
+            <Icon icon={ICONS[TONE_ICONS[entry.tone]]} />
           </span>
           <span className="toast-text">{entry.text}</span>
           {entry.action ? (
@@ -62,7 +61,7 @@ export function Toasts() {
             onClick={() => dismissToast(entry.id)}
             aria-label={t('Meldung schließen')}
           >
-            <Icon icon={APP_ICONS.close} size="xs" />
+            <Icon icon={ICONS.close} size="xs" />
           </button>
         </div>
       ))}

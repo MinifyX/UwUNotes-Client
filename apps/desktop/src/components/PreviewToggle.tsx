@@ -13,8 +13,7 @@ import type { PaneId } from '../lib/layout';
 import { isMarkdownDoc, togglePreview, usePreviewOpen } from '../lib/preview';
 import { shortcutLabel } from '../lib/shortcuts';
 import { useWorkspace } from '../lib/workspace';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 export function PreviewToggle({ pane }: { pane: PaneId }) {
   useLanguage();
@@ -36,7 +35,7 @@ export function PreviewToggle({ pane }: { pane: PaneId }) {
       title={shortcut ? `${label} (${shortcut})` : label}
       onClick={() => togglePreview(docId)}
     >
-      <Icon icon={APP_ICONS.preview} />
+      <Icon icon={ICONS.preview} />
     </button>
   );
 }

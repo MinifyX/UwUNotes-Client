@@ -35,8 +35,7 @@ import { formatBytes, locale, t, useLanguage } from '../../lib/i18n';
 import { useSettings } from '../../lib/settings';
 import { useWorkspace } from '../../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 import { HistoryDiff } from './HistoryDiff';
 import '../../styles/history.css';
 
@@ -152,7 +151,7 @@ export function HistoryView() {
             disabled={!docId}
             onClick={() => docId && void snapshotNow(docId)}
           >
-            <Icon icon={APP_ICONS.add} size="xs" label={t('Version jetzt sichern')} />
+            <Icon icon={ICONS.add} size="xs" label={t('Version jetzt sichern')} />
           </button>
           <button
             type="button"
@@ -161,7 +160,7 @@ export function HistoryView() {
             disabled={!docId || count === 0}
             onClick={() => docId && void clearHistory(docId)}
           >
-            <Icon icon={APP_ICONS.delete} size="xs" label={t('Verlauf dieser Datei löschen…')} />
+            <Icon icon={ICONS.delete} size="xs" label={t('Verlauf dieser Datei löschen…')} />
           </button>
         </div>
       </header>

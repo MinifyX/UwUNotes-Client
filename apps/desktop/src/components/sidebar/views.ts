@@ -8,7 +8,7 @@
 
 import type { ComponentType } from 'react';
 import { N_ } from '../../lib/i18n';
-import type { AppIcon } from '../../lib/icons';
+import type { IconMeaning } from '@uwusuite/design';
 import { BookmarksView } from './BookmarksView';
 import { FilesView } from './FilesView';
 import { OutlineView } from './OutlineView';
@@ -21,7 +21,7 @@ export type SidebarView = {
   id: string;
   /** German source string, marked with `N_` and translated where it is shown. */
   label: string;
-  icon: AppIcon;
+  icon: IconMeaning;
   Component: ComponentType;
 };
 

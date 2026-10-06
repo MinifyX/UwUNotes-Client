@@ -24,8 +24,7 @@ import {
   updateHeadline,
   useUpdateState,
 } from '../lib/updates';
-import { Icon, Button } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, Button, ICONS } from '@uwusuite/design';
 import { Nyu } from './nyu/Nyu';
 
 export function UpdateHint() {
@@ -60,7 +59,7 @@ export function UpdateHint() {
         {withCat ? (
           <Nyu size={26} mood="sparkle" blink={false} />
         ) : (
-          <Icon icon={failed ? APP_ICONS.warning : APP_ICONS.refresh} />
+          <Icon icon={failed ? ICONS.warning : ICONS.refresh} />
         )}
       </span>
 

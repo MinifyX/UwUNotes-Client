@@ -424,9 +424,8 @@ What the app keeps is what only an editor needs:
 - `lib/tokens.ts` — the token names as a union type, `token()` for a `var()` a
   compiler can check, and `readToken()` for the rare place that needs a resolved
   colour string, such as the minimap's `<canvas>`.
-- `lib/icons.ts` — `APP_ICONS`, the suite's `ICONS` plus the editor's own
-  meanings (save all, compare, outline …), each a Lucide glyph no suite meaning
-  uses.
+- Icons come from the package's `ICONS`, which has the editor's meanings
+  (save all, compare, outline …) since @uwusuite/design 1.3.0.
 
 The app's CSS is plain and unlayered against the tokens; Tailwind v4 is only
 there for the package's components. The details live in [design.md](design.md).

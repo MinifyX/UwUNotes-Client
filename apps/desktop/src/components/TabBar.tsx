@@ -63,8 +63,7 @@ import {
   useWorkspace,
 } from '../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 import { PreviewToggle } from './PreviewToggle';
 
 /** A press shorter than this much movement is a click, not a drag. */
@@ -381,7 +380,7 @@ export function TabBar({ pane }: { pane: PaneId }) {
         aria-label={t('Neue Datei')}
         title={t('Neue Datei')}
       >
-        <Icon icon={APP_ICONS.add} />
+        <Icon icon={ICONS.add} />
       </button>
       <PreviewToggle pane={pane} />
 
@@ -498,7 +497,7 @@ function Tab({
       >
         {meta.pinned ? (
           <span className="tabbar-tab-pin" aria-hidden>
-            <Icon icon={APP_ICONS.pin} size="xs" />
+            <Icon icon={ICONS.pin} size="xs" />
           </span>
         ) : null}
         <span className="tabbar-tab-name">{meta.pinned ? shortTabName(meta.name) : meta.name}</span>
@@ -514,7 +513,7 @@ function Tab({
         {/* Both are always here; which one shows is the stylesheet's business —
             a modified file shows the dot until the pointer is over the tab. */}
         <span className="tabbar-tab-dot" aria-hidden />
-        <Icon icon={APP_ICONS.close} size="xs" />
+        <Icon icon={ICONS.close} size="xs" />
       </button>
     </div>
   );
