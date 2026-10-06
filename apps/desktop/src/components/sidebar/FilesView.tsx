@@ -25,8 +25,7 @@ import { setFolder, useWorkspace } from '../../lib/workspace';
 import { NyuScene } from '../nyu/scenes';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { FileTree, type FileTreeHandle } from '../FileTree';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 /** How long the overflow button refuses to reopen a menu it just closed. */
 const REOPEN_GUARD_MS = 300;
@@ -109,7 +108,7 @@ export function FilesView() {
             title={t('Neue Datei')}
             onClick={() => tree.current?.newFile()}
           >
-            <Icon icon={APP_ICONS.newFile} size="xs" label={t('Neue Datei')} />
+            <Icon icon={ICONS.newFile} size="xs" label={t('Neue Datei')} />
           </button>
           <button
             type="button"
@@ -117,7 +116,7 @@ export function FilesView() {
             title={t('Neuer Ordner')}
             onClick={() => tree.current?.newFolder()}
           >
-            <Icon icon={APP_ICONS.newFolder} size="xs" label={t('Neuer Ordner')} />
+            <Icon icon={ICONS.newFolder} size="xs" label={t('Neuer Ordner')} />
           </button>
           <button
             type="button"
@@ -125,7 +124,7 @@ export function FilesView() {
             title={t('Alles zuklappen')}
             onClick={() => tree.current?.collapseAll()}
           >
-            <Icon icon={APP_ICONS.collapseAll} size="xs" label={t('Alles zuklappen')} />
+            <Icon icon={ICONS.collapseAll} size="xs" label={t('Alles zuklappen')} />
           </button>
           <button
             type="button"
@@ -139,7 +138,7 @@ export function FilesView() {
               setMenuAt({ x: box.left, y: box.bottom });
             }}
           >
-            <Icon icon={APP_ICONS.more} size="xs" label={t('Weitere Ordneraktionen')} />
+            <Icon icon={ICONS.more} size="xs" label={t('Weitere Ordneraktionen')} />
           </button>
         </div>
       </header>
@@ -151,7 +150,7 @@ export function FilesView() {
       <footer className="sidebar-footer">
         {branch ? (
           <span className="sidebar-branch" title={t('Aktueller Git-Branch')}>
-            <Icon icon={APP_ICONS.gitBranch} size="xs" />
+            <Icon icon={ICONS.gitBranch} size="xs" />
             <span className="sidebar-branch-name">{branch}</span>
           </span>
         ) : (

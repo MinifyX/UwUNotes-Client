@@ -29,8 +29,7 @@ import {
 } from '../../lib/documents';
 import { t, useLanguage } from '../../lib/i18n';
 import { shortcutLabel } from '../../lib/shortcuts';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 /** Long lines are cut in the row; the whole line is in the tooltip. */
 const MAX_TEXT = 120;
@@ -110,7 +109,7 @@ export function BookmarksView() {
                         title={t('Lesezeichen entfernen')}
                         onClick={() => removeBookmark(entry.docId, entry.line)}
                       >
-                        <Icon icon={APP_ICONS.close} size="xs" label={t('Lesezeichen entfernen')} />
+                        <Icon icon={ICONS.close} size="xs" label={t('Lesezeichen entfernen')} />
                       </button>
                     </li>
                   );

@@ -19,8 +19,7 @@ import { documentsVersion, subscribeDocuments } from '../lib/documents';
 import { t, useLanguage } from '../lib/i18n';
 import { shortcutLabel } from '../lib/shortcuts';
 import { useWorkspace } from '../lib/workspace';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 export function CompareBar() {
   useLanguage();
@@ -43,7 +42,7 @@ export function CompareBar() {
 
   return (
     <div className="comparebar" role="region" aria-label={t('Dateivergleich')}>
-      <Icon icon={APP_ICONS.compare} className="comparebar-icon" />
+      <Icon icon={ICONS.compare} className="comparebar-icon" />
       <span className="comparebar-files">
         <span className="comparebar-name comparebar-name-a">{names.left ?? '—'}</span>
         <span aria-hidden>↔</span>

@@ -52,8 +52,7 @@ import {
 } from '../lib/preview';
 import { toast } from '../lib/toast';
 import { viewFor } from '../lib/views';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 type Engine = typeof import('../lib/markdown/engine');
 
@@ -290,7 +289,7 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
             title={t('Vorschau schließen')}
             onClick={() => setPreviewOpen(docId, false)}
           >
-            <Icon icon={APP_ICONS.close} size="xs" label={t('Vorschau schließen')} />
+            <Icon icon={ICONS.close} size="xs" label={t('Vorschau schließen')} />
           </button>
         </header>
         <div

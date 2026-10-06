@@ -20,7 +20,6 @@ with the text you are staring at in the deepest part of the window.
 | `apps/desktop/src/styles/tokens.css`       | `--uwu-deep`, `--uwu-deep-gutter`, the app's shade and scrim          |
 | `apps/desktop/src/styles/code.css`         | Syntax colours and editor furniture (below)                           |
 | `apps/desktop/src/styles/fonts.css`        | UwU Console, the app's own editor font                                |
-| `apps/desktop/src/lib/icons.ts`            | `APP_ICONS`: the suite's `ICONS` plus the editor's meanings           |
 | `apps/desktop/src/components/nyu/`         | Nyu as a notebook, built on the package's `NYU`, `NyuFace`, `Sticker` |
 | `apps/desktop/src/components/TitleBar.tsx` | The package `TitleBar` off the Mac, plus the menu bar and toolbar     |
 
@@ -161,7 +160,7 @@ behind the right ear. The cover is the face: UwU eyes, `w` mouth, blush.
   rings on the left, a darker elastic band on the right and a yellow pencil
   tucked behind her right ear. The cover is the face, with two ruled lines
   below. A small star top left, the heart bottom right, a big star bottom left.
-  On macOS the tile sits inside Apple's icon grid (see `scripts/icons.mjs`).
+  On macOS the tile sits inside Apple's icon grid (`uwu-icons` does that).
 - **The tile.** Every UwU app's icon for the website and GitHub sits on
   UwUMail's pastel pink tile (`#FFF3F8` to `#FFD3E5`), never another colour.
   Each one gets sparkles and a heart, arranged differently around it.
@@ -170,7 +169,7 @@ behind the right ear. The cover is the face: UwU eyes, `w` mouth, blush.
   heavier outlines, rings and pencil, so it reads as notes; the ears say Nyu
   (`brand/uwunotes-taskbar-icon.svg`). At 16 and 24 px a simplified cut takes
   over (`uwunotes-taskbar-icon-small.svg`). `node scripts/icons.mjs` runs the
-  suite's `uwu-icons` on these three and then builds the Mac icon.
+  suite's `uwu-icons` on these three, which also builds the Mac icon.
 - **The face** is the package's `NyuFace`; the notebook, its ears, the pencil
   and the paw are drawn here.
 - **Sources** in `brand/` (icon, symbol, mono symbol) and

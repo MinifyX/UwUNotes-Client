@@ -33,8 +33,7 @@ import { t, useLanguage } from '../lib/i18n';
 import { placeMenu, scrollToShow, type Anchor, type MenuPosition } from '../lib/menu-placement';
 import type { MenuEntry, TopMenu } from '../lib/menus';
 import { focusActiveView } from '../lib/views';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 type MenuBarProps = { menus: readonly TopMenu[] };
 
@@ -318,14 +317,14 @@ function MenuList({ label, entries, anchor, placement, onClose, onLeft, onRight 
             >
               <span className="menulist-tick" aria-hidden>
                 {entry.kind === 'item' && entry.checked ? (
-                  <Icon icon={APP_ICONS.done} size="xs" />
+                  <Icon icon={ICONS.done} size="xs" />
                 ) : null}
               </span>
               <span className="menulist-label">{entry.label}</span>
               {entry.kind === 'item' && entry.shortcut ? (
                 <kbd className="menulist-shortcut">{entry.shortcut}</kbd>
               ) : null}
-              {isSub ? <Icon icon={APP_ICONS.next} size="xs" className="menulist-more" /> : null}
+              {isSub ? <Icon icon={ICONS.next} size="xs" className="menulist-more" /> : null}
             </div>
           );
         })}

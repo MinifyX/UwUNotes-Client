@@ -23,7 +23,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { groupFonts, previewStack, useSystemFonts } from '../../lib/editor-fonts';
 import { t } from '../../lib/i18n';
-import { APP_ICONS } from '../../lib/icons';
+import { ICONS } from '@uwusuite/design';
 import { scrollToShow } from '../../lib/menu-placement';
 
 export function UiFontPicker({
@@ -157,7 +157,7 @@ export function EditorFontPicker({
 
       <div className="editorfont">
         <div className="editorfont-search">
-          <Icon icon={APP_ICONS.search} size="xs" className="editorfont-search-icon" />
+          <Icon icon={ICONS.search} size="xs" className="editorfont-search-icon" />
           <input
             type="search"
             className="editorfont-search-input"
@@ -220,7 +220,7 @@ export function EditorFontPicker({
                     onClick={() => pick(option)}
                   >
                     <span className="editorfont-tick" aria-hidden>
-                      {selected ? <Icon icon={APP_ICONS.done} size="xs" /> : null}
+                      {selected ? <Icon icon={ICONS.done} size="xs" /> : null}
                     </span>
                     <span
                       className="editorfont-name"

@@ -24,8 +24,7 @@ import {
 } from '../../lib/notebook';
 import { matchesQuery, previewLine, relativeAge } from '../../lib/notebook-list';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
-import { Icon, Button } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, Button, ICONS } from '@uwusuite/design';
 import { NyuScene } from '../nyu/scenes';
 import '../../styles/notes.css';
 
@@ -127,7 +126,7 @@ export function TrashView() {
             disabled={trash.length === 0 || confirming}
             onClick={() => setConfirming(true)}
           >
-            <Icon icon={APP_ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
+            <Icon icon={ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
           </button>
         </div>
       </header>
@@ -195,7 +194,7 @@ export function TrashView() {
         ) : (
           <>
             <div className="notebook-search">
-              <Icon icon={APP_ICONS.search} size="xs" className="notebook-search-icon" />
+              <Icon icon={ICONS.search} size="xs" className="notebook-search-icon" />
               <input
                 type="search"
                 className="notebook-search-input"
@@ -261,7 +260,7 @@ export function TrashView() {
                           title={t('Wiederherstellen')}
                           onClick={() => restore(entry.id)}
                         >
-                          <Icon icon={APP_ICONS.restore} size="xs" label={t('Wiederherstellen')} />
+                          <Icon icon={ICONS.restore} size="xs" label={t('Wiederherstellen')} />
                         </button>
                         <button
                           type="button"
@@ -269,7 +268,7 @@ export function TrashView() {
                           title={t('Endgültig löschen')}
                           onClick={() => remove(entry.id)}
                         >
-                          <Icon icon={APP_ICONS.delete} size="xs" label={t('Endgültig löschen')} />
+                          <Icon icon={ICONS.delete} size="xs" label={t('Endgültig löschen')} />
                         </button>
                       </div>
                       {isOpen ? (
@@ -288,7 +287,7 @@ export function TrashView() {
                               className="trash-entry-restore"
                               onClick={() => restore(entry.id)}
                             >
-                              <Icon icon={APP_ICONS.restore} size="xs" />
+                              <Icon icon={ICONS.restore} size="xs" />
                               {t('Wiederherstellen')}
                             </button>
                             <button
@@ -297,11 +296,7 @@ export function TrashView() {
                               title={t('Endgültig löschen')}
                               onClick={() => remove(entry.id)}
                             >
-                              <Icon
-                                icon={APP_ICONS.delete}
-                                size="xs"
-                                label={t('Endgültig löschen')}
-                              />
+                              <Icon icon={ICONS.delete} size="xs" label={t('Endgültig löschen')} />
                             </button>
                           </div>
                         </div>

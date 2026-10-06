@@ -22,14 +22,19 @@
  * the top of the screen (`lib/native-menu.ts`). Only the icon row is left.
  */
 
-import { Icon, TitleBar as SuiteTitleBar, Wordmark } from '@uwusuite/design';
+import {
+  Icon,
+  TitleBar as SuiteTitleBar,
+  Wordmark,
+  ICONS,
+  type IconMeaning,
+} from '@uwusuite/design';
 import { useTauriWindow } from '@uwusuite/design/tauri';
 import { Fragment, useSyncExternalStore, type MouseEvent } from 'react';
 import { allCommands, runCommand } from '../lib/commands';
 import { useCompare } from '../lib/compare';
 import { documentsVersion, subscribeDocuments } from '../lib/documents';
 import { N_, t, useLanguage } from '../lib/i18n';
-import { APP_ICONS, type AppIcon } from '../lib/icons';
 import { MENUS } from '../lib/menus';
 import { isMac } from '../lib/platform';
 import { shortcutLabel } from '../lib/shortcuts';
@@ -42,7 +47,7 @@ import { Nyu } from './nyu/Nyu';
  * because the labels are decided here, before a language is, and translated
  * where they are drawn.
  */
-const TOOLBAR: { command: string; icon: AppIcon; label: string }[][] = [
+const TOOLBAR: { command: string; icon: IconMeaning; label: string }[][] = [
   [
     { command: 'file.new', icon: 'newFile', label: N_('Neu') },
     { command: 'file.open', icon: 'folderOpen', label: N_('Öffnen') },
@@ -137,7 +142,7 @@ export function TitleBar() {
                 aria-pressed={action.command === 'view.compare' ? compare.active : undefined}
                 title={hint(t(action.label), action.command)}
               >
-                <Icon icon={APP_ICONS[action.icon]} size="md" />
+                <Icon icon={ICONS[action.icon]} size="md" />
               </button>
             ))}
           </Fragment>

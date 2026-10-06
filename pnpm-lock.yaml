@@ -69,8 +69,8 @@ importers:
         specifier: ^2.0.0
         version: 2.11.1
       '@uwusuite/design':
-        specifier: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz
-        version: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)
+        specifier: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz
+        version: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)
       dompurify:
         specifier: ^3.4.16
         version: 3.4.16
@@ -124,8 +124,8 @@ importers:
         specifier: ^2.0.0
         version: 2.11.1
       '@uwusuite/design':
-        specifier: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz
-        version: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)
+        specifier: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz
+        version: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -940,9 +940,9 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
-  '@uwusuite/design@https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz':
-    resolution: {tarball: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz}
-    version: 1.1.0
+  '@uwusuite/design@https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz':
+    resolution: {integrity: sha512-1Xl9jQlME3jBJLJlJX9J3lmq0M6HVi7qdSgaFQ8YrM/44LYbYDFnR0JGMezU5jC2ItEULU7ExoqtEjZxvcRvSw==}
+    version: 1.3.0
     engines: {node: '>=22'}
     hasBin: true
     peerDependencies:
@@ -2401,7 +2401,7 @@ snapshots:
   '@types/trusted-types@2.0.7':
     optional: true
 
-  '@uwusuite/design@https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.1.0/uwusuite-design-1.1.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)':
+  '@uwusuite/design@https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.3.0/uwusuite-design-1.3.0.tgz(@tauri-apps/api@2.11.1)(lucide-react@1.52.0(@types/react@18.3.31)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@4.3.3)':
     dependencies:
       '@fontsource-variable/dm-sans': 5.3.0
       '@fontsource-variable/jetbrains-mono': 5.3.0

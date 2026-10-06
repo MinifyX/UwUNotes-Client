@@ -21,8 +21,7 @@ import { useWorkspace } from '../lib/workspace';
 import { pickGreeting } from './nyu/greetings';
 import { useNyuHat } from '../lib/nyu-progress';
 import { NyuScene } from './nyu/scenes';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 
 /** The handful worth listing here, in the order a first-time window needs them. */
 const SUGGESTED = ['file.new', 'file.open', 'file.openFolder', 'find.inFiles', 'app.palette'];
@@ -88,7 +87,7 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
                   onClick={() => void openPaths([path], pane)}
                   title={path}
                 >
-                  <Icon icon={APP_ICONS.file} size="xs" />
+                  <Icon icon={ICONS.file} size="xs" />
                   <span className="emptypane-recent-name">{fileNameOf(path)}</span>
                   <span className="emptypane-recent-path">{path}</span>
                 </button>

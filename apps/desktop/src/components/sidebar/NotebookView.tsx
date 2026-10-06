@@ -26,8 +26,7 @@ import { matchesQuery, previewLine, relativeAge } from '../../lib/notebook-list'
 import { focusActiveView } from '../../lib/views';
 import { activateDoc, useWorkspace } from '../../lib/workspace';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
-import { Icon } from '@uwusuite/design';
-import { APP_ICONS } from '../../lib/icons';
+import { Icon, ICONS } from '@uwusuite/design';
 import { NyuScene } from '../nyu/scenes';
 import '../../styles/notes.css';
 
@@ -112,7 +111,7 @@ export function NotebookView() {
             title={t('Neue Notiz')}
             onClick={newFile}
           >
-            <Icon icon={APP_ICONS.add} size="xs" label={t('Neue Notiz')} />
+            <Icon icon={ICONS.add} size="xs" label={t('Neue Notiz')} />
           </button>
           <button
             type="button"
@@ -121,14 +120,14 @@ export function NotebookView() {
             disabled={trash.length === 0}
             onClick={() => void emptyTrashAsked()}
           >
-            <Icon icon={APP_ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
+            <Icon icon={ICONS.delete} size="xs" label={t('Papierkorb leeren…')} />
           </button>
         </div>
       </header>
 
       <div className="notebook-body">
         <div className="notebook-search">
-          <Icon icon={APP_ICONS.search} size="xs" className="notebook-search-icon" />
+          <Icon icon={ICONS.search} size="xs" className="notebook-search-icon" />
           <input
             type="search"
             className="notebook-search-input"
@@ -221,7 +220,7 @@ export function NotebookView() {
                         title={t('Endgültig löschen')}
                         onClick={() => void deleteTrashed(entry.id)}
                       >
-                        <Icon icon={APP_ICONS.delete} size="xs" label={t('Endgültig löschen')} />
+                        <Icon icon={ICONS.delete} size="xs" label={t('Endgültig löschen')} />
                       </button>
                     </li>
                   ))}
