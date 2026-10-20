@@ -4,7 +4,8 @@
 //! The editor goes to `%LOCALAPPDATA%\Programs\UwUNotes` unless the user types
 //! another folder, the shortcuts into the Start menu (and onto the desktop when
 //! asked), and the entry Windows lists under "Installed apps" into
-//! `HKEY_CURRENT_USER`. The uninstaller is this very setup, copied beside the
+//! `HKEY_CURRENT_USER`, next to the file types it offers to open ([`FILE_TYPES`]).
+//! The uninstaller is this very setup, copied beside the
 //! editor as `uninstall.exe`.
 //!
 //! Everything that is not Windows — the errors, the progress bar, unpacking,
@@ -14,8 +15,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
-use winreg::RegKey;
+use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
+use winreg::{RegKey, RegValue};
 
 use super::{
     classify, extract, Existing, Installed, Kind, Options, Package, Progress, Reporter, SetupError,
@@ -42,6 +43,80 @@ const SETUP_KEY: &str = r"Software\UwUNotes\Setup";
 /// machines of everyone who installed UwUNotes before this setup existed.
 const LEGACY_EXE: &str = "uwunotes-desktop.exe";
 const LEGACY_PRODUCT_KEY: &str = r"Software\UwUNotes\UwUNotes";
+/// "Open with": the program class every text file UwUNotes offers to open
+/// points at, the entry Windows keeps per executable, and the description
+/// Settings → Default apps lists UwUNotes under. None of it makes UwUNotes the
+/// default for anything — Windows leaves that to the user, and so does this.
+const PROG_ID: &str = "UwUNotes.Text";
+const PROG_ID_KEY: &str = r"Software\Classes\UwUNotes.Text";
+const APPLICATION_KEY: &str = r"Software\Classes\Applications\UwUNotes.exe";
+const CAPABILITIES_KEY: &str = r"Software\UwUNotes\Capabilities";
+const REGISTERED_APPLICATIONS_KEY: &str = r"Software\RegisteredApplications";
+/// The extensions UwUNotes shows up for under "Open with" — the same kinds of
+/// file the Linux desktop entry lists as MIME types, plus what Windows people
+/// open in Notepad++.
+pub const FILE_TYPES: &[&str] = &[
+    ".txt",
+    ".text",
+    ".md",
+    ".markdown",
+    ".log",
+    ".csv",
+    ".tsv",
+    ".ini",
+    ".cfg",
+    ".conf",
+    ".config",
+    ".properties",
+    ".env",
+    ".json",
+    ".jsonc",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".html",
+    ".htm",
+    ".css",
+    ".scss",
+    ".less",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".vue",
+    ".svelte",
+    ".py",
+    ".rs",
+    ".go",
+    ".java",
+    ".kt",
+    ".c",
+    ".h",
+    ".cpp",
+    ".hpp",
+    ".cc",
+    ".cs",
+    ".php",
+    ".rb",
+    ".lua",
+    ".sql",
+    ".sh",
+    ".bash",
+    ".ps1",
+    ".psm1",
+    ".bat",
+    ".cmd",
+    ".reg",
+    ".diff",
+    ".patch",
+    ".gitignore",
+    ".gitattributes",
+    ".editorconfig",
+    ".srt",
+];
 /// Half-written files carry these names until they are complete, so an install
 /// that stops in the middle never leaves a broken `UwUNotes.exe` behind.
 const INCOMING_APP: &str = "UwUNotes.exe.new";
@@ -373,6 +448,7 @@ pub fn install(
 
     report.at(Step::Registry, 0.0);
     register(layout, &folder, options, version).map_err(SetupError::other)?;
+    register_file_types(layout, &app).map_err(SetupError::other)?;
     report.at(Step::Registry, 1.0);
     report.at(Step::Done, 1.0);
 
@@ -433,6 +509,110 @@ fn register(
     Ok(())
 }
 
+/// Puts UwUNotes under "Open with" for every one of [`FILE_TYPES`], and into
+/// Settings → Default apps, so a user can pick it there instead of browsing
+/// for the executable. Explorer hands the file over as `"%1"`; the editor reads
+/// it from its command line.
+fn register_file_types(layout: &Layout, app: &Path) -> Result<(), String> {
+    let write = |key: &RegKey, name: &str, value: &str| {
+        key.set_value(name, &value)
+            .map_err(|error| format!("Couldn't write to the registry ({name}): {error}"))
+    };
+    let command = format!("{} \"%1\"", quoted(app));
+    let icon = format!("{},0", app.display());
+
+    // Written fresh, so a file type dropped from the list does not linger.
+    unregister_file_types(layout);
+
+    let class = layout.create(PROG_ID_KEY)?;
+    write(&class, "", "Text file")?;
+    write(&class, "FriendlyTypeName", "Text file")?;
+    write(
+        &layout.create(&format!(r"{PROG_ID_KEY}\DefaultIcon"))?,
+        "",
+        &icon,
+    )?;
+    write(
+        &layout.create(&format!(r"{PROG_ID_KEY}\shell\open\command"))?,
+        "",
+        &command,
+    )?;
+
+    let application = layout.create(APPLICATION_KEY)?;
+    write(&application, "FriendlyAppName", PRODUCT)?;
+    write(
+        &layout.create(&format!(r"{APPLICATION_KEY}\DefaultIcon"))?,
+        "",
+        &icon,
+    )?;
+    write(
+        &layout.create(&format!(r"{APPLICATION_KEY}\shell\open\command"))?,
+        "",
+        &command,
+    )?;
+    let supported = layout.create(&format!(r"{APPLICATION_KEY}\SupportedTypes"))?;
+
+    let capabilities = layout.create(CAPABILITIES_KEY)?;
+    write(&capabilities, "ApplicationName", PRODUCT)?;
+    write(
+        &capabilities,
+        "ApplicationDescription",
+        "A text and code editor with cat ears",
+    )?;
+    write(&capabilities, "ApplicationIcon", &icon)?;
+    let associations = layout.create(&format!(r"{CAPABILITIES_KEY}\FileAssociations"))?;
+
+    // An empty REG_NONE value is what Windows itself writes into
+    // OpenWithProgids: the name is the whole message.
+    let marker = RegValue {
+        bytes: Vec::new(),
+        vtype: RegType::REG_NONE,
+    };
+    for extension in FILE_TYPES {
+        write(&supported, extension, "")?;
+        write(&associations, extension, PROG_ID)?;
+        layout
+            .create(&format!(r"Software\Classes\{extension}\OpenWithProgids"))?
+            .set_raw_value(PROG_ID, &marker)
+            .map_err(|error| format!("Couldn't write to the registry ({extension}): {error}"))?;
+    }
+    write(
+        &layout.create(REGISTERED_APPLICATIONS_KEY)?,
+        PRODUCT,
+        CAPABILITIES_KEY,
+    )?;
+
+    if !layout.sandbox {
+        system::associations_changed();
+    }
+    Ok(())
+}
+
+/// Takes UwUNotes out of "Open with" again. Only the values it wrote: an
+/// extension's own key belongs to Windows and to every other program that
+/// registered for it.
+fn unregister_file_types(layout: &Layout) {
+    for extension in FILE_TYPES {
+        let path = format!(r"Software\Classes\{extension}\OpenWithProgids");
+        if let Ok(key) = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags(layout.key(&path), KEY_SET_VALUE)
+        {
+            let _ = key.delete_value(PROG_ID);
+        }
+    }
+    if let Ok(key) = RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey_with_flags(layout.key(REGISTERED_APPLICATIONS_KEY), KEY_SET_VALUE)
+    {
+        let _ = key.delete_value(PRODUCT);
+    }
+    layout.remove_tree(PROG_ID_KEY);
+    layout.remove_tree(APPLICATION_KEY);
+    layout.remove_tree(CAPABILITIES_KEY);
+    if !layout.sandbox {
+        system::associations_changed();
+    }
+}
+
 /// Removes what the setup wrote, and nothing else.
 ///
 /// `keep_settings` is the one thing the user is asked: the editor's data folder
@@ -460,6 +640,7 @@ pub fn uninstall(
     report.at(Step::Shortcuts, 1.0);
 
     report.at(Step::Registry, 0.0);
+    unregister_file_types(layout);
     layout.remove_tree(UNINSTALL_KEY);
     layout.remove_tree(PRODUCT_KEY);
     report.at(Step::Registry, 1.0);
@@ -646,6 +827,34 @@ mod tests {
         assert_eq!(existing.folder, folder);
         assert!(layout.wanted_desktop_shortcut());
 
+        let command = layout
+            .open(&format!(r"{PROG_ID_KEY}\shell\open\command"))
+            .expect("the program class")
+            .get_value::<String, _>("")
+            .unwrap();
+        assert!(
+            command.ends_with(r#"\UwUNotes.exe" "%1""#),
+            "Explorer hands the file to the editor: {command}"
+        );
+        assert!(layout
+            .open(r"Software\Classes\.txt\OpenWithProgids")
+            .expect("UwUNotes is under Open with for .txt")
+            .get_raw_value(PROG_ID)
+            .is_ok());
+        assert!(layout
+            .open(&format!(r"{APPLICATION_KEY}\SupportedTypes"))
+            .expect("the per-executable entry")
+            .get_value::<String, _>(".md")
+            .is_ok());
+        assert_eq!(
+            layout
+                .open(REGISTERED_APPLICATIONS_KEY)
+                .expect("Default apps knows UwUNotes")
+                .get_value::<String, _>(PRODUCT)
+                .unwrap(),
+            CAPABILITIES_KEY
+        );
+
         let percents: Vec<f64> = steps.iter().map(|step| step.percent).collect();
         assert!(
             percents.windows(2).all(|pair| pair[1] >= pair[0]),
@@ -718,6 +927,14 @@ mod tests {
         assert!(layout.open(UNINSTALL_KEY).is_none());
         assert!(layout.open(SETUP_KEY).is_none());
         assert!(layout.existing().is_none());
+        assert!(layout.open(PROG_ID_KEY).is_none());
+        assert!(layout.open(APPLICATION_KEY).is_none());
+        assert!(layout
+            .open(r"Software\Classes\.txt\OpenWithProgids")
+            .is_some_and(|key| key.get_raw_value(PROG_ID).is_err()));
+        assert!(layout
+            .open(REGISTERED_APPLICATIONS_KEY)
+            .is_some_and(|key| key.get_value::<String, _>(PRODUCT).is_err()));
         assert!(
             folder.join("notes.txt").exists(),
             "a file the setup did not write stays, and so does its folder"

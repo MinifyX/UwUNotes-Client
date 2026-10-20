@@ -45,8 +45,8 @@ use windows::Win32::System::Variant::VT_LPWSTR;
 use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
 use windows::Win32::UI::Shell::{
     FOLDERID_Desktop, FOLDERID_LocalAppData, FOLDERID_Programs, FOLDERID_RoamingAppData,
-    FOLDERID_UserProgramFiles, IShellLinkW, SHGetKnownFolderPath, ShellExecuteW, ShellLink,
-    KF_FLAG_CREATE,
+    FOLDERID_UserProgramFiles, IShellLinkW, SHChangeNotify, SHGetKnownFolderPath, ShellExecuteW,
+    ShellLink, KF_FLAG_CREATE, SHCNE_ASSOCCHANGED, SHCNF_IDLIST,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     MessageBoxW, IDYES, MB_ICONERROR, MB_ICONQUESTION, MB_OK, MB_YESNO, SW_SHOWNORMAL,
@@ -254,6 +254,13 @@ pub fn wait_for_exit(pid: u32, timeout: Duration) -> bool {
 }
 
 /// Starts a program without waiting for it and without a console window.
+/// Tells Explorer the file associations changed, so "Open with" shows a new
+/// entry (or stops showing an old one) without signing out first.
+pub fn associations_changed() {
+    // SAFETY: no items are passed; the call only broadcasts the change.
+    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
+}
+
 pub fn spawn_detached(exe: &Path, arguments: &[&str]) -> Result<(), String> {
     std::process::Command::new(exe)
         .args(arguments)
