@@ -128,8 +128,8 @@ pub(crate) fn take_opened_paths() -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{paths_from_args, push, take_opened_paths};
-    use std::path::{Path, PathBuf};
+    use super::{push, take_opened_paths};
+    use std::path::PathBuf;
 
     #[test]
     fn waiting_paths_are_handed_out_once() {
@@ -144,6 +144,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn command_line_paths_skip_the_program_and_options() {
+        use super::paths_from_args;
+        use std::path::Path;
+
         let cwd = Path::new("/home/nyu/notes");
         let paths = paths_from_args(
             [
@@ -168,5 +171,28 @@ mod tests {
             ]
         );
         assert!(paths_from_args(["/usr/bin/uwunotes"], cwd).is_empty());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn command_line_paths_on_windows() {
+        use super::paths_from_args;
+        use std::path::Path;
+
+        let paths = paths_from_args(
+            [
+                r"C:\Program Files\UwUNotes\uwunotes.exe",
+                r"C:\notes\a.txt",
+                "b.md",
+            ],
+            Path::new(r"D:\work"),
+        );
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from(r"C:\notes\a.txt"),
+                PathBuf::from(r"D:\work\b.md")
+            ]
+        );
     }
 }
