@@ -67,15 +67,29 @@ features = [
   "Win32_UI_WindowsAndMessaging",
 ]
 
+# Line numbers for backtraces, no more, and no debug info at all for
+# dependencies: full debug info made target/ several times larger and linking
+# slow — on Windows above all, where CI spends its time.
 [profile.dev]
 opt-level = 1
+debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 3
+debug = false
 
+# Thin LTO with the default 16 codegen units: fat LTO on one unit linked each
+# executable on a single core for minutes, twice per release job (editor and
+# setup) and twice more for the universal Mac builds, for a few percent of size.
 [profile.release]
-codegen-units = 1
-lto = true
+lto = "thin"
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# The setup's build script packs the editor with zstd at level 19
+# (apps/setup/src-tauri/build.rs), and build scripts are built unoptimised
+# unless told otherwise. Optimised, it is the same bytes in a fraction of the
+# time.
+[profile.release.package.zstd-sys]
+opt-level = 3

@@ -13,9 +13,25 @@ name: Mac App Store
 # scripts/build-mas.mjs. `sign` runs on a fresh runner that has built and
 # installed nothing — the same split as release.yml, for the same reason: the
 # certificates never share a machine with a few hundred build scripts.
+#
+# Also on a push to main that touches the same files, unsigned: that run is the
+# one that leaves a Rust cache behind. A cache written by a pull request is only
+# ever read by that pull request again, so without it every new one started
+# from nothing.
 on:
   push:
     tags: ['v*']
+    branches: [main]
+    # Path filters apply to the branch only; a tag always runs.
+    paths:
+      - '.github/workflows/mas.yml'
+      - 'scripts/build-mas.mjs'
+      - 'apps/desktop/src-tauri/Cargo.toml'
+      - 'apps/desktop/src-tauri/Info.plist'
+      - 'apps/desktop/src-tauri/macos/**'
+      - 'apps/desktop/src-tauri/tauri.mas.conf.json'
+      - 'apps/desktop/src-tauri/src/sandbox_access.rs'
+      - 'apps/desktop/src-tauri/src/opened.rs'
   workflow_dispatch:
   pull_request:
     paths:
@@ -67,6 +83,9 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           key: mas
+          # Pull requests read main's cache; only main writes one (10 GB per
+          # repository, shared with CI).
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build the store app, unsigned
         env:
@@ -102,7 +121,9 @@ jobs:
 
   sign:
     needs: [build, secrets]
-    if: needs.secrets.outputs.present == 'true'
+    # Not for a push to main: that run is there for the cache, and nothing
+    # signed on it would go anywhere.
+    if: needs.secrets.outputs.present == 'true' && (github.event_name != 'push' || startsWith(github.ref, 'refs/tags/'))
     runs-on: macos-latest
     steps:
       # Only the script, not the workspace: nothing here installs or builds.
