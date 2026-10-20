@@ -152,12 +152,10 @@ jobs:
         with:
           node-version: 22
       - run: corepack enable
+      # No separate `pnpm build`: `tauri build` runs it through
+      # beforeBuildCommand, and a TypeScript error has already failed CI's
+      # front-end job on the pull request before anything is tagged.
       - run: pnpm install --frozen-lockfile
-
-      # `tauri build` runs this again through beforeBuildCommand. Doing it here
-      # anyway means a TypeScript error fails as its own step after a minute,
-      # rather than somewhere inside the bundler's output.
-      - run: pnpm build
 
       # `stable` is a branch of that repository, not a tag, so the pin is a
       # commit and the toolchain is named here instead of being read off the
@@ -222,7 +220,6 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
 
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
@@ -284,7 +281,6 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
 
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:

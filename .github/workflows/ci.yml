@@ -1,9 +1,26 @@
 name: CI
 
+# The front end once, on Linux; rustfmt, clippy and the Rust tests for the
+# whole workspace on Linux and on Windows; the setup's macOS half on a Mac.
+# Four jobs side by side, none waiting for another. The editor's macOS build is
+# checked by mas.yml on the pull requests that touch it, and by every release.
+
 on:
   push:
     branches: [main]
+    # Text only: nothing in it is compiled or tested. Prettier also looks at
+    # Markdown and the release notes, and a release pull request always
+    # carries code beside them.
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'release-notes/**'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'release-notes/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,12 +36,18 @@ env:
   # asked for one, and would rather confirm that first. There is nobody here to
   # confirm it.
   COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  CARGO_TERM_COLOR: always
+  # Nothing here builds the same tree twice; incremental state is only
+  # cache weight.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   web:
+    name: Front end
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      # Every `uses:` in both workflows is pinned to a commit rather than to a
+      # Every `uses:` in these workflows is pinned to a commit rather than to a
       # tag or a branch, with the version in the comment. A tag can be moved
       # and `@stable` is a branch, so an unpinned action is whatever that
       # repository's owner — or whoever takes their account — says it is on the
@@ -54,31 +77,44 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm build
+      # Both pages: the editor's and the setup's.
+      - run: pnpm -r build
 
   rust:
-    # The whole workspace, on Windows: that is where it is developed, and where
-    # every test that touches the registry or a shortcut can run at all. The
-    # setup's macOS and Linux halves get the job below.
-    runs-on: windows-latest
+    name: Rust (${{ matrix.os }})
+    # The whole workspace on both systems. Windows is where UwUNotes is
+    # developed and the only place the tests that touch the registry or a
+    # shortcut can run; Linux has the setup's Linux half and is the cheap place
+    # for rustfmt.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    # A hung runner fails instead of holding everything for six hours.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - run: corepack enable
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      # WebKitGTK and the GTK stack Tauri compiles against on Linux.
+      - name: Install the system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
 
-      # tauri-build refuses to compile the desktop crate while frontendDist
-      # (../dist) is missing, so even `cargo test` needs the frontend built.
-      - run: pnpm build
+      # tauri-build refuses to compile an app whose frontendDist (../dist) is
+      # missing, but a debug build embeds nothing from it: an empty page each
+      # instead of Node, pnpm and two front-end builds, which `web` does.
+      - name: Front-end placeholders
+        shell: bash
+        run: |
+          for app in desktop setup; do
+            mkdir -p "apps/$app/dist"
+            echo '<!doctype html>' > "apps/$app/dist/index.html"
+          done
 
       # This action has no version tags; the branch name is the toolchain — and
       # that is exactly why the pin above is a commit and `toolchain` is named
@@ -89,54 +125,42 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          # Pull requests read main's cache; only main writes one. A cache per
+          # branch filled the repository's 10 GB and pushed main's out, so
+          # every run started from nothing.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - if: runner.os == 'Linux'
+        run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked --no-fail-fast
 
-  setup-unix:
-    # The setup is the one crate with code of its own for macOS and Linux —
-    # where the editor goes, the desktop entry, the app bundle — and none of it
-    # compiles on the Windows job above. So it is linted and tested here, on the
-    # systems it is for; its tests install into a temporary home folder for
-    # real. Just the setup: the editor is the same code everywhere and is built
-    # on both systems by every release.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-latest]
-    runs-on: ${{ matrix.os }}
+  setup-macos:
+    name: Setup (macOS)
+    # The setup is the one crate with code of its own for macOS — where the
+    # editor goes, the app bundle — and none of it compiles anywhere else. Its
+    # tests install into a temporary home folder for real.
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
-      # WebKitGTK and the GTK stack Tauri compiles against on Linux. macOS
-      # has everything it needs.
-      - name: Install the system libraries
-        if: runner.os == 'Linux'
+      # tauri-build wants the setup's page; see the placeholders above.
+      - name: Front-end placeholder
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential libssl-dev libxdo-dev
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-      - run: corepack enable
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      # tauri-build wants the setup's page built before the crate compiles.
-      - run: pnpm --filter @uwunotes/setup build
+          mkdir -p apps/setup/dist
+          echo '<!doctype html>' > apps/setup/dist/index.html
 
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
           components: clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - run: cargo clippy -p uwunotes-setup --all-targets -- -D warnings
-      - run: cargo test -p uwunotes-setup
+      - run: cargo clippy -p uwunotes-setup --all-targets --locked -- -D warnings
+      - run: cargo test -p uwunotes-setup --locked --no-fail-fast
