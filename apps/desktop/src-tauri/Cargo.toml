@@ -58,6 +58,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Deleting a file from the tree goes to the recycle bin, never a hard delete.
 trash = "5"
 
+# "Open with UwUNotes" while it is already running: the second start hands its
+# files to the first window and quits (opened.rs). macOS needs none of this,
+# Launch Services sends the files to the running app as `RunEvent::Opened`.
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_LibraryLoader"] }
 

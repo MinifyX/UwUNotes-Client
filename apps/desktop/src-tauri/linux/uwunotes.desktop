@@ -3,12 +3,10 @@ Categories={{categories}}
 {{#if comment}}
 Comment={{comment}}
 {{/if}}
-Exec={{exec}}
+Exec={{exec}} %F
 StartupWMClass={{exec}}
 Icon={{icon}}
 Name=UwUNotes
 Terminal=false
 Type=Application
-{{#if mime_type}}
-MimeType={{mime_type}}
-{{/if}}
+MimeType=text/plain;text/markdown;text/x-log;text/csv;text/css;text/html;text/xml;application/xml;application/json;application/x-yaml;application/toml;text/x-python;text/x-csrc;text/x-chdr;text/x-c++src;text/x-rust;text/x-shellscript;application/x-shellscript;text/javascript;application/javascript;
