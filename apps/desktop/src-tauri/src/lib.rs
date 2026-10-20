@@ -76,7 +76,24 @@ pub fn run() {
         )
         .init();
 
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // First, so a second start is turned away before it builds anything: its
+    // files open as tabs in the window already there. Not with UWUNOTES_DIR,
+    // which exists to run a second editor beside the one the user works in.
+    #[cfg(any(windows, target_os = "linux"))]
+    let builder = if std::env::var_os("UWUNOTES_DIR").is_none() {
+        builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            opened::receive_args(app, args, std::path::Path::new(&cwd));
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+    } else {
+        builder
+    };
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init());
     // The updater plugin registers commands of its own, and none of them are
@@ -117,6 +134,11 @@ pub fn run() {
             #[cfg(feature = "self-update")]
             app.manage(updates::Updates::default());
             quit::install(app.handle());
+            // "Open with" on Windows and Linux: the files are on our own
+            // command line. The page collects them once it is up.
+            if let Ok(cwd) = std::env::current_dir() {
+                opened::receive_args(app.handle(), std::env::args_os(), &cwd);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

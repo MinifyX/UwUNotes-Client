@@ -1,7 +1,9 @@
 /**
- * Files the system asks the editor to open: "Open with UwUNotes" in Finder, a
- * double-click on a file UwUNotes is the default app for, a file dropped on
- * the Dock icon. macOS only, for now — elsewhere nothing ever arrives.
+ * Files the system asks the editor to open: "Open with UwUNotes" in Finder,
+ * Explorer or the Linux file manager, a double-click on a file UwUNotes is the
+ * default app for, a file dropped on the Dock icon. On Windows and Linux a
+ * second start hands its files to the window already open, so they land here
+ * the same way.
  *
  * Rust keeps them until the page collects them (`src-tauri/src/opened.rs`),
  * because on a cold start they arrive before there is a page to tell. So this
