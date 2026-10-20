@@ -1,47 +1,47 @@
 {
-  "version": "0.7.1",
-  "notes": "Open with UwUNotes opens the file\n\n- On Windows and Linux, \"Open with UwUNotes\" (right-click) started the editor but not the file. The same for a double-click when UwUNotes is the default app for a file type. Now the file opens straight away in a tab\n- If UwUNotes is already running, the file lands as a new tab in the open window instead of starting a second one\n- The Linux package (.deb, AUR) now registers UwUNotes for text files too, so it shows up under \"Open with\"",
-  "pub_date": "2026-10-20T10:14:58Z",
+  "version": "0.7.2",
+  "notes": "UwUNotes is in the \"Open with\" menu on Windows\n\n- The setup registers UwUNotes for text and code files (.txt, .md, .json, .log, .py, .rs and many more) under \"Open with\". Before, you had to find it once through \"Choose another app\"\n- UwUNotes also shows up under Settings → Apps → Default apps, where it can be made the default for single file types\n- Uninstalling removes these entries again\n\nThe update runs the setup on its own, and UwUNotes shows up in the list afterwards.",
+  "pub_date": "2026-10-20T10:45:29Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm5Mc2JDakQ0c0RqTVJMNWMwSXNzaEdIRldoV2J0RkFIcnJEbGxTQlY1MTBnMG9GRUhnOW9hTjIrMjZnR0hMRWEyUk1OZkNseGMvemRNVWlCd2cyOUFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY3CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjEuZXhlCm9iRlB3QlVzdjQzeDJxZm5xQXA1RkhlUVlGenA0dVMwOURPQWlIUzNPaGhkeFROTUgzY0dDYnY3L2VMQXVwZ3IxOXQ1ZW5PdG1YTFg4RXlhUXZreUNnPT0K",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-windows-x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmthVWl1NXF4ZzFieHlpL0FGdE1pSnJlQmRVNEpGQTF2RlR6ZFdxb3lHK0l1Q2ZaM2FFMWU4SkRLWHBTMTBGb2wxcUp1ZkFTMFdsTUFKZXhuZjJWWHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAyCWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjIuZXhlCm9rWjYvZ1JrRmR4T29iT05TZnU4MjdzOUZCUGZ3NVd3TGpjc3ptMmdhZEljSDZMemptRGVmdjA2aXVTWENsZHBkMHNkRnJKdW9DbEdNVER3TTBRTUJBPT0K",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-windows-x64-setup.exe"
     },
     "windows-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnB5MUhIUXdsU1ArdVZweFZwQnFGNWJ1NE5pMW5jQkh0dzVPK0NIbzZKVzNuMC81NEJHYXk5Tjd3RTdUYllnM0xueTlOZk9mcHg0Y2Uxckl4M1dwc2djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY3CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjEtd2luZG93cy1hcm02NC5leGUKSDF1c0dSM3RXaHUzQS81elB3dll2dThsdUJLSUFQMmYyeDAwcjhKdWNWeFJUNTJGeW9jOEdZOVMrbmt1SC9ZVFFXYWV6N2UxQVJpYUw3b0laeVhyQkE9PQo=",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-windows-arm64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnQ5d1dGUk52YW9OSyttSURiSDRjS2xvTlMra0VBUi90SWRmazZOL2lxRXU4RmR5Z3hEb1Q2aVY0ZEF2NVBOTDhJdXVJSGcva1hmZU9KY1hIVkhpb2dBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAyCWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjItd2luZG93cy1hcm02NC5leGUKYTJSVGdKUkVLQVJCZGNPWm40djd5UklNZlZ4ditBdVFNSW15NFNISDdXbHRZMDlKZzBGMWwweHpkZlBnYXFvVkh0NzZLa3ZBNm5ycW15VzdPZWdJQ0E9PQo=",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-windows-arm64-setup.exe"
     },
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnR1OER4OVgrUHAzb0JJSVkvalV6Vjd1clJqTEdsWkFVb3V5SlBacHNyR0NtbGlJZE0wOWhsdEhvL1hSQzVtUjlXSjBZS1V1Tm1HL0JpRXZsSUFBN1FzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY3CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjEtbWFjb3MtYXJtNjQuZG1nCmRtajkzOVpPTy9qZFJ0RGtIOVRCVTVaa2xmSytoejFUdmpkalZJakRvWUZ6QlJqUEMwQmcwSU9xVkpyQWttU3ZscUswRzNUUmRJc1drWmNYV1d0d0JRPT0K",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-macos-universal.dmg"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmdqVEF4WlFaMGhGOUt4bmhLVHdaMkRMRk1DdHZGeFVKU0xzd21nUEZRallCSTFKYkQ1ZytYaTRNTHM0VWxaU3A2Q0Nnb0xFNjlqTE5ScmIya0ZMT1FFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAzCWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjItbWFjb3MtYXJtNjQuZG1nCnpCKzZZZFh0MmhHTmlCSkRIcUFWdW1BT1hUQitJVXB0V1lkRUUyYWNJQU9XSUVaZ2c5R2V1OFM2TTZrRjNJdVVWeVR5RFlqUzkxdEdpWmZQbzRVS0JnPT0K",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-macos-universal.dmg"
     },
     "darwin-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmsyWHhCT3pLVTI5dkw4OGdLaUFUYUZUcmcyU2hIOW5CS3hEY2lkM0VHNEJNbXVnNmwxTFQxSzk3Ri82QklFRmtWemQ4SVZReGFhOEtlM1Nmc3lWcXdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY3CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjEtbWFjb3MteDY0LmRtZwpYUjFEV2wzSXBKNWtyekhFUFFaL0Y5M08ybU5Mb1NhZnRjZ2NKNTNaeTljY25wZGhRdk1QZnVpQmg0S21ld1RwdFBEYjVTejJCN3AyemFYVWVyUFdEUT09Cg==",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-macos-universal.dmg"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm4vYXNCbytBcjFjSkdKRFpJTlgyZUI3YnZOdWluSU1WdkEvZVBneFNHZ0RJSlhCcGdxSDgzYjlCeTBnQ1R0S0xIeTNrT0c2c3VFUHpjTkRROVV4NXdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAzCWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjItbWFjb3MteDY0LmRtZwpobHoxaGFKS0Nrdm9UNGdXTC9yUG9ua1FDaDFXS2Zza1NkQXV0NWFLSXZobkVsdFIvd3FoSmczZG1DUTgyaTBBdWJHbkh5U3JTOEVLRklKdzEzdFdBdz09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-macos-universal.dmg"
     },
     "linux-x86_64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWnJZYlJpOWdKUFZuekNCN2IyMjdrc2x2SzJwY0IwaWJ6Z3FtZzZoc1pyZkZUNUFyU1NvVndhWHRqTkl3cWRGSGhESUpGZkpHTG1iS21UMmhQZWFORGdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY3CWZpbGU6VXdVTm90ZXMtMC43LjEtbGludXgteDg2XzY0LmRlYgo2ZVBSVit5cmJZWVU5U0FzM0s4enVLUTZ6eWtQSU5PbUQzU0Q5NHN2MHRPNDFSbkw5WWNvSzN4RHVvWmd6b3NHQTdhT01QUjRSaktjTndUMjNUaEpDdz09Cg==",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-linux-x64.deb"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm1RdnZ0RHR0cHNQSno3bVBwOFI3VFlnYzBud2UwaFY5TUpqc0hGSVFhT3c4UDlUdmdHcXJYS1N6RlpPaEtmTGI0UzQzcGVnTXpYdkZNSTc1Mmxicnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAzCWZpbGU6VXdVTm90ZXMtMC43LjItbGludXgteDg2XzY0LmRlYgpncmlGcTdkUlNrN1N0bnRFUG5aUkpoYXErVVBTV3loaFludlpSQldaSTYvczNzWjM4ajNJbHVvbE9tT2FrcHBsZjl5ek1ZZDhVMUVydkpqbTlGYVFDQT09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-linux-x64.deb"
     },
     "linux-x86_64-rpm": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmxxTi9oSlBmQ2I1eHgySS9rYzlxTGorWkd4b2prblZ6TmszUms2K0c5d1Evd2tMTEM2aHhZRFFPRUZ6WnBxdmtwbkhJZ1E4dndOdTFiNm1FVkRHN3dZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY4CWZpbGU6VXdVTm90ZXMtMC43LjEtbGludXgteDg2XzY0LnJwbQpkcHNLZEt5UU4rMm1iNkpsblBORW5xaFMxU2dXa1J6MTNpN1NsVkdqUE5wNWo5YzNYaWw0b0lzUEQydmpFMmErTkhqRWxWc2svWkJPQ2ZpWVlDZmRDUT09Cg==",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-linux-x64.rpm"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmhqREhpUjFWQkhJc1FoNmdLVk0zWmE0c1VvaVRlYVA3R3o4OWJyQisyYnllMndQdnNDbzFQdVJxamQxVElmQ0kyaGdZRmtRNiswZGVEeGtNQk9BUEF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAzCWZpbGU6VXdVTm90ZXMtMC43LjItbGludXgteDg2XzY0LnJwbQpiYmtDTUNDQ1lmdmRab2FraVZOanhoMEFQckFUdHVLL2FMY0RWOFJrblRsQjNFaXllQ25zZ3NUYTQvZmVpWTQ2cXM4eUIzTk5CdCtPOUE4Mjh6L2dEdz09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-linux-x64.rpm"
     },
     "linux-aarch64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmg2NW5XTXBZdHRXYXdtL2dBeFpuU0VtbnFWNVNobnZtRmJHaVFyVnRKeHBFNW5MYVRKdFZad1kxdllYTlpZMkc3NGdZS2JzT2NLVzgxQ3p4T3J4UWdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY4CWZpbGU6VXdVTm90ZXMtMC43LjEtbGludXgtYWFyY2g2NC5kZWIKQ01oNmxlRk1RTjFDMG8zbVYzTHdMclBOVHRtWTVtZlE3QlBOWXE3L091QWEzdSt5L3ZTdE04RGsya1hKUmRTR0tiZGxDMTNPWTdQSmg5UFhmMjJFQkE9PQo=",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-linux-arm64.deb"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmo1eG82Ukw2eEQzc0czU3lRbzExODFSSTFmelF5MVUrdFV4L29DbWVESXlGeFFENHdvMWtwUEFoTXVBRERPUUFVanBmYzBUbHZEY3kwWng3Z0d0UlFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTAzCWZpbGU6VXdVTm90ZXMtMC43LjItbGludXgtYWFyY2g2NC5kZWIKM3pROHZpNzdrc2JmS2lwOGtKVVk0c25RZjBHeVJvR25uakVPNFZvMUxENEJNUVBJTmtaVHRSSjZyZkZpTlpqa01PRFBXaDdiWDBobmxva3FsMTNpQnc9PQo=",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-linux-arm64.deb"
     },
     "linux-aarch64-rpm": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm9UTVBJNjhwaCttRS9WTitCbmlLTlIvVjhsc0lCYW1Yb0NFazVkQWlCdTgzRlBaclFJZklQdmRWTWJBN0pMT3JBTUZjd2xkL2x3WjN0aGdrb2lUTWc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY4CWZpbGU6VXdVTm90ZXMtMC43LjEtbGludXgtYWFyY2g2NC5ycG0KZW1kY05sOEdLSmNCVGVmcnJRbGpBYWJEazcreUZTcUxnTDhhV2JKNm1kclpKUG1OM3lucUliL0JTRGhhRzNJQTFYSy9JNGZaTVI0dy81aURiYVRlRFE9PQo=",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-linux-arm64.rpm"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmgzSi9JM1FneVZkZEY5bzM2RVhqdm5jNFppN3k0MDR3WkVLUWlqb1QrOE5KcG9uYjNpRE1pUzgzTU9NZCtkVGl2Z3lHUjBTQ1dDZnlBSFhuRGlmc3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTA0CWZpbGU6VXdVTm90ZXMtMC43LjItbGludXgtYWFyY2g2NC5ycG0KWnJyL3hLQlBMU0tDM2lIZTFUL3gxUFZ0Nlk4MmpkTnlYejFDcUJkN3VZQzlhaCs3YS9jMUttaloxMVBWL2orRVpBTWRVdWFnMU4rOE1SK3pGUkhrQXc9PQo=",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-linux-arm64.rpm"
     },
     "linux-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm5zNXVXSE1hSVFJUUlCekNGWnpQdGlPcGtTTkR1aWg5N3liMFB5a0hhNXZtWkxkamdrTU42K21OSDI3dk9ldVZFUlpLRGxZK2ZSVVN0OHVEN0ZVdlFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY4CWZpbGU6VXdVTm90ZXMtMC43LjEtbGludXgtYWFyY2g2NC1wb3J0YWJsZS50YXIuZ3oKbkdJTHp4Q2xLUUl5VDVOMGtEZzBMTWI1TWc1aEFiUFZiZzR3VjBkaFd6UW1HWGY3aHplb3cyRzhoNUNENHJ6U0QybHZ3cmJrZGx6TXIrTDF3Vzg5QXc9PQo=",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-linux-arm64-portable.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWmlWbDlYZ3ZPRFkzZmgyV1EvTFY2YlBZR0VIVmJKNk42eVNwWUxlVXZLbnNtS254VXlTSUYrSThwMmk4eEk4ZnNsNUF4ekE2dHpxTVV6YWtvYzh5UEFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTA0CWZpbGU6VXdVTm90ZXMtMC43LjItbGludXgtYWFyY2g2NC1wb3J0YWJsZS50YXIuZ3oKd28xTGlTUnc0Qk40V1JyTnppcHFscm1kSVIrUWwrNGlaQlZuekR5N25IQVFuQXFZa0hXeHhTSnhVZmNBZCtrNUJwT0luMUtYV1RqbXlWaUFnVU1wQVE9PQo=",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-linux-arm64-portable.tar.gz"
     },
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm1kdnFBOVJBeTlkZWxTWGs1a1ZnZnJONy9LZFdlRjlpN21aYzBwOFEveVFoYXlpRngxYk1CQUkzem1vR2pQYitPdldDdnIzY1V3Tm9SbWVrUHZpY2dJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkxMjY4CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjEtbGludXgteDg2XzY0LnRhci5negpUOE1qQXl4WDhGaWdLT3RKQVYxb2xBYnhDejMrUmxGMWdRTTUyZUZ5L1pTWFNRR05HZEdjTGhtYmt5Wm9FT2UwemxDeXNYSUloUzdNM1lsTlNTanNCdz09Cg==",
-      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.1/UwUNotes-update-linux-x64.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTazV0SzhJK2xmWm50ZEhYanl6ekRMS2dMK2NOTEFSZEQ5ZGFzR3dQdzJXMFd5TDQ2UjAyT2tIMmhrMUhkb052WHNKNW9iSmJtK3ljSzFYczVsQjBuWC9PakkyeGhaNGdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDkzMTA0CWZpbGU6VXdVTm90ZXMtU2V0dXAtMC43LjItbGludXgteDg2XzY0LnRhci5negpRa0NlVS9xcVZiVGxsWFl4VUxnRVBkOU8vbFg0QklySUMwSHZSdmh6ZEJ6aFBjTUZSeXpFdk9mNEFqSzlkYU1TY3MxbFRBTDU0QUw0K0Zacnp0RDdDdz09Cg==",
+      "url": "https://github.com/MinifyX/UwUNotes-Client/releases/download/v0.7.2/UwUNotes-update-linux-x64.tar.gz"
     }
   }
 }
