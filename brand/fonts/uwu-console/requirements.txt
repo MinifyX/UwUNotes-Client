@@ -1,5 +1,5 @@
 # Pinned so the build is reproducible (same pins as UwU Sans). Install into a venv, never globally.
-fonttools==4.60.1
+fonttools==4.60.2
 brotli==1.2.1
 uharfbuzz==0.51.1
 freetype-py==2.5.1
