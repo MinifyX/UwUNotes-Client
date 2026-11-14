@@ -129,7 +129,12 @@ export function OutlineView() {
           onKeyDown={(event) => {
             // Enter jumps to the first match, Escape clears: the two things
             // anyone does in a filter box next to a list.
-            if (event.key === 'Enter' && shownItems[0]) jump(shownItems[0]);
+            if (
+              event.key === 'Enter' &&
+              !(event.nativeEvent.isComposing || event.keyCode === 229) &&
+              shownItems[0]
+            )
+              jump(shownItems[0]);
             if (event.key === 'Escape') setQuery('');
           }}
         />

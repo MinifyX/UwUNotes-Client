@@ -824,7 +824,7 @@ function NameField({ depth, kind, initial, onCommit, onCancel }: NameFieldProps)
         onChange={(event) => setValue(event.target.value)}
         onBlur={() => finish(true)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') {
+          if (event.key === 'Enter' && !(event.nativeEvent.isComposing || event.keyCode === 229)) {
             event.preventDefault();
             finish(true);
           } else if (event.key === 'Escape') {
