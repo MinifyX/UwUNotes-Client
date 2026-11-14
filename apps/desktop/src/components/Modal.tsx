@@ -16,7 +16,7 @@
  */
 
 import { Dialog } from '@uwusuite/design';
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { focusActiveView } from '../lib/views';
 
 type ModalProps = {
@@ -46,27 +46,15 @@ export function Modal({
   wide = false,
   tone = 'default',
 }: ModalProps) {
-  const body = useRef<HTMLDivElement>(null);
-
-  // shortcut: the package's Dialog does not close() itself when it unmounts, and a removed
-  // <dialog> gives focus back to nobody. Drop this once @uwusuite/design does it.
-  useLayoutEffect(() => {
-    const dialog = body.current?.closest('dialog');
-    return () => {
-      if (!dialog?.open) return;
-      // The close event would reach the Dialog's onClose, which after StrictMode's test
-      // remount closes the dialog for real.
-      dialog.addEventListener('close', (event) => event.stopImmediatePropagation(), {
-        capture: true,
-        once: true,
-      });
-      dialog.close();
-      // closeDialog() aims for the text, but it was inert then; and the invoker may be gone
-      // (the palette that opened this). Either way the keyboard goes back into the file.
+  // The package's Dialog closes and returns focus as it unmounts (in a layout effect, so before
+  // this). If the opener is gone (the palette that opened this), the keyboard goes into the file.
+  useEffect(
+    () => () => {
       const here = document.activeElement;
-      if (!here || here === document.body || dialog.contains(here)) focusActiveView();
-    };
-  }, []);
+      if (!here || here === document.body) focusActiveView();
+    },
+    [],
+  );
 
   return (
     <Dialog
@@ -78,9 +66,7 @@ export function Modal({
       footer={footer}
       className={wide ? 'modal-wide' : undefined}
     >
-      <div ref={body} className="modal-body">
-        {children}
-      </div>
+      <div className="modal-body">{children}</div>
     </Dialog>
   );
 }

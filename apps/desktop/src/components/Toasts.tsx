@@ -14,7 +14,9 @@
 
 import { dismissToast, useToasts, type Toast } from '../lib/toast';
 import { t, useLanguage } from '../lib/i18n';
-import { Icon, ICONS, type IconMeaning } from '@uwusuite/design';
+import { Icon, ICONS, topModal, type IconMeaning } from '@uwusuite/design';
+import { useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 
 const TONE_ICONS: Record<Toast['tone'], IconMeaning> = {
   info: 'info',
@@ -25,9 +27,12 @@ const TONE_ICONS: Record<Toast['tone'], IconMeaning> = {
 export function Toasts() {
   useLanguage();
   const toasts = useToasts();
+  // Over an open dialog the corner moves into it: everything outside a modal is inert and
+  // sits behind its backdrop.
+  const host = useSyncExternalStore(topModal.subscribe, topModal.get, () => null);
   if (toasts.length === 0) return null;
 
-  return (
+  const corner = (
     <div className="toasts" aria-live="polite" aria-atomic="false">
       {toasts.map((entry) => (
         <div
@@ -67,4 +72,5 @@ export function Toasts() {
       ))}
     </div>
   );
+  return host ? createPortal(corner, host) : corner;
 }
