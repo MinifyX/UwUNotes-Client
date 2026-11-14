@@ -48,7 +48,8 @@ function focusableIn(container: HTMLElement): HTMLElement[] {
  * in a window full of tabs and toolbars is never the harmless one.
  *
  * `[data-autofocus]` wins when it is there — the prompt host points it at the
- * safe answer, so Enter can never discard a file by accident.
+ * safe answer, so Enter can never discard a file by accident. `[data-secondary]`
+ * is skipped for the first focus unless it is the only way in.
  */
 export function useFocusTrap(container: RefObject<HTMLElement>, onEscape: () => void): void {
   // Escape must call the *current* handler, not the one from the render that
@@ -62,8 +63,13 @@ export function useFocusTrap(container: RefObject<HTMLElement>, onEscape: () => 
     if (!element) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
+    // `[data-secondary]` (the corner cross) only takes focus when nothing else can.
+    const focusable = focusableIn(element);
     const first =
-      element.querySelector<HTMLElement>('[data-autofocus]') ?? focusableIn(element)[0] ?? element;
+      element.querySelector<HTMLElement>('[data-autofocus]') ??
+      focusable.find((el) => !el.closest('[data-secondary]')) ??
+      focusable[0] ??
+      element;
     first.focus();
     stack.push(element);
 
