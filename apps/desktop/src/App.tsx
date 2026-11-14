@@ -15,7 +15,14 @@
  */
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react';
 import { useSidebarOpen } from './lib/chrome';
 import { installWheelZoom } from './lib/zoom';
 import { useUiState } from './lib/commands';
@@ -37,7 +44,7 @@ import { useSettings } from './lib/settings';
 import { useZen } from './lib/zen';
 import { AboutDialog } from './components/AboutDialog';
 import { CompareBar } from './components/CompareBar';
-import { UwuLabels } from '@uwusuite/design';
+import { revealFrom, UwuLabels } from '@uwusuite/design';
 import { NativeMenu } from './components/NativeMenu';
 import { HashDialog } from './components/HashDialog';
 import { CommandPalette } from './components/CommandPalette';
@@ -154,6 +161,13 @@ export function App() {
   // The same, for a quit the system started (the Dock, logging out); macOS only.
   useEffect(() => installQuitGuard(), []);
 
+  // Once, when the window first shows: uncovered from the logo (the middle on the Mac, which has none).
+  const appRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (ready && appRef.current)
+      revealFrom(appRef.current, document.querySelector('.uwu-titlebar-brand'));
+  }, [ready]);
+
   if (!ready) return <Startup />;
 
   return (
@@ -161,6 +175,7 @@ export function App() {
     // buttons, a close cross) follow the app's language.
     <UwuLabels labels={lang === 'en' ? 'en' : 'de'}>
       <div
+        ref={appRef}
         className="app"
         data-sidebar={sidebarOpen ? 'open' : zen ? 'closed' : 'rail'}
         data-zen={zen ? true : undefined}

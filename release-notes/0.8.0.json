@@ -1,0 +1,4 @@
+{
+  "de": "Bewegung: dezente Übergänge\n\n- Beim Start öffnet sich das Fenster in einem Kreis vom Logo aus\n- In der Seitenleiste gleitet die Markierung zur gewählten Ansicht, die neue Ansicht blendet sich weich ein\n- Unter Einstellungen → Animationen „Aus“ (oder mit reduzierter Bewegung im System) bleibt alles still\n- Aktuelles Suite-Design: etwas kräftigere Eingabefelder und ein deutlicherer Fokusrahmen",
+  "en": "Motion: subtle transitions\n\n- At start the window opens in a circle from the logo\n- In the sidebar the highlight slides to the chosen view, and the new view fades in\n- With Settings → Animations set to \"Off\" (or reduced motion in the system) everything stays still\n- Current suite design: slightly stronger input outlines and a clearer focus ring"
+}

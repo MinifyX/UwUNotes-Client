@@ -10,7 +10,7 @@
 import { setSidebarOpen, setSidebarView, useSidebarView } from '../../lib/chrome';
 import { t } from '../../lib/i18n';
 import { shortcutLabel } from '../../lib/shortcuts';
-import { Icon, ICONS } from '@uwusuite/design';
+import { Icon, ICONS, NavIndicator } from '@uwusuite/design';
 import { SIDEBAR_VIEWS } from './views';
 
 /** "Seitenleiste ausblenden (Strg+B)": the label, and the key that does the same. */
@@ -42,6 +42,7 @@ export function Sidebar() {
               <Icon icon={ICONS[view.icon]} size="xs" label={t(view.label)} />
             </button>
           ))}
+          <NavIndicator className="bg-elevated" />
         </nav>
         <button
           type="button"
@@ -52,7 +53,9 @@ export function Sidebar() {
           <Icon icon={ICONS.sidebarHide} label={t('Seitenleiste ausblenden')} />
         </button>
       </div>
-      <Component />
+      <div key={active.id} className="sidebar-page uwu-page">
+        <Component />
+      </div>
     </aside>
   );
 }
