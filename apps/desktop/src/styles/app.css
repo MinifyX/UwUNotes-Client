@@ -283,6 +283,13 @@ input[type='radio'] {
 }
 
 /* One view of the panel: a header, a body that scrolls, an optional footer. */
+/* Holds the view and is keyed by it, so switching views fades the new one in. */
+.sidebar-page {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
 .sidebar-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
