@@ -141,13 +141,15 @@
 
 /* The wide modal is sized for settings. Two editors side by side need the
    window, so this one takes nearly all of it. */
-.modal[data-size='wide']:has(.history-diff) {
-  width: min(1240px, 100%);
-  height: min(900px, 100%);
+.modal-wide:has(.history-diff) {
+  max-width: 1240px;
+  height: min(900px, calc(100svh - 48px));
+  max-height: none;
 }
 
 .modal-body:has(.history-diff) {
   display: grid;
+  height: 100%;
   overflow: hidden;
   padding: 0;
 }

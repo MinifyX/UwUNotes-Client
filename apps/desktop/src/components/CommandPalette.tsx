@@ -26,6 +26,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -37,6 +38,7 @@ import { listDir } from '../lib/api';
 import { closeDialog, matchCommands, runCommand, useUiState } from '../lib/commands';
 import { openPaths } from '../lib/files';
 import { t, useLanguage } from '../lib/i18n';
+import { focusActiveView } from '../lib/views';
 import { useWorkspace } from '../lib/workspace';
 
 /** Entries visited by one walk, files and folders together. */
@@ -222,7 +224,26 @@ function Palette() {
   const [query, setQuery] = useState('>');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLUListElement | null>(null);
+  const backdrop = useRef<HTMLDivElement | null>(null);
   const listId = useId();
+
+  // Not the package's Dialog: the palette keeps its own keys and its place at
+  // the top. Like the package's mobile overlays it makes the rest of the
+  // window inert while it is open; whatever was not inert already is set and
+  // later freed, so stacked overlays nest.
+  useLayoutEffect(() => {
+    const node = backdrop.current;
+    const siblings = [...(node?.parentElement?.children ?? [])].filter(
+      (el) => el !== node && !el.hasAttribute('inert'),
+    );
+    for (const el of siblings) el.setAttribute('inert', '');
+    return () => {
+      for (const el of siblings) el.removeAttribute('inert');
+      // A command that wanted the text could not focus it while it was inert.
+      const here = document.activeElement;
+      if (!here || here === document.body || node?.contains(here)) focusActiveView();
+    };
+  }, []);
 
   const commandMode = query.startsWith('>');
 
@@ -343,6 +364,7 @@ function Palette() {
 
   return (
     <div
+      ref={backdrop}
       className="palette-backdrop"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) closeDialog();

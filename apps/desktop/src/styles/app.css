@@ -1785,8 +1785,9 @@ input[type='radio'] {
   inset: 0;
   z-index: 30;
   display: grid;
-  /* A track of the backdrop's own height, so `max-height: 100%` on the
-     palette means the window and not the list; see `.modal-backdrop`. */
+  /* One track of exactly the backdrop's height, not an implicit `auto` one
+     that grows to the content: so `max-height: 100%` on the palette means
+     the window and not the list. */
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   justify-items: center;
   align-items: start;
@@ -1955,89 +1956,17 @@ input[type='radio'] {
 /* ── Modals and settings ───────────────────────────────── */
 
 /*
- * The dialog shell, in the suite's Dialog look (@uwusuite/design): radius 22,
- * a hairline, the floating shadow, the blurred backdrop and the pop on the way
- * in. `components/Modal.tsx` keeps its own focus trap and overlay stack rather
- * than the package's `<dialog>`, because the find bar and the palette ask that
- * stack which overlay is on top.
+ * The shell is the package's Dialog (`components/Modal.tsx`). What stays here
+ * is the app's body padding and the fixed height of the wide one.
  */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  /* One track of exactly the backdrop's size, not an implicit `auto` one. An
-     auto track grows to the dialog's *content*, and the dialog's
-     `height: min(640px, 100%)` then resolves against that: with a long
-     settings page the track was thousands of pixels tall and the centred
-     dialog sat below the bottom of the window, unreachable (0.4.0). */
-  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  place-items: center;
-  padding: 24px;
-  background: var(--uwu-backdrop);
-  backdrop-filter: blur(2px);
-  animation: uwu-fade 160ms ease-out;
-}
-
-.modal {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(560px, 100%);
-  max-height: 100%;
-  border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-dialog);
-  background: var(--uwu-surface);
-  box-shadow: var(--uwu-shadow-float);
-  animation: uwu-pop 180ms var(--uwu-ease-pop);
-  overflow: hidden;
-}
-
-.modal[data-size='wide'] {
-  width: min(860px, 100%);
-  height: min(680px, 100%);
-}
-
-/* A warning never looks like a routine dialog: amber along the top edge, and
-   deliberately not pink, which in this window only ever means "this one". */
-.modal[data-tone='warning'] {
-  border-top: 4px solid var(--uwu-warning);
-}
-
-.modal-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 16px 8px 24px;
-}
-
-.modal-title {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--uwu-text-section);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.modal[data-tone='warning'] .modal-title {
-  color: var(--uwu-warning-ink);
-}
-
 .modal-body {
-  min-height: 0;
-  overflow-y: auto;
   padding: 10px 24px 20px;
   line-height: 1.55;
 }
 
-.modal-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 14px 24px 16px;
-  border-top: 1px solid var(--uwu-hairline);
+/* Settings keeps one height while its sections change length. */
+dialog.modal-wide {
+  height: min(680px, calc(100svh - 48px));
 }
 
 /* Settings is the wide modal, and it is a single scrolling column of

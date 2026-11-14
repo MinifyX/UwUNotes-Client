@@ -1,6 +1,6 @@
 {
   "name": "@uwunotes/desktop",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -32,7 +32,7 @@
     "@fontsource-variable/fira-code": "^5.1.0",
     "@lezer/highlight": "^1.2.1",
     "@tauri-apps/api": "^2.0.0",
-    "@uwusuite/design": "https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.15.1/uwusuite-design-1.15.1.tgz",
+    "@uwusuite/design": "https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.16.0/uwusuite-design-1.16.0.tgz",
     "dompurify": "^3.4.17",
     "lucide-react": "^1.52.0",
     "markdown-it": "^15.0.3",

@@ -477,15 +477,17 @@ function actionFor(event: KeyboardEvent): (() => void) | null {
     return () => runCommand('view.zen');
   }
 
-  // Escape leaves zen mode — but only an Escape nobody else wanted. Every bar,
-  // menu and dialog in the app handles its own Escape and prevents the default
-  // (the modal ones even stop it in the capture phase), and CodeMirror does
-  // the same when Escape closed its autocomplete or collapsed a multi-caret
-  // selection. This listener runs last, on the way up, so a closed find bar
-  // costs one Escape and leaving zen a second one, never both at once.
+  // Escape leaves zen mode — but only an Escape nobody else wanted. Every bar
+  // and menu in the app handles its own Escape and prevents the default, and
+  // CodeMirror does the same when Escape closed its autocomplete or collapsed a
+  // multi-caret selection. A <dialog> closes on the browser's `cancel` instead,
+  // so an Escape from inside one is never ours. This listener runs last, on the
+  // way up, so a closed find bar costs one Escape and leaving zen a second one,
+  // never both at once.
   if (
     event.key === 'Escape' &&
     !event.defaultPrevented &&
+    !(event.target instanceof Element && event.target.closest('dialog')) &&
     !event.ctrlKey &&
     !event.altKey &&
     !event.metaKey &&

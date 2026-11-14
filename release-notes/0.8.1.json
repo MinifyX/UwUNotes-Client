@@ -1,0 +1,4 @@
+{
+  "de": "Dialoge mit der Tastatur\n\n- Ist ein Dialog offen, bleibt die Tastatur darin: Tab springt nicht mehr ins Fenster dahinter, und Bildschirmleser lesen nur den Dialog vor\n- Nach dem Schließen steht der Fokus wieder dort, wo er vorher war, sonst im Text\n- Auch die Befehlspalette sperrt das Fenster dahinter, solange sie offen ist\n- Escape in einem Dialog beendet nicht mehr nebenbei den Zen-Modus\n- Aktuelles Suite-Design (1.16)",
+  "en": "Dialogs and the keyboard\n\n- While a dialog is open the keyboard stays in it: Tab no longer reaches the window behind, and screen readers read only the dialog\n- After closing, focus goes back where it was, otherwise into the text\n- The command palette also locks the window behind it while it is open\n- Escape in a dialog no longer leaves zen mode as well\n- Current suite design (1.16)"
+}

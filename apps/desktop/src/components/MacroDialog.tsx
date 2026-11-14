@@ -323,10 +323,9 @@ function MacroManager() {
  * keystroke first and save the file while somebody is trying to bind Ctrl+S —
  * and `stopPropagation` so it does not get it second either.
  *
- * Escape is the one key this does not take. The dialog's focus trap is also
- * listening in the capture phase, was installed first, and has already closed
- * the dialog by the time we see it; fighting it for Escape would mean two ways
- * out of one dialog that do different things.
+ * Escape is the one key this does not take. It goes on to the `<dialog>`,
+ * which closes on it; fighting it for Escape would mean two ways out of one
+ * dialog that do different things.
  */
 function useShortcutCapture(
   capturing: string | null,

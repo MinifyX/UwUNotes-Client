@@ -1,117 +1,23 @@
 /**
- * The dialog shell, and the focus trap underneath it.
+ * The dialog shell: the suite's `Dialog` with the app's body padding.
  *
  * Every overlay in the app that is genuinely modal — the prompt host, settings,
  * about, go-to-line — is this component with something inside it. The find bar
  * and the project search are deliberately *not*: a modal over the text you are
  * searching is a bug wearing a hat, and those two are bars and panels instead.
  *
- * {@link useFocusTrap} is exported separately for the overlays that need the
- * keyboard behaviour but not the chrome — a floating palette that is its own
- * shape, say. The two are the same code, so a dialog and a palette can never
- * drift apart on what Escape does.
+ * The package's `<dialog>` brings the inert window behind it, the focus trap,
+ * Escape (only the innermost of stacked dialogs answers it) and focus going
+ * back where it came from.
  *
  * This module does not decide *whether* a dialog is open. It is mounted when it
  * should be shown and unmounted when it should not; `lib/commands.ts` owns the
  * one dialog slot.
  */
 
-import { ICONS, IconButton } from '@uwusuite/design';
-import { useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
-import { t } from '../lib/i18n';
-
-const FOCUSABLE =
-  'input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
-
-/**
- * Open overlays, innermost last.
- *
- * A dialog can open another one — settings opens the about box — and only the
- * one on top may answer Escape or hold Tab. Without the stack, one Escape
- * closes both, and the user never sees the answer they came back for.
- */
-const stack: HTMLElement[] = [];
-
-function focusableIn(container: HTMLElement): HTMLElement[] {
-  return [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true',
-  );
-}
-
-/**
- * Keeps the keyboard inside `container` while it is mounted, closes it on
- * Escape, and puts focus back where it was on the way out.
- *
- * Focus always lands somewhere inside, even when nothing sensible wants it: the
- * container itself takes it as a last resort. Leaving focus behind in the page
- * means the next Enter presses whatever button happened to be under it, which
- * in a window full of tabs and toolbars is never the harmless one.
- *
- * `[data-autofocus]` wins when it is there — the prompt host points it at the
- * safe answer, so Enter can never discard a file by accident. `[data-secondary]`
- * is skipped for the first focus unless it is the only way in.
- */
-export function useFocusTrap(container: RefObject<HTMLElement>, onEscape: () => void): void {
-  // Escape must call the *current* handler, not the one from the render that
-  // mounted the dialog: a form that asks before closing only learns that once
-  // something has been typed into it.
-  const escapeRef = useRef(onEscape);
-  escapeRef.current = onEscape;
-
-  useLayoutEffect(() => {
-    const element = container.current;
-    if (!element) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    // `[data-secondary]` (the corner cross) only takes focus when nothing else can.
-    const focusable = focusableIn(element);
-    const first =
-      element.querySelector<HTMLElement>('[data-autofocus]') ??
-      focusable.find((el) => !el.closest('[data-secondary]')) ??
-      focusable[0] ??
-      element;
-    first.focus();
-    stack.push(element);
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (stack[stack.length - 1] !== element) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        escapeRef.current();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const reachable = focusableIn(element);
-      if (reachable.length === 0) {
-        event.preventDefault();
-        element.focus();
-        return;
-      }
-      const head = reachable[0]!;
-      const tail = reachable[reachable.length - 1]!;
-      const here = document.activeElement;
-      if (event.shiftKey && (here === head || here === element)) {
-        event.preventDefault();
-        tail.focus();
-      } else if (!event.shiftKey && here === tail) {
-        event.preventDefault();
-        head.focus();
-      }
-    };
-
-    // Capture, so the trap sees Escape before the window-wide shortcut
-    // listener and before CodeMirror, whichever of them is underneath.
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      const at = stack.indexOf(element);
-      if (at >= 0) stack.splice(at, 1);
-      previous?.focus();
-    };
-  }, [container]);
-}
+import { Dialog } from '@uwusuite/design';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { focusActiveView } from '../lib/views';
 
 type ModalProps = {
   title: string;
@@ -126,7 +32,7 @@ type ModalProps = {
 };
 
 /**
- * A centred dialog with a backdrop, drawn like the suite's `Dialog`.
+ * A centred dialog with a backdrop.
  *
  * A click on the backdrop does nothing on purpose. Closing by a stray click
  * throws away whatever was typed, and every dialog here has a real way out:
@@ -140,50 +46,43 @@ export function Modal({
   wide = false,
   tone = 'default',
 }: ModalProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useFocusTrap(dialogRef, onClose);
+  const body = useRef<HTMLDivElement>(null);
+
+  // shortcut: the package's Dialog does not close() itself when it unmounts, and a removed
+  // <dialog> gives focus back to nobody. Drop this once @uwusuite/design does it.
+  useLayoutEffect(() => {
+    const dialog = body.current?.closest('dialog');
+    return () => {
+      if (!dialog?.open) return;
+      // The close event would reach the Dialog's onClose, which after StrictMode's test
+      // remount closes the dialog for real.
+      dialog.addEventListener('close', (event) => event.stopImmediatePropagation(), {
+        capture: true,
+        once: true,
+      });
+      dialog.close();
+      // closeDialog() aims for the text, but it was inert then; and the invoker may be gone
+      // (the palette that opened this). Either way the keyboard goes back into the file.
+      const here = document.activeElement;
+      if (!here || here === document.body || dialog.contains(here)) focusActiveView();
+    };
+  }, []);
 
   return (
-    <div className="modal-backdrop">
-      <div
-        ref={dialogRef}
-        className="modal"
-        data-size={wide ? 'wide' : 'default'}
-        data-tone={tone}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-      >
-        <header className="modal-head">
-          <h2 id={titleId} className="modal-title">
-            {title}
-          </h2>
-          <IconButton
-            icon={ICONS.close}
-            label={t('Schließen')}
-            onClick={onClose}
-            // Not the first thing Enter reaches: the cross is the way out, not
-            // the answer, and dialogs put their real answer in the footer.
-            data-secondary
-          />
-        </header>
-        <div className="modal-body">{children}</div>
-        {footer ? <footer className="modal-footer">{footer}</footer> : null}
+    <Dialog
+      open
+      onClose={onClose}
+      title={title}
+      width={wide ? 'lg' : 'md'}
+      tone={tone}
+      footer={footer}
+      className={wide ? 'modal-wide' : undefined}
+    >
+      <div ref={body} className="modal-body">
+        {children}
       </div>
-    </div>
+    </Dialog>
   );
-}
-
-/**
- * Whether `element` is the overlay currently on top.
- *
- * For the bars that are not modal but still listen for Escape: the find bar
- * must not close itself when the Escape was meant for a dialog above it.
- */
-export function isTopmostOverlay(element: HTMLElement | null): boolean {
-  return element !== null && stack[stack.length - 1] === element;
 }
 
 export type { ModalProps };
