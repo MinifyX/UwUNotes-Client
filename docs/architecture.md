@@ -62,6 +62,15 @@ user could plausibly hit, and `ApiErrorKind` is a small closed set:
 what turns into "the file changed on disk, overwrite?" — instead of matching on
 prose, which breaks the moment a message is translated.
 
+A document's text never travels inside JSON. Opening, saving and the draft
+autosave send it as the raw UTF-8 body of the request or the reply; the few
+fields that go with it ride in an `x-uwu-meta` header on the way in and in a
+length-prefixed JSON header in front of the text on the way out
+([`raw_ipc.rs`](../apps/desktop/src-tauri/src/raw_ipc.rs) has the framing).
+Escaping a log with millions of lines into one JSON string, copying it through
+the webview and parsing it back took seconds on Linux, and the autosave did it
+every second while someone typed.
+
 ## Why the text is not in React state
 
 A document is its metadata plus a CodeMirror `EditorState`, and the state lives
@@ -221,6 +230,12 @@ the app cost nothing: an untitled buffer with three lines in it comes back with
 those three lines, and a modified file comes back modified, still knowing what
 was on disk underneath. A draft is dropped the moment its document is saved or
 its tab is closed on purpose.
+
+For a large document the draft is encoded a slice at a time
+([`lib/text-bytes.ts`](../apps/desktop/src/lib/text-bytes.ts)), so writing it
+never blocks the window, and it is written less often: every second up to a
+million characters, stretching to every ten seconds for the largest files.
+Closing the window still writes everything at once.
 
 Restore is deliberately careful. A file that has vanished since the last run is
 skipped rather than turned into an error dialog at start-up. A file whose stamp
