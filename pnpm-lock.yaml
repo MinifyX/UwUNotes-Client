@@ -973,7 +973,7 @@ packages:
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@uwusuite/design@https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.17.0/uwusuite-design-1.17.0.tgz':
-    resolution: {integrity: sha512-xC/ghxz7Ty+YXJPmPt9sosK7+KpzB0NrVYv2V6TcGSKIYTc8fazxdnoCMTMB0RI4+aLoIcoTtYUqQ+yvgAgjew==}
+    resolution: {tarball: https://github.com/MinifyX/UwUSuite-Design/releases/download/v1.17.0/uwusuite-design-1.17.0.tgz}
     version: 1.17.0
     engines: {node: '>=22'}
     hasBin: true
