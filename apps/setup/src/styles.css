@@ -69,9 +69,9 @@ button {
   color: var(--uwu-ink);
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background-color var(--uwu-duration-fast) var(--uwu-ease-out),
+    color var(--uwu-duration-fast) var(--uwu-ease-out),
+    border-color var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 button:hover:not(:disabled) {
@@ -355,7 +355,7 @@ input[type='checkbox'] {
   height: 100%;
   background: var(--uwu-pink-solid);
   border-radius: inherit;
-  transition: width 120ms linear;
+  transition: width var(--uwu-duration-fast) linear;
 }
 
 .progress-line {
@@ -421,12 +421,12 @@ input[type='checkbox'] {
 /* ── The installer's own four animations ───────────────── */
 
 .setup-fade {
-  animation: setup-fade 240ms ease-out;
+  animation: setup-fade var(--uwu-duration-enter) var(--uwu-ease-out);
 }
 
 .setup-pop {
   width: 100%;
-  animation: setup-pop 480ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  animation: setup-pop var(--uwu-duration-reveal) var(--uwu-ease-spring);
 }
 
 .setup-hop {

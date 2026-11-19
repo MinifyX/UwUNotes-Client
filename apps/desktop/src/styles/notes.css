@@ -75,7 +75,7 @@
   border-radius: var(--uwu-radius-control);
   background: transparent;
   text-align: left;
-  transition: background-color 120ms ease;
+  transition: background-color var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 /* Room for the delete button, which sits over the row's right edge. */
@@ -84,13 +84,12 @@
 }
 
 .notebook-item:hover:not(:disabled) {
-  background: var(--uwu-elevated);
+  background: color-mix(in srgb, var(--uwu-pink-tint) 45%, transparent);
 }
 
 /* Pink means "this one": the note whose tab is in front. */
 .notebook-item[aria-current='true'] {
   background: var(--uwu-pink-tint);
-  box-shadow: inset 2px 0 0 var(--uwu-pink);
 }
 
 .notebook-item-name {
@@ -140,7 +139,7 @@
   background: transparent;
   color: var(--uwu-muted);
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .notebook-row:hover .notebook-delete,
@@ -185,7 +184,7 @@
   display: flex;
   gap: 1px;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .trash-entry:hover .trash-entry-tools,

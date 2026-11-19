@@ -268,10 +268,10 @@
   gap: 8px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .nyu-pomodoro[data-running] .nyu-pomodoro-tomato {
-    animation: none;
-  }
+/* The app's own Animationen setting, not only the system's: it resolves into
+   `data-motion` and covers both. */
+:root[data-motion='reduced'] .nyu-pomodoro[data-running] .nyu-pomodoro-tomato {
+  animation: none;
 }
 
 /* ── Secrets ── */

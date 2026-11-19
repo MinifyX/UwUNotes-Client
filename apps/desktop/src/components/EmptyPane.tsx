@@ -50,11 +50,11 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
   }, [language]);
 
   return (
-    <div className="emptypane">
+    <div className="emptypane uwu-page">
       <NyuScene name="empty" className="emptypane-scene" hat={hat} />
       {greeting ? <p className="emptypane-greeting">{greeting}</p> : null}
 
-      <ul className="emptypane-actions">
+      <ul className="emptypane-actions uwu-stagger">
         {suggestions.map((suggestion) => (
           <li key={suggestion.id}>
             <button
@@ -76,7 +76,7 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
           <h2 id={`recent-${pane}`} className="emptypane-recent-title">
             {t('Zuletzt geöffnet')}
           </h2>
-          <ul className="emptypane-recent-list">
+          <ul className="emptypane-recent-list uwu-stagger">
             {recentFiles.slice(0, 6).map((path) => (
               <li key={path}>
                 <button

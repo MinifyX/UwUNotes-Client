@@ -17,13 +17,7 @@
 }
 
 .app[data-zen] .app-body {
-  animation: zen-in 280ms ease-out;
-}
-
-@keyframes zen-in {
-  from {
-    opacity: 0;
-  }
+  animation: uwu-fade var(--uwu-duration-enter) var(--uwu-ease-out);
 }
 
 /*
@@ -40,14 +34,14 @@
   z-index: 40;
   opacity: 0;
   transition:
-    transform 200ms ease,
-    opacity 200ms ease;
+    transform var(--uwu-duration-base) var(--uwu-ease-out),
+    opacity var(--uwu-duration-base) var(--uwu-ease-out);
 }
 
 .app[data-zen] .appheader {
   top: 0;
   transform: translateY(calc(-100% - 1px));
-  box-shadow: 0 18px 40px -26px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
 }
 
 .app[data-zen] .statusbar {
@@ -65,7 +59,7 @@
   opacity: 1;
   /* A short wait, so a pointer flicking past the edge on its way somewhere
      else does not drag a bar along with it. */
-  transition-delay: 120ms;
+  transition-delay: var(--uwu-duration-fast);
 }
 
 .zen-edge {
@@ -119,7 +113,7 @@
 
 /* Focus dimming: the lines outside the caret's paragraph, from `editor/focus.ts`. */
 .app[data-zen] .cm-line {
-  transition: opacity 180ms ease;
+  transition: opacity var(--uwu-duration-base) var(--uwu-ease-out);
 }
 
 .app[data-zen] .cm-line.cm-uwuDimmed {
@@ -140,8 +134,8 @@
   color: var(--uwu-muted);
   font-size: 12px;
   pointer-events: none;
-  transition: opacity 400ms ease;
-  animation: zen-in 300ms ease-out;
+  transition: opacity var(--uwu-duration-reveal) var(--uwu-ease-out);
+  animation: uwu-fade var(--uwu-duration-enter) var(--uwu-ease-out);
 }
 
 .zen-hint[data-phase='fading'] {
@@ -230,7 +224,7 @@
   border: 1px solid var(--uwu-border);
   border-radius: var(--uwu-radius-card);
   background: var(--uwu-surface);
-  box-shadow: 0 20px 48px -20px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
   font-size: 12px;
 }
 

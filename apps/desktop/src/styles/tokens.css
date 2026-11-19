@@ -8,16 +8,15 @@
  * of the window and the chrome floats above it. Only this app needs it so
  * far; it moves into the package when a second app does (docs/design.md).
  *
- * `--app-shade` and `--app-scrim` are the one pair of things that must come
- * out dark in both themes, so they are mixed from ink in light and from the
- * deep ground in dark.
+ * `--app-scrim` must come out dark in both themes, so it is mixed from ink in
+ * light and from the deep ground in dark. Popovers take their shadow from the
+ * package (`--uwu-shadow-float`), like every other app in the suite.
  */
 
 :root {
   --uwu-deep: #ffffff;
   --uwu-deep-gutter: #f8f4f6;
 
-  --app-shade: color-mix(in srgb, var(--uwu-ink) 26%, transparent);
   --app-scrim: color-mix(in srgb, var(--uwu-ink) 34%, transparent);
 }
 
@@ -25,7 +24,6 @@
   --uwu-deep: #0e0b11;
   --uwu-deep-gutter: #141016;
 
-  --app-shade: color-mix(in srgb, var(--uwu-deep) 80%, transparent);
   --app-scrim: color-mix(in srgb, var(--uwu-deep) 68%, transparent);
 }
 

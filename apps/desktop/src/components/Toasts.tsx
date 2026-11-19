@@ -12,7 +12,7 @@
  * because a file that would not open is worth cutting in for.
  */
 
-import { dismissToast, useToasts, type Toast } from '../lib/toast';
+import { dismissToast, pauseToasts, resumeToasts, useToasts, type Toast } from '../lib/toast';
 import { t, useLanguage } from '../lib/i18n';
 import { Icon, ICONS, topModal, type IconMeaning } from '@uwusuite/design';
 import { useSyncExternalStore } from 'react';
@@ -33,7 +33,22 @@ export function Toasts() {
   if (toasts.length === 0) return null;
 
   const corner = (
-    <div className="toasts" aria-live="polite" aria-atomic="false">
+    <div
+      className="toasts"
+      aria-live="polite"
+      aria-atomic="false"
+      // Nothing times out while it is being pointed at or tabbed through.
+      onPointerEnter={pauseToasts}
+      onPointerLeave={(event) => {
+        if (!event.currentTarget.contains(document.activeElement)) resumeToasts();
+      }}
+      onFocus={pauseToasts}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        if (!event.currentTarget.matches(':hover')) resumeToasts();
+      }}
+    >
       {toasts.map((entry) => (
         <div
           key={entry.id}

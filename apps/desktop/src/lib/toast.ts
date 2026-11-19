@@ -53,7 +53,7 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function getToasts(): readonly Toast[] {
+export function getToasts(): readonly Toast[] {
   return toasts;
 }
 
@@ -90,12 +90,54 @@ export function toast(
     : action
       ? LIFETIME_WITH_ACTION
       : LIFETIME[tone];
-  timers.set(
-    id,
-    window.setTimeout(() => dismissToast(id), lifetime),
-  );
+  if (paused) remaining.set(id, lifetime);
+  else startTimer(id, lifetime);
   announce();
   return id;
+}
+
+/* ── Holding still while someone reads ─────────────────── */
+
+/**
+ * While the pointer or the focus is on the stack, nothing in it times out —
+ * the suite's rule since design 1.16 (`pause`/`resume` on its `ToastStore`). A
+ * toast that vanishes from under the cursor that is about to click its button
+ * is the one kind of toast that is worse than none.
+ */
+let paused = false;
+/** Time left per toast while paused, or before its timer is started. */
+const remaining = new Map<number, number>();
+/** When each running timer fires, for working out what is left on a pause. */
+const deadlines = new Map<number, number>();
+/** A resumed toast keeps at least this long, so it does not vanish on mouse-out. */
+const RESUME_MIN_MS = 1_500;
+
+function startTimer(id: number, ms: number) {
+  deadlines.set(id, Date.now() + ms);
+  timers.set(
+    id,
+    window.setTimeout(() => dismissToast(id), ms),
+  );
+}
+
+export function pauseToasts(): void {
+  if (paused) return;
+  paused = true;
+  const now = Date.now();
+  for (const [id, deadline] of deadlines) {
+    remaining.set(id, Math.max(0, deadline - now));
+    const timer = timers.get(id);
+    if (timer !== undefined) window.clearTimeout(timer);
+    timers.delete(id);
+  }
+  deadlines.clear();
+}
+
+export function resumeToasts(): void {
+  if (!paused) return;
+  paused = false;
+  for (const [id, ms] of remaining) startTimer(id, Math.max(ms, RESUME_MIN_MS));
+  remaining.clear();
 }
 
 export function dismissToast(id: number): void {
@@ -103,12 +145,16 @@ export function dismissToast(id: number): void {
   const next = toasts.filter((entry) => entry.id !== id);
   if (next.length === toasts.length) return;
   toasts = next;
+  // The stack unmounts with its last toast, and with it the pointer-leave that
+  // would have resumed: an empty stack is never paused.
+  if (toasts.length === 0) paused = false;
   announce();
 }
 
 /** For a reload of the whole workspace: nothing on screen still applies. */
 export function clearToasts(): void {
   for (const entry of toasts) clearTimer(entry.id);
+  paused = false;
   if (toasts.length === 0) return;
   toasts = [];
   announce();
@@ -118,4 +164,6 @@ function clearTimer(id: number) {
   const timer = timers.get(id);
   if (timer !== undefined) window.clearTimeout(timer);
   timers.delete(id);
+  deadlines.delete(id);
+  remaining.delete(id);
 }

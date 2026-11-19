@@ -69,12 +69,11 @@
 }
 
 .history-item:hover:not(:disabled) {
-  background: var(--uwu-elevated);
+  background: color-mix(in srgb, var(--uwu-pink-tint) 45%, transparent);
 }
 
 .history-item[aria-current='true'] {
   background: var(--uwu-pink-tint);
-  box-shadow: inset 2px 0 0 var(--uwu-pink);
 }
 
 .history-item-time {

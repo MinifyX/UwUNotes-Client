@@ -86,9 +86,9 @@ button:where(:not(.rounded-full)) {
   color: var(--uwu-ink);
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background-color var(--uwu-duration-fast) var(--uwu-ease-out),
+    color var(--uwu-duration-fast) var(--uwu-ease-out),
+    border-color var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 button:where(:not(.rounded-full)):hover:not(:disabled) {
@@ -277,9 +277,9 @@ input[type='radio'] {
 }
 
 .sidebar-switch[aria-selected='true'] {
-  background: var(--uwu-elevated);
+  /* The pill under it is the package's NavIndicator; a background or an
+     underline here would draw a second marker on the same row. */
   color: var(--uwu-pink);
-  box-shadow: inset 0 -2px 0 var(--uwu-pink);
 }
 
 /* One view of the panel: a header, a body that scrolls, an optional footer. */
@@ -608,7 +608,7 @@ input[type='radio'] {
   flex: 1;
   min-width: 0;
   padding: 1px 5px;
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   border-color: var(--uwu-pink);
   background: var(--uwu-canvas);
 }
@@ -747,7 +747,7 @@ input[type='radio'] {
   margin-right: 6px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   background: transparent;
   color: var(--uwu-muted);
 }
@@ -912,7 +912,7 @@ input[type='radio'] {
 
 .split-divider-line {
   background: var(--uwu-hairline);
-  transition: background-color 120ms ease;
+  transition: background-color var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .split[data-direction='horizontal'] > .split-divider .split-divider-line {
@@ -1008,7 +1008,7 @@ input[type='radio'] {
   flex: none;
   padding: 2px 6px;
   border: 1px solid var(--uwu-border);
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   background: var(--uwu-canvas);
   font-size: 11px;
   color: var(--uwu-muted);
@@ -1151,7 +1151,7 @@ input[type='radio'] {
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   background: transparent;
   color: var(--uwu-muted);
   font-family: var(--uwu-mono);
@@ -1576,18 +1576,11 @@ input[type='radio'] {
   border-left: 3px solid var(--uwu-pink-solid);
   background: var(--uwu-elevated);
   font-size: 12.5px;
-  animation: update-hint-in 160ms ease both;
+  animation: uwu-pop var(--uwu-duration-base) var(--uwu-ease-pop) both;
 }
 
 .update-hint[data-tone='error'] {
   border-left-color: var(--uwu-warning-ink);
-}
-
-@keyframes update-hint-in {
-  from {
-    opacity: 0;
-    translate: 0 8px;
-  }
 }
 
 :root[data-motion='reduced'] .update-hint {
@@ -1649,7 +1642,7 @@ input[type='radio'] {
   display: block;
   height: 100%;
   background: var(--uwu-pink-solid);
-  transition: width 160ms ease;
+  transition: width var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .update-hint-actions {
@@ -1804,7 +1797,7 @@ input[type='radio'] {
   border: 1px solid var(--uwu-border);
   border-radius: var(--uwu-radius-card);
   background: var(--uwu-surface);
-  box-shadow: 0 28px 64px -28px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
 }
 
 .palette-input {
@@ -2195,7 +2188,7 @@ dialog.modal-wide {
   flex: none;
   padding: 2px 6px;
   border: 1px solid var(--uwu-border);
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   background: var(--uwu-canvas);
   font-size: 11px;
   color: var(--uwu-muted);
@@ -2322,7 +2315,7 @@ dialog.modal-wide {
   gap: 6px;
   min-width: 0;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--uwu-radius-small);
   cursor: pointer;
   /* A system can have a thousand families. Rows out of sight are not laid
      out, so their fonts are not loaded until somebody scrolls to them. */
@@ -2382,13 +2375,7 @@ dialog.modal-wide {
 }
 
 .settings-update-spin {
-  animation: settings-update-spin 900ms linear infinite;
-}
-
-@keyframes settings-update-spin {
-  to {
-    rotate: 360deg;
-  }
+  animation: uwu-spin 1s linear infinite;
 }
 
 :root[data-motion='reduced'] .settings-update-spin {
@@ -2433,7 +2420,7 @@ dialog.modal-wide {
   display: block;
   height: 100%;
   background: var(--uwu-pink-solid);
-  transition: width 160ms ease;
+  transition: width var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .settings-update-bar-fill[data-indeterminate] {
@@ -2493,7 +2480,7 @@ dialog.modal-wide {
   border: 1px solid var(--uwu-border);
   border-radius: var(--uwu-radius-card);
   background: var(--uwu-surface);
-  box-shadow: 0 20px 48px -20px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
 }
 
 .encmenu {
@@ -2859,17 +2846,10 @@ and it exists for bug reports: quiet {
   max-width: 340px;
   padding: 5px;
   border: 1px solid var(--uwu-border);
-  border-radius: 12px;
+  border-radius: var(--uwu-radius-card);
   background: var(--uwu-surface);
-  box-shadow: 0 18px 44px -18px var(--app-shade);
-  animation: contextmenu-in 110ms ease both;
-}
-
-@keyframes contextmenu-in {
-  from {
-    opacity: 0;
-    scale: 0.97;
-  }
+  box-shadow: var(--uwu-shadow-float);
+  animation: uwu-pop var(--uwu-duration-base) var(--uwu-ease-pop) both;
 }
 
 /* The menu itself holds focus and moves a highlight with the arrow keys, so
@@ -2883,7 +2863,7 @@ and it exists for bug reports: quiet {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--uwu-radius-small);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -2954,7 +2934,7 @@ and it exists for bug reports: quiet {
   gap: 12px;
   width: 100%;
   padding: 10px 8px 10px 16px;
-  border-radius: 16px;
+  border-radius: var(--uwu-radius-card);
   background: var(--uwu-toast);
   color: var(--uwu-toast-ink);
   box-shadow: var(--uwu-shadow-float);
@@ -3489,7 +3469,7 @@ and it exists for bug reports: quiet {
   height: 22px;
   padding: 0;
   border: 1px solid var(--uwu-border);
-  border-radius: 5px;
+  border-radius: var(--uwu-radius-small);
   background: var(--uwu-canvas);
   cursor: pointer;
 }
@@ -3683,7 +3663,7 @@ and it exists for bug reports: quiet {
   height: 24px;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--uwu-radius-small);
   background: transparent;
   color: var(--uwu-ink);
   font-weight: 500;
@@ -3715,10 +3695,10 @@ and it exists for bug reports: quiet {
   overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid var(--uwu-border);
-  border-radius: 12px;
+  border-radius: var(--uwu-radius-card);
   background: var(--uwu-surface);
-  box-shadow: 0 18px 44px -18px var(--app-shade);
-  animation: contextmenu-in 110ms ease both;
+  box-shadow: var(--uwu-shadow-float);
+  animation: uwu-pop var(--uwu-duration-base) var(--uwu-ease-pop) both;
 }
 
 .menulist:focus-visible {
@@ -3731,7 +3711,7 @@ and it exists for bug reports: quiet {
   gap: 8px;
   min-width: 0;
   padding: 5px 10px;
-  border-radius: 8px;
+  border-radius: var(--uwu-radius-small);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -3905,8 +3885,8 @@ and it exists for bug reports: quiet {
   gap: 8px;
   padding: 10px 12px 12px;
   border: 1px solid var(--uwu-border);
-  border-radius: 14px;
-  box-shadow: 0 18px 44px -18px var(--app-shade);
+  border-radius: var(--uwu-radius-card);
+  box-shadow: var(--uwu-shadow-float);
 }
 
 .findbar-head {
@@ -4001,7 +3981,7 @@ and it exists for bug reports: quiet {
   display: grid;
   gap: 6px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--uwu-radius-control);
   background: var(--uwu-canvas);
 }
 
@@ -4084,7 +4064,7 @@ and it exists for bug reports: quiet {
   gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--uwu-border);
-  border-radius: 10px;
+  border-radius: var(--uwu-radius-control);
   background: var(--uwu-canvas);
 }
 

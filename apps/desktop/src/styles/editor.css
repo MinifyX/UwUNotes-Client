@@ -134,7 +134,7 @@
    looked for and invisible when not. */
 .cm-foldGutter .cm-gutterElement {
   opacity: 0.45;
-  transition: opacity 120ms ease;
+  transition: opacity var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
 .cm-editor:hover .cm-foldGutter .cm-gutterElement,
@@ -211,7 +211,7 @@
  * without growing wider than the window.
  */
 .cm-tooltip {
-  box-shadow: 0 16px 40px -16px var(--app-shade);
+  box-shadow: var(--uwu-shadow-float);
 }
 
 .cm-tooltip.cm-tooltip-autocomplete > ul {
@@ -288,5 +288,5 @@
  * then believes for the rest of the frame.
  */
 .cm-uwuGitGutter {
-  transition: opacity 180ms ease;
+  transition: opacity var(--uwu-duration-base) var(--uwu-ease-out);
 }
