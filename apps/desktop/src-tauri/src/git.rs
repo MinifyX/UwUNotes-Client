@@ -513,9 +513,14 @@ fn file_diff(file: &Path) -> Option<Vec<GitHunk>> {
     // `--no-ext-diff` and `--no-textconv` are the two ways a repository asks
     // git to run a program of its choosing while producing this diff. The first
     // also neutralises an inherited `GIT_EXTERNAL_DIFF`.
+    //
+    // `--literal-pathspecs`, because a file name is not a pattern: without it
+    // `notes[1].txt` or `*.md` is a glob, and the gutter would show the
+    // combined diff of whatever else it happens to match.
     let diff = git(
         folder,
         &[
+            "--literal-pathspecs",
             "diff",
             "--no-color",
             "--no-ext-diff",

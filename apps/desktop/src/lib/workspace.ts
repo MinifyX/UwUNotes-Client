@@ -16,7 +16,7 @@
 
 import { useSyncExternalStore } from 'react';
 import type { DocId } from './documents';
-import { closeDoc, getMeta, patchMeta } from './documents';
+import { closeDoc, displayName, getMeta, patchMeta, samePath } from './documents';
 import { clampDropIndex, pinnedFirst } from './tabs';
 import {
   columnsLayout,
@@ -420,7 +420,12 @@ export function setFolder(folder: string | null) {
 export function rememberFile(path: string) {
   commit({
     ...current,
-    recentFiles: [path, ...current.recentFiles.filter((f) => f !== path)].slice(0, RECENT_LIMIT),
+    // `samePath`, so `C:\Notes\a.txt` and `c:\notes\a.txt` are one entry on
+    // Windows and not two that open the same file.
+    recentFiles: [path, ...current.recentFiles.filter((f) => !samePath(f, path))].slice(
+      0,
+      RECENT_LIMIT,
+    ),
   });
 }
 
@@ -432,7 +437,7 @@ export function forgetRecents() {
 export function windowTitle(): string {
   const doc = activeDocId();
   const meta = doc ? getMeta(doc) : undefined;
-  const name = meta ? `${meta.dirty ? '• ' : ''}${meta.name}` : null;
+  const name = meta ? `${meta.dirty ? '• ' : ''}${displayName(meta)}` : null;
   const folder = current.folder?.split(/[\\/]/).filter(Boolean).pop() ?? null;
   return [name, folder, 'UwUNotes'].filter(Boolean).join(' — ');
 }

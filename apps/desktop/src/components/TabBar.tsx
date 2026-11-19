@@ -39,6 +39,7 @@ import {
 } from 'react';
 import { asApiError, revealInFileManager } from '../lib/api';
 import {
+  displayName,
   documentsVersion,
   getMeta,
   subscribeDocuments,
@@ -500,7 +501,9 @@ function Tab({
             <Icon icon={ICONS.pin} size="xs" />
           </span>
         ) : null}
-        <span className="tabbar-tab-name">{meta.pinned ? shortTabName(meta.name) : meta.name}</span>
+        <span className="tabbar-tab-name">
+          {meta.pinned ? shortTabName(displayName(meta)) : displayName(meta)}
+        </span>
       </button>
       <button
         type="button"
@@ -521,7 +524,8 @@ function Tab({
 
 /** What the close button calls this tab out loud. */
 function tabLabel(meta: DocMeta): string {
-  return meta.dirty ? t('{name} (ungespeichert)', { name: meta.name }) : meta.name;
+  const name = displayName(meta);
+  return meta.dirty ? t('{name} (ungespeichert)', { name }) : name;
 }
 
 /**
@@ -530,7 +534,7 @@ function tabLabel(meta: DocMeta): string {
  * anybody who cannot tell the stripes apart.
  */
 function tabTitle(meta: DocMeta): string {
-  const where = meta.path ?? meta.name;
+  const where = meta.path ?? displayName(meta);
   const color = meta.color ? t(TAB_COLOR_NAMES[meta.color]) : null;
   if (meta.pinned && color) return t('{name} · angeheftet · {color}', { name: where, color });
   if (meta.pinned) return t('{name} · angeheftet', { name: where });

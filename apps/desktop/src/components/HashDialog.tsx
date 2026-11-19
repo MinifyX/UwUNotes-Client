@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { hashFile, hashText, pickFiles, asApiError, type HashAlgorithm } from '../lib/api';
 import { closeDialog } from '../lib/commands';
 import { docText } from '../lib/documents';
-import { describeApiError } from '../lib/files';
+import { describeApiError, dialogFilterLabels } from '../lib/files';
 import { HASH_ALGORITHMS, algorithmName, hashRequest, selectedText } from '../lib/hash-tool';
 import { t, useLanguage } from '../lib/i18n';
 import { toast } from '../lib/toast';
@@ -76,7 +76,7 @@ export function HashDialog() {
   }, [filePaths, algorithm]);
 
   const pick = async () => {
-    const paths = await pickFiles().catch(() => []);
+    const paths = await pickFiles(dialogFilterLabels()).catch(() => []);
     if (paths.length > 0) setFiles(paths.map((path) => ({ path, digest: null, error: null })));
   };
 

@@ -22,6 +22,7 @@ import { t } from './i18n';
 import { isMac } from './platform';
 import { commandEnabled, runCommand } from './commands';
 import { macroWithShortcut, playMacro } from './macros';
+import { promptOpen } from './prompt';
 import { activateTabAt, cyclePane } from './workspace';
 import { zenActive } from './zen';
 
@@ -441,6 +442,15 @@ export function installShortcuts(): () => void {
 }
 
 function actionFor(event: KeyboardEvent): (() => void) | null {
+  // Nothing while a question or a dialog has the keyboard. Ctrl+W typed into
+  // the rename prompt closed the tab being renamed, and Ctrl+S behind a modal
+  // saved a file the user could not even see. The keys the dialog itself
+  // needs — Escape, Enter, editing in its fields — are the browser's and the
+  // dialog's, and none of them is matched here.
+  if (promptOpen() || (event.target instanceof Element && event.target.closest('dialog'))) {
+    return null;
+  }
+
   // F6 is the one binding with no Ctrl. It prints nothing on any layout, so it
   // cannot collide with typing, and it is what every editor already uses.
   if (event.code === 'F6' && !event.ctrlKey && !event.altKey && !event.metaKey) {

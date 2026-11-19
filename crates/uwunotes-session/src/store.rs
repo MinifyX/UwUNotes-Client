@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use uwunotes_fs::{write_atomic, FsError, FsResult, MAX_FILE_BYTES};
 
-use crate::model::StoredSession;
+use crate::model::{StoredSession, SESSION_VERSION};
 
 const SESSION_FILE: &str = "session.json";
 const DRAFTS_DIRECTORY: &str = "drafts";
@@ -98,6 +98,7 @@ impl SessionStore {
                     size = metadata.len(),
                     "session file is far too large to be a session"
                 );
+                self.set_aside(&path);
                 return None;
             }
             Ok(_) => {}
@@ -121,11 +122,21 @@ impl SessionStore {
             }
             Err(error) => {
                 tracing::warn!(path = %path.display(), %error, "session file could not be read");
+                self.set_aside(&path);
                 return None;
             }
         };
 
         match serde_json::from_str::<StoredSession>(&text) {
+            Ok(session) if session.version != SESSION_VERSION => {
+                tracing::warn!(
+                    path = %path.display(),
+                    version = session.version,
+                    "session file is from another version"
+                );
+                self.set_aside(&path);
+                None
+            }
             Ok(mut session) => {
                 clamp(&mut session);
                 self.prune_allowed.store(true, Ordering::Relaxed);
@@ -133,7 +144,47 @@ impl SessionStore {
             }
             Err(error) => {
                 tracing::warn!(path = %path.display(), %error, "session file could not be parsed");
+                self.set_aside(&path);
                 None
+            }
+        }
+    }
+
+    /// Moves a session this build cannot use out of the way, together with the
+    /// drafts it names, before the page's first save can overwrite it.
+    ///
+    /// Leaving both in place was not enough. The page falls back to one empty
+    /// buffer, saves that as the session, and the next start loads it cleanly —
+    /// which makes it the whole truth, and the sweep then deletes every draft
+    /// the old session named. Renamed to `session.json.bad-<ms>` and
+    /// `drafts.bad-<ms>`, they are out of reach of [`Self::prune_drafts`] and
+    /// still on disk for whoever wants them back. Best effort: a rename that
+    /// fails is logged, and the in-memory `prune_allowed` stays false for this
+    /// run either way.
+    fn set_aside(&self, session: &Path) {
+        let millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis());
+        let moves = [
+            (
+                session.to_path_buf(),
+                format!("{SESSION_FILE}.bad-{millis}"),
+            ),
+            (
+                self.drafts_directory(),
+                format!("{DRAFTS_DIRECTORY}.bad-{millis}"),
+            ),
+        ];
+        for (from, name) in moves {
+            if !from.exists() {
+                continue;
+            }
+            let to = self.directory.join(name);
+            match fs::rename(&from, &to) {
+                Ok(()) => tracing::warn!(from = %from.display(), to = %to.display(), "set aside"),
+                Err(error) => {
+                    tracing::warn!(from = %from.display(), %error, "could not be set aside");
+                }
             }
         }
     }
@@ -348,6 +399,21 @@ mod tests {
             .unwrap_or(0)
     }
 
+    /// Drafts in every `drafts.bad-*` directory a bad session was moved with.
+    fn set_aside_drafts(store: &SessionStore) -> usize {
+        fs::read_dir(&store.directory)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("drafts.bad-")
+            })
+            .map(|entry| fs::read_dir(entry.path()).unwrap().count())
+            .sum()
+    }
+
     fn one_id(doc_id: &str) -> HashSet<String> {
         std::iter::once(doc_id.to_owned()).collect()
     }
@@ -369,9 +435,48 @@ mod tests {
 
         assert_eq!(
             drafts_on_disk(&store),
-            2,
-            "the only copy of somebody's unsaved text was deleted"
+            0,
+            "the drafts were set aside with their session"
         );
+        assert_eq!(set_aside_drafts(&store), 2, "the drafts were lost");
+        assert!(
+            !store.session_path().exists(),
+            "the bad session is still in the way"
+        );
+    }
+
+    #[test]
+    fn a_session_that_would_not_parse_survives_the_next_start() {
+        let scratch = Scratch::new("unparsable-twice");
+        let store = scratch.store();
+        store.write_draft("doc-1-0", "unsaved notes").unwrap();
+        fs::write(store.session_path(), r#"{ "version": 1, "documen"#).unwrap();
+        assert!(store.load().is_none());
+
+        // The fresh window saves its one empty buffer...
+        store.save(&StoredSession::default()).unwrap();
+        // ...and the next start loads that cleanly and sweeps.
+        let next = scratch.store();
+        assert!(next.load().is_some());
+        next.prune_drafts(&one_id("doc-9-9"), true).unwrap();
+
+        assert_eq!(set_aside_drafts(&next), 1, "the old drafts were swept");
+    }
+
+    #[test]
+    fn a_session_from_another_version_is_set_aside() {
+        let scratch = Scratch::new("future");
+        let store = scratch.store();
+        store.write_draft("doc-1-0", "unsaved notes").unwrap();
+        let future = StoredSession {
+            version: SESSION_VERSION + 1,
+            ..StoredSession::default()
+        };
+        store.save(&future).unwrap();
+
+        assert!(store.load().is_none());
+        assert!(!store.session_path().exists());
+        assert_eq!(set_aside_drafts(&store), 1);
     }
 
     #[test]

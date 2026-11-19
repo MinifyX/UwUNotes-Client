@@ -14,7 +14,11 @@
 //! pointing at half a file. Files nobody names are swept up the next time that
 //! history is written, but only when its index read cleanly: an index that
 //! would not parse may have been the only thing naming them, and the bytes are
-//! worth more than the disk space.
+//! worth more than the disk space. Such an index is moved aside as
+//! `index.json.bad-<ms>` before anything is written in its place, and while it
+//! lies there the history counts as unclean on every later write too — the
+//! fresh index written next to it reads cleanly, but it does not know the
+//! versions the bad one named.
 //!
 //! The index is the user's JSON on the user's disk and is read like it: a size
 //! cap before parsing, every entry checked on its own, and an entry that fails
@@ -38,6 +42,8 @@ use crate::key::{is_directory_name, HistoryKey};
 use crate::retention::{self, Policy};
 
 const INDEX_FILE: &str = "index.json";
+/// An index that would not read, set aside rather than overwritten.
+const BAD_INDEX_PREFIX: &str = "index.json.bad-";
 const BLOB_EXTENSION: &str = "zst";
 const INDEX_VERSION: u32 = 1;
 
@@ -376,6 +382,7 @@ impl HistoryStore {
         if moving.entries.is_empty() {
             return Ok(());
         }
+        let source_clean = moving.clean;
         let mut index = load_index(&target)?;
         fs::create_dir_all(&target).map_err(|error| FsError::from_io(&error, &target))?;
 
@@ -401,7 +408,19 @@ impl HistoryStore {
         index.key = Some(to.clone());
         self.thin(&mut index, retention_days, (self.clock)());
         commit(&target, &index)?;
-        remove_history(&source)
+        if source_clean {
+            remove_history(&source)
+        } else {
+            // The source has a set-aside index and files it may have named:
+            // keep those, and leave it an empty index so nothing is listed twice.
+            commit(
+                &source,
+                &Index {
+                    key: Some(from.clone()),
+                    ..Index::default()
+                },
+            )
+        }
     }
 
     /// Thins every history by `retention_days` and enforces the size cap.
@@ -584,25 +603,28 @@ fn is_hash(hash: &str) -> bool {
 }
 
 /// The index of one history. Missing is empty; unreadable or unparsable is
-/// empty too, but not clean; written by a newer build is an error, because
-/// writing over it would drop every entry this build does not understand.
+/// empty too, but not clean, and is moved aside first (see [`set_aside`]);
+/// written by a newer build is an error, because writing over it would drop
+/// every entry this build does not understand.
 fn load_index(directory: &Path) -> FsResult<Index> {
     let path = directory.join(INDEX_FILE);
+    // A bad index set aside earlier still names files this index does not.
+    let clean = !has_set_aside_index(directory);
     match fs::metadata(&path) {
         Ok(metadata) if metadata.len() > MAX_INDEX_BYTES => {
             tracing::warn!(path = %path.display(), "history index is far too large");
-            return Ok(Index::default());
+            return set_aside(&path);
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return Ok(Index {
-                clean: true,
+                clean,
                 ..Index::default()
             })
         }
         Err(error) => {
             tracing::warn!(path = %path.display(), %error, "history index could not be read");
-            return Ok(Index::default());
+            return set_aside(&path);
         }
     }
 
@@ -615,7 +637,7 @@ fn load_index(directory: &Path) -> FsResult<Index> {
         Ok(file) => file,
         Err(error) => {
             tracing::warn!(path = %path.display(), %error, "history index could not be parsed");
-            return Ok(Index::default());
+            return set_aside(&path);
         }
     };
     if file.version > INDEX_VERSION {
@@ -644,14 +666,47 @@ fn load_index(directory: &Path) -> FsResult<Index> {
     Ok(Index {
         key: file.key.filter(|key| key.validate().is_ok()),
         entries,
-        clean: true,
+        clean,
+    })
+}
+
+/// Moves an index that would not read out of the way, so the next write puts a
+/// fresh one beside it instead of over it. The result is an empty, unclean
+/// index. When the move fails the index is still in the way, and the history
+/// is refused rather than written over.
+fn set_aside(path: &Path) -> FsResult<Index> {
+    let aside = path.with_file_name(format!("{BAD_INDEX_PREFIX}{}", system_now()));
+    match fs::rename(path, &aside) {
+        Ok(()) => {
+            tracing::warn!(path = %aside.display(), "unreadable history index set aside");
+            Ok(Index::default())
+        }
+        Err(error) => {
+            tracing::warn!(path = %path.display(), %error, "history index could not be set aside");
+            Err(FsError::other(
+                Some(path),
+                "This history's index could not be read and is left untouched.",
+            ))
+        }
+    }
+}
+
+fn has_set_aside_index(directory: &Path) -> bool {
+    fs::read_dir(directory).is_ok_and(|reader| {
+        reader.filter_map(Result::ok).any(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with(BAD_INDEX_PREFIX)
+        })
     })
 }
 
 /// Writes the index, then sweeps up version files it no longer names. An index
-/// with nothing left in it takes its directory with it.
+/// with nothing left in it takes its directory with it — unless the history is
+/// unclean, whose directory holds files nothing readable names any more.
 fn commit(directory: &Path, index: &Index) -> FsResult<()> {
-    if index.entries.is_empty() {
+    if index.entries.is_empty() && index.clean {
         return remove_history(directory);
     }
     let file = IndexFile {

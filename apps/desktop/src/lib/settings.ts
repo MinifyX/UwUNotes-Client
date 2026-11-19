@@ -225,7 +225,9 @@ export const DEFAULT_SETTINGS: Settings = {
   historyRetentionDays: 30,
 
   defaultEncoding: 'UTF-8',
-  defaultEol: 'crlf',
+  // What the platform's own tools write. A stored choice is kept as it was;
+  // only a fresh install gets this.
+  defaultEol: navigator.userAgent.includes('Windows') ? 'crlf' : 'lf',
 
   restoreSession: true,
   autoCheckUpdates: true,

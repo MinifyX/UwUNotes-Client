@@ -23,6 +23,7 @@
 
 import { EditorState, Text, type Extension } from '@codemirror/state';
 import type { EncodingLabel, Eol, FileStamp, LoadedFile } from './api';
+import { t } from './i18n';
 import { detectNoteLanguage } from './note-language';
 import { noteTitle } from './note-title';
 import { getSettings } from './settings';
@@ -193,6 +194,20 @@ export function nextUntitledName(): string {
 }
 
 /**
+ * The name to show for a document: its own, except for an untitled buffer that
+ * still carries the stored `Neu n`, which is shown in the user's language.
+ *
+ * The stored name stays German on purpose — the session and the legacy
+ * `Neu n` parser read it back — so the translation happens here, at display.
+ */
+export function displayName(meta: Pick<DocMeta, 'name' | 'untitled'>): string {
+  if (meta.untitled !== null && meta.name === untitledName(meta.untitled)) {
+    return t('Neu {n}', { n: meta.untitled });
+  }
+  return meta.name;
+}
+
+/**
  * The extensions every document's state starts with.
  *
  * Set once by `editor/setup.ts` at start-up, because the editor module imports
@@ -353,18 +368,25 @@ export function patchMeta(id: DocId, patch: Partial<Omit<DocMeta, 'id'>>) {
   announce();
 }
 
-/** After a successful write: this text is now what is on disk. */
-export function markSaved(id: DocId, path: string, name: string, stamp: FileStamp) {
+/**
+ * After a successful write: `written` is now what is on disk.
+ *
+ * `written` is the text that actually went out, which is not always the text
+ * in the document by the time the write returns: typing during the save lands
+ * in between. Taking the current text instead would call those keystrokes
+ * saved and drop the draft that is their only copy.
+ */
+export function markSaved(id: DocId, path: string, name: string, stamp: FileStamp, written?: Text) {
   const doc = docs.get(id);
   if (!doc) return;
-  doc.savedDoc = doc.state.doc;
+  doc.savedDoc = written ?? doc.state.doc;
   doc.meta = {
     ...doc.meta,
     path,
     name,
     untitled: null,
     stamp,
-    dirty: false,
+    dirty: !doc.state.doc.eq(doc.savedDoc),
     staleOnDisk: false,
     readOnly: stamp.readOnly,
   };
@@ -385,6 +407,10 @@ export function markReloaded(id: DocId, file: LoadedFile) {
     mixedEol: file.mixedEol,
     stamp: file.stamp,
     lossy: file.lossy,
+    // What the file is now, not what it was when it was first opened: a file
+    // that stopped being binary or read-only must stop being treated as one.
+    binary: file.binary,
+    readOnly: file.stamp.readOnly,
     dirty: false,
     staleOnDisk: false,
   };
@@ -434,7 +460,9 @@ const CASE_INSENSITIVE = navigator.userAgent.includes('Windows');
 
 export function samePath(a: string, b: string): boolean {
   const normalise = (path: string) => {
-    const slashed = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    // A backslash is a separator only on Windows; elsewhere it is a character
+    // a file name may contain, and `a\b` is not `a/b`.
+    const slashed = (CASE_INSENSITIVE ? path.replace(/\\/g, '/') : path).replace(/\/+$/, '');
     return CASE_INSENSITIVE ? slashed.toLowerCase() : slashed;
   };
   return normalise(a) === normalise(b);

@@ -122,14 +122,54 @@ pub fn create_file(path: &Path) -> FsResult<()> {
 /// Renames or moves. Refuses to land on an existing path, because `fs::rename`
 /// would replace it without a word and a rename in a file tree is a typo away
 /// from destroying the neighbour.
+///
+/// The one exception is a rename that only changes the case of the name. On a
+/// case-insensitive file system (Windows, a default macOS volume) `to` then
+/// "exists" because it *is* `from`, and refusing would make `notes.txt` →
+/// `Notes.txt` impossible. It is allowed when both names are one entry on disk.
 pub fn rename_path(from: &Path, to: &Path) -> FsResult<()> {
-    if to.exists() {
+    if to.exists() && !is_case_only_rename(from, to) {
         return Err(FsError::other(
             Some(to),
             "A file with that name already exists.",
         ));
     }
     fs::rename(from, to).map_err(|error| FsError::from_io(&error, from))
+}
+
+/// Same folder, names equal but for case, and both naming the same entry.
+fn is_case_only_rename(from: &Path, to: &Path) -> bool {
+    let (Some(old), Some(new)) = (from.file_name(), to.file_name()) else {
+        return false;
+    };
+    if old == new || from.parent() != to.parent() {
+        return false;
+    }
+    if old.to_string_lossy().to_lowercase() != new.to_string_lossy().to_lowercase() {
+        return false;
+    }
+    same_entry(from, to)
+}
+
+#[cfg(unix)]
+fn same_entry(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+    // Not following links: the rename moves the entry, so the entry is what
+    // has to be the same.
+    match (fs::symlink_metadata(a), fs::symlink_metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_entry(a: &Path, b: &Path) -> bool {
+    // The final path Windows hands back carries the case on disk, so two
+    // spellings of one file canonicalise to the same thing.
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// Everything the page wants to know about a path, including one that is not

@@ -145,6 +145,36 @@ describe('the draft flush', () => {
   });
 });
 
+describe('a save that the typing overtook', () => {
+  it('stays dirty with what was typed after the write left', async () => {
+    const { documents } = await fresh();
+    const id = documents.openDoc({ path: '/notes/a.txt', name: 'a.txt', text: 'one' });
+    type(documents, id, ' two');
+    // What the save wrote, taken before the await.
+    const written = documents.getDoc(id)?.state.doc;
+    // And what arrived while the write was on its way.
+    type(documents, id, ' three');
+
+    documents.markSaved(
+      id,
+      '/notes/a.txt',
+      'a.txt',
+      { mtimeMs: 1, size: 7, readOnly: false },
+      written,
+    );
+
+    expect(documents.getMeta(id)?.dirty).toBe(true);
+    // Undoing the late typing reaches the saved text and clears the dot.
+    const doc = documents.getDoc(id);
+    if (!doc || !written) throw new Error('no document');
+    documents.setDocState(
+      id,
+      doc.state.update({ changes: { from: written.length, to: doc.state.doc.length } }).state,
+    );
+    expect(documents.getMeta(id)?.dirty).toBe(false);
+  });
+});
+
 describe('restoring with the setting switched off', () => {
   const stored: StoredSession = {
     version: 1,
@@ -207,6 +237,29 @@ describe('restoring with the setting switched off', () => {
 
     // And the next untitled tab does not reuse its number.
     expect(documents.nextUntitledNumber()).toBe(5);
+  });
+
+  it('keeps the binary and lossy warnings with a draft', async () => {
+    const { session, documents, settings } = await fresh();
+    settings.updateSettings({ restoreSession: false });
+    const first = stored.documents[0];
+    if (!first) throw new Error('no document');
+    loadSession.mockResolvedValueOnce({
+      ...stored,
+      documents: [{ ...first, binary: true, lossy: true }],
+    });
+    readDraft.mockResolvedValueOnce('�');
+
+    await session.restoreSession();
+
+    const meta = documents.getMeta('doc-1-0');
+    expect(meta?.binary).toBe(true);
+    expect(meta?.lossy).toBe(true);
+
+    await session.persistSession();
+    const written = saveSession.mock.lastCall?.[0].documents[0];
+    expect(written?.binary).toBe(true);
+    expect(written?.lossy).toBe(true);
   });
 });
 

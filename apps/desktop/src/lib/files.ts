@@ -28,6 +28,7 @@ import {
   renamePath,
   writeTextFile,
   type ApiError,
+  type DialogFilterLabels,
   type EncodingLabel,
   type Eol,
   type FileStamp,
@@ -46,7 +47,6 @@ import {
   openUntitled,
   patchMeta,
   setDocState,
-  untitledName,
   type DocId,
   type DocMeta,
 } from './documents';
@@ -85,7 +85,7 @@ import {
   showDocNext,
 } from './workspace';
 import { applyDocLanguage } from '../editor/setup';
-import type { ChangeSpec, EditorState } from '@codemirror/state';
+import { Text, type ChangeSpec, type EditorState } from '@codemirror/state';
 
 /* ── Opening ───────────────────────────────────────────── */
 
@@ -182,8 +182,18 @@ async function openOnePath(path: string, pane?: PaneId): Promise<DocId | null> {
   return id;
 }
 
+/** The pickers' filter names, translated here because the page has the catalogue. */
+export function dialogFilterLabels(): DialogFilterLabels {
+  return {
+    allFiles: t('Alle Dateien'),
+    textFiles: t('Textdateien'),
+    // Kept as a placeholder: Rust fills in the extension of the suggested name.
+    extensionFile: t('{extension}-Datei', { extension: '{extension}' }),
+  };
+}
+
 export async function openFileDialog(): Promise<void> {
-  const paths = await pickFiles().catch((error: unknown) => {
+  const paths = await pickFiles(dialogFilterLabels()).catch((error: unknown) => {
     reportFileError(error, null);
     return [];
   });
@@ -221,17 +231,47 @@ export function saveDoc(id: DocId, saveAs = false): Promise<boolean> {
   return save(id, { saveAs, silent: false });
 }
 
-async function save(id: DocId, mode: SaveMode): Promise<boolean> {
+/**
+ * The save running for each document, so two never overlap.
+ *
+ * A manual save and an autosave of the same document both read the stamp from
+ * before either write, so whichever landed second saw its own app's first
+ * write as "changed on disk" — a conflict dialog about nobody's edit, or an
+ * autosave flagging the tab stale. A manual save waits for the one in front of
+ * it; an autosave that finds one running simply skips this tick.
+ */
+const saving = new Map<DocId, Promise<boolean>>();
+
+function save(id: DocId, mode: SaveMode): Promise<boolean> {
+  const running = saving.get(id);
+  if (running && mode.silent) return Promise.resolve(false);
+  const run = (running ?? Promise.resolve(false)).catch(() => false).then(() => saveNow(id, mode));
+  const tracked = run.finally(() => {
+    if (saving.get(id) === tracked) saving.delete(id);
+  });
+  saving.set(id, tracked);
+  return tracked;
+}
+
+async function saveNow(id: DocId, mode: SaveMode): Promise<boolean> {
   const initial = getMeta(id);
   if (!initial) return false;
 
-  if (initial.binary && !mode.silent) {
+  // A lossy file is as much at risk as a binary one: the buffer has
+  // replacement characters where the original bytes were, and writing it puts
+  // those on disk for good. Autosave skips both (see `autosave`).
+  if ((initial.binary || initial.lossy) && !mode.silent) {
     const answer = await ask(
-      t('Binärdatei speichern?'),
-      t(
-        '{name} wurde als Binärdatei erkannt. Der Text wird neu kodiert geschrieben, was den ursprünglichen Inhalt zerstören kann.',
-        { name: initial.name },
-      ),
+      initial.binary ? t('Binärdatei speichern?') : t('Nicht sauber dekodierte Datei speichern?'),
+      initial.binary
+        ? t(
+            '{name} wurde als Binärdatei erkannt. Der Text wird neu kodiert geschrieben, was den ursprünglichen Inhalt zerstören kann.',
+            { name: initial.name },
+          )
+        : t(
+            '{name} ließ sich nicht sauber dekodieren. Beim Speichern werden die ersetzten Zeichen geschrieben, und die ursprünglichen Bytes an diesen Stellen gehen verloren.',
+            { name: initial.name },
+          ),
       [
         { id: 'save', label: t('Trotzdem speichern'), tone: 'danger' },
         { id: 'cancel', label: t('Abbrechen'), tone: 'quiet' },
@@ -248,6 +288,21 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
     if (mode.silent) return false;
     const picked = await pickPathFor(known);
     if (!picked) return false;
+    // Another tab already holds the file picked here. Two buffers for one
+    // file are two undo histories racing to be the last write, so the other
+    // tab has to go first — and only the user can say whether its text may.
+    const other = findByPath(picked);
+    if (other && other !== id) {
+      toast(
+        'error',
+        t('{name} ist schon in einem anderen Tab offen. Schließe ihn zuerst.', {
+          name: await fileNameOf(picked),
+        }),
+      );
+      playError();
+      showDoc(other);
+      return false;
+    }
     path = picked;
   } else if (known.readOnly) {
     if (mode.silent) return false;
@@ -266,13 +321,18 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
       ],
     );
     if (answer === 'cancel') return false;
-    if (answer === 'saveAs') return save(id, { saveAs: true, silent: false });
+    // `saveNow`, not `save`: this already is the save queued for this document.
+    if (answer === 'saveAs') return saveNow(id, { saveAs: true, silent: false });
   }
 
   // The fixups run on the editor as well as on the outgoing text, so what is on
   // screen after a save is exactly what landed on disk. Silently differing by a
   // trailing space is how a diff gains a line nobody typed.
-  const text = applySaveFixups(id);
+  // Kept as the `Text` that is written, not only as a string: typing during
+  // the write changes the document, and only what actually went to disk may be
+  // called saved afterwards.
+  const written = applySaveFixups(id);
+  const text = written.toString();
 
   const meta = getMeta(id);
   if (!meta) return false;
@@ -291,7 +351,7 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
   // encoding cannot hold.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const written = await writeTextFile({
+      const result = await writeTextFile({
         path,
         text,
         encoding,
@@ -301,10 +361,12 @@ async function save(id: DocId, mode: SaveMode): Promise<boolean> {
         allowUnmappable,
       });
       if (encoding !== meta.encoding) patchMeta(id, { encoding });
-      markSaved(id, path, await fileNameOf(path), written.stamp);
+      markSaved(id, path, await fileNameOf(path), result.stamp, written);
       void afterSave(id, meta.path, text, mode.silent);
       rememberFile(path);
-      void dropDraft(id).catch(() => undefined);
+      // Typing while the write was on its way leaves the document dirty, and
+      // its draft is then the only copy of those keystrokes.
+      if (!getMeta(id)?.dirty) void dropDraft(id).catch(() => undefined);
       if (newPath) await applyDocLanguage(id);
       if (!mode.silent) {
         playSaved();
@@ -522,14 +584,14 @@ export async function renameDoc(id: DocId): Promise<boolean> {
  */
 function suggestedNameFor(meta: DocMeta): string {
   if (meta.path) return meta.name;
-  const fallback = meta.untitled === null ? meta.name : untitledName(meta.untitled);
+  const fallback = meta.untitled === null ? meta.name : t('Neu {n}', { n: meta.untitled });
   return suggestedFileName(meta.name, meta.languageOverride, fallback);
 }
 
 async function pickPathFor(meta: DocMeta): Promise<string | null> {
   const startIn = meta.path ? await parentOf(meta.path) : getWorkspace().folder;
   try {
-    return await pickSavePath(suggestedNameFor(meta), startIn);
+    return await pickSavePath(suggestedNameFor(meta), startIn, dialogFilterLabels());
   } catch (error) {
     reportFileError(error, null);
     return null;
@@ -566,11 +628,11 @@ function saveFixups(state: EditorState, settings: Settings): ChangeSpec[] {
 }
 
 /** Applies the fixups wherever the document lives and returns the text to write. */
-function applySaveFixups(id: DocId): string {
+function applySaveFixups(id: DocId): Text {
   const doc = getDoc(id);
-  if (!doc) return '';
+  if (!doc) return Text.empty;
   const changes = saveFixups(doc.state, getSettings());
-  if (changes.length === 0) return doc.state.doc.toString();
+  if (changes.length === 0) return doc.state.doc;
 
   const view = viewForDoc(id);
   if (view && view.state === doc.state) {
@@ -578,12 +640,12 @@ function applySaveFixups(id: DocId): string {
     // jumping to the top of the file.
     view.dispatch({ changes });
     setDocState(id, view.state);
-    return view.state.doc.toString();
+    return view.state.doc;
   }
 
   const next = doc.state.update({ changes }).state;
   setDocState(id, next);
-  return next.doc.toString();
+  return next.doc;
 }
 
 /** The editor showing this document right now, if one is. */
@@ -694,8 +756,14 @@ async function reloadFromDisk(
 ): Promise<boolean> {
   const meta = getMeta(id);
   if (!meta?.path) return false;
+  // The text the decision to reload was made about. Typing while the file was
+  // read means somebody is working in it, and replacing that is not what any
+  // of the callers asked for.
+  const before = getDoc(id)?.textVersion;
   try {
     const file = await readTextFile(meta.path, encoding);
+    const now = getDoc(id);
+    if (!now || now.textVersion !== before || now.meta.path !== meta.path) return false;
     // Taken synchronously inside, before the next line replaces the text.
     void snapshotDoc(id, reason);
     markReloaded(id, file);
@@ -734,13 +802,18 @@ export async function checkDiskChanges(): Promise<void> {
   diskCheckRunning = true;
   try {
     for (const doc of [...allDocs()]) {
-      const meta = doc.meta;
-      if (!meta.path || !meta.stamp) continue;
+      const asked = doc.meta;
+      if (!asked.path || !asked.stamp) continue;
 
       // `undefined` is "could not look", `null` is "is not there any more".
       // Collapsing the two would turn a locked file into a deleted one.
-      const stamp = await fileStatus(meta.path).catch(() => undefined);
+      const stamp = await fileStatus(asked.path).catch(() => undefined);
       if (stamp === undefined) continue;
+      // Read again after the await: a save, a reload, a rename or a close may
+      // have happened meanwhile, and a decision about the meta from before it
+      // reloads over fresh typing or flags a file that was just written.
+      const meta = getMeta(asked.id);
+      if (!meta?.path || !meta.stamp || meta.path !== asked.path) continue;
 
       if (stamp === null) {
         forgetSavedText(meta.id);
@@ -883,15 +956,25 @@ export function startFileWatchers(): () => void {
  * Writes out every dirty document that can be written without a question.
  *
  * Everything else is skipped on purpose: an untitled buffer would need a
- * dialog, a stale one would need a decision, a read-only or binary one would
- * need permission. Autosave is allowed to be quiet, not to be presumptuous.
+ * dialog, a stale one would need a decision, a read-only, binary or lossy one
+ * would need permission. Autosave is allowed to be quiet, not to be presumptuous.
  */
+let autosaving = false;
+
 async function autosave(): Promise<void> {
-  for (const doc of [...allDocs()]) {
-    const meta = doc.meta;
-    if (!meta.path || !meta.dirty) continue;
-    if (meta.staleOnDisk || meta.readOnly || meta.binary) continue;
-    await save(meta.id, { saveAs: false, silent: true });
+  // A slow disk can make one pass outlast the interval; the next tick then has
+  // nothing to add but a second write of the same documents.
+  if (autosaving) return;
+  autosaving = true;
+  try {
+    for (const doc of [...allDocs()]) {
+      const meta = doc.meta;
+      if (!meta.path || !meta.dirty) continue;
+      if (meta.staleOnDisk || meta.readOnly || meta.binary || meta.lossy) continue;
+      await save(meta.id, { saveAs: false, silent: true });
+    }
+  } finally {
+    autosaving = false;
   }
 }
 

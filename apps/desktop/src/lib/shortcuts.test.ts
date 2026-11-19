@@ -293,6 +293,19 @@ describe('F6', () => {
   });
 });
 
+describe('dialogs', () => {
+  it('leaves every app shortcut alone inside an open dialog', () => {
+    const dialog = mounted(document.createElement('dialog'));
+    const field = document.createElement('input');
+    dialog.append(field);
+    expect(commandFor({ code: 'KeyW', key: 'w', ctrl: true }, field)).toBeNull();
+    expect(commandFor({ code: 'KeyS', key: 's', ctrl: true }, field)).toBeNull();
+    expect(commandFor({ code: 'F6', key: 'F6' }, field)).toBeNull();
+    // And the same keys outside it still work.
+    expect(commandFor({ code: 'KeyS', key: 's', ctrl: true })).toBe('file.save');
+  });
+});
+
 describe('zen mode', () => {
   it('toggles on F11, with no modifier at all', () => {
     expect(commandFor({ code: 'F11', key: 'F11' })).toBe('view.zen');

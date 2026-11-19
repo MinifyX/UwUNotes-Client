@@ -20,6 +20,7 @@ import {
   getWorkspace,
   moveTabToPane,
   paneOf,
+  rememberFile,
   resetWorkspace,
   showDoc,
   splitActivePane,
@@ -38,6 +39,22 @@ function splitInTwo(): { source: string; created: string } {
   if (!source || !created) throw new Error('a split must leave two panes');
   return { source, created };
 }
+
+describe('the recent files', () => {
+  it('lists one file once, however its path was spelled', () => {
+    rememberFile('/notes/a.txt');
+    rememberFile('/notes/b.txt');
+    rememberFile('/notes/a.txt/');
+    expect(getWorkspace().recentFiles).toEqual(['/notes/a.txt/', '/notes/b.txt']);
+  });
+
+  it('keeps a backslash apart from a slash where it is part of a name', () => {
+    // Not Windows here (jsdom), so `a\b` is a file called that, not `a/b`.
+    rememberFile('/notes/a/b');
+    rememberFile('/notes/a\\b');
+    expect(getWorkspace().recentFiles).toHaveLength(2);
+  });
+});
 
 describe('opening a document', () => {
   it('puts it at the end of the tab bar and shows it', () => {

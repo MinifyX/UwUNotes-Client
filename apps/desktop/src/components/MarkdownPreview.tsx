@@ -155,9 +155,11 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
     );
   }, [pane]);
 
-  // Following the text: listen, compare, debounce, render.
+  // Following the text: listen, compare, debounce, render. Also while the text
+  // is too large: it can shrink again, and the preview has to come back then
+  // instead of saying "too large" until the tab is reopened.
   useEffect(() => {
-    if (status !== 'ready') return;
+    if (status !== 'ready' && status !== 'tooLarge') return;
     let timer = 0;
     let shown: unknown = null;
     let first = true;
@@ -171,6 +173,7 @@ export function MarkdownPreview({ pane, docId }: { pane: PaneId; docId: DocId })
         setStatus('tooLarge');
         return;
       }
+      setStatus('ready');
       const source = state.doc.toString();
       content.innerHTML = render(source);
       anchorsRef.current = null;

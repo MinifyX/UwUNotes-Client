@@ -69,7 +69,8 @@ function getSnapshot(): GitSnapshot {
 const CASE_INSENSITIVE = navigator.userAgent.includes('Windows');
 
 function pathKey(path: string): string {
-  const slashed = path.replace(/\\/g, '/').replace(/\/+$/, '');
+  // Backslashes only on Windows: anywhere else one is part of a file name.
+  const slashed = (CASE_INSENSITIVE ? path.replace(/\\/g, '/') : path).replace(/\/+$/, '');
   return CASE_INSENSITIVE ? slashed.toLowerCase() : slashed;
 }
 
@@ -102,8 +103,13 @@ async function poll(): Promise<void> {
     return;
   }
   inFlight = true;
+  // The folder can change while git is still answering for the old one. That
+  // answer must not land on the new folder's tree — and the poll the switch
+  // asked for was swallowed by `inFlight`, so it runs again once this is done.
+  const stale = () => getWorkspace().folder !== folder;
   try {
-    const statuses = await gitStatuses(folder);
+    const statuses = await gitStatuses(folder).catch(() => null);
+    if (stale()) return;
     if (!statuses) {
       commit(NOTHING);
       return;
@@ -111,11 +117,10 @@ async function poll(): Promise<void> {
     const files = new Map<string, GitFileStatus>();
     for (const [path, status] of Object.entries(statuses.files)) files.set(pathKey(path), status);
     commit({ root: statuses.root, branch: statuses.branch, files });
-  } catch {
-    commit(NOTHING);
   } finally {
     inFlight = false;
   }
+  if (stale()) void poll();
 }
 
 /**

@@ -59,5 +59,12 @@
   "{name}: Die Kodierung kann nicht alle Zeichen im Text darstellen.": "{name}: the encoding can't represent every character in the text.",
   "Zeichen passen nicht zur Kodierung": "Characters don't fit the encoding",
   "{name} wird als {encoding} gespeichert, und diese Kodierung kann nicht alle Zeichen im Text darstellen. Als UTF-8 bleibt alles erhalten; sonst werden die fehlenden Zeichen als „&#8594;“ geschrieben.": "{name} is saved as {encoding}, and that encoding can't represent every character in the text. UTF-8 keeps all of it; otherwise the missing characters are written as \"&#8594;\".",
-  "Als UTF-8 speichern": "Save as UTF-8"
+  "Als UTF-8 speichern": "Save as UTF-8",
+  "Neu {n}": "New {n}",
+  "Alle Dateien": "All files",
+  "Textdateien": "Text files",
+  "{extension}-Datei": "{extension} file",
+  "Nicht sauber dekodierte Datei speichern?": "Save a file that did not decode cleanly?",
+  "{name} ließ sich nicht sauber dekodieren. Beim Speichern werden die ersetzten Zeichen geschrieben, und die ursprünglichen Bytes an diesen Stellen gehen verloren.": "{name} did not decode cleanly. Saving writes the replacement characters, and the original bytes in those places are lost.",
+  "{name} ist schon in einem anderen Tab offen. Schließe ihn zuerst.": "{name} is already open in another tab. Close that one first."
 }

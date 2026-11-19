@@ -221,6 +221,23 @@ fn a_garbled_index_is_an_empty_history_and_its_files_stay() {
     // The old file is not named by anything any more, but the index that named
     // it was unreadable — so it is kept for whoever goes looking.
     assert!(dir.join(format!("{}.zst", version.id)).exists());
+
+    // And not only on the first write: the fresh index reads cleanly, but the
+    // set-aside one beside it still names the old file.
+    fx.advance(HOUR_MS);
+    created(fx.snap(&file_key(), "newer text"));
+    assert!(dir.join(format!("{}.zst", version.id)).exists());
+    let aside = fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("index.json.bad-")
+        })
+        .count();
+    assert_eq!(aside, 1, "the garbled index was not kept");
 }
 
 #[test]

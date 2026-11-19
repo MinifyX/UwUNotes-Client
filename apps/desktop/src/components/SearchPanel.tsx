@@ -30,6 +30,7 @@ import {
   openProjectSearch,
   parentOf,
   replaceAllInFiles,
+  resultsMatchForm,
   runProjectSearch,
   stopProjectSearch,
   toggleFileCollapsed,
@@ -279,7 +280,12 @@ export function SearchPanel() {
           <button
             type="button"
             className="searchpanel-button"
-            disabled={search.inMemory || search.running || search.results.length === 0}
+            disabled={
+              search.inMemory ||
+              search.running ||
+              search.results.length === 0 ||
+              !resultsMatchForm()
+            }
             onClick={() => {
               void replaceAllInFiles();
             }}

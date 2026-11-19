@@ -48,5 +48,6 @@
   "Springen": "Go",
   "Dieser Ausdruck braucht zu lange — bitte umformulieren.": "This expression takes too long — please rephrase it.",
   "Mehr als {count} Treffer — bitte die Suche eingrenzen.": "More than {count} matches — please narrow the search.",
-  "{done} Dateien geändert, {failed} übersprungen: {reason}": "{done} files changed, {failed} skipped: {reason}"
+  "{done} Dateien geändert, {failed} übersprungen: {reason}": "{done} files changed, {failed} skipped: {reason}",
+  "Die Suche wurde geändert. Erst neu suchen, dann ersetzen.": "The search has changed. Search again before replacing."
 }

@@ -6,18 +6,46 @@
 //! — the user changed their mind, which is allowed — so everything here comes
 //! back as `null` or an empty list rather than as a failure.
 //!
-//! The filter labels are German literals. They are handed to the operating
-//! system, which is the one place in this app a user-visible string cannot go
-//! through `t()`: the catalogue lives in the page and this code runs before the
-//! page is asked anything.
+//! The filter labels come from the page, already translated, because the
+//! catalogue lives there. The German literals below are only the fallback for
+//! a caller that sends none.
 
 use std::path::Path;
 
+use serde::Deserialize;
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt as _;
 
 const ALL_FILES: &str = "Alle Dateien";
 const TEXT_FILES: &str = "Textdateien";
+const EXTENSION_FILE: &str = "{extension}-Datei";
+
+/// The filter names in the user's language. Every one is optional.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FilterLabels {
+    all_files: Option<String>,
+    text_files: Option<String>,
+    /// With `{extension}` where the extension goes.
+    extension_file: Option<String>,
+}
+
+impl FilterLabels {
+    fn all_files(&self) -> &str {
+        self.all_files.as_deref().unwrap_or(ALL_FILES)
+    }
+
+    fn text_files(&self) -> &str {
+        self.text_files.as_deref().unwrap_or(TEXT_FILES)
+    }
+
+    fn extension_file(&self, extension: &str) -> String {
+        self.extension_file
+            .as_deref()
+            .unwrap_or(EXTENSION_FILE)
+            .replace("{extension}", extension)
+    }
+}
 
 /// What "a text file" means in an open dialog. Not a claim about what the
 /// editor can open — it opens anything — just the shortcut for the common case.
@@ -29,15 +57,16 @@ const TEXT_EXTENSIONS: &[&str] = &[
 
 /// Files to open. Empty when the dialog was cancelled.
 #[tauri::command]
-pub(crate) async fn pick_files(app: AppHandle) -> Vec<String> {
+pub(crate) async fn pick_files(app: AppHandle, labels: Option<FilterLabels>) -> Vec<String> {
+    let labels = labels.unwrap_or_default();
     // "All files" leads: an editor is asked to open odd things far more often
     // than it is asked to open a .txt, and a filter the user has to widen every
     // single time is a filter that is wrong.
     let dialog = app
         .dialog()
         .file()
-        .add_filter(ALL_FILES, &["*"])
-        .add_filter(TEXT_FILES, TEXT_EXTENSIONS);
+        .add_filter(labels.all_files(), &["*"])
+        .add_filter(labels.text_files(), TEXT_EXTENSIONS);
 
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_files()).await;
     picked
@@ -61,7 +90,9 @@ pub(crate) async fn pick_save_path(
     app: AppHandle,
     suggested_name: String,
     start_in: Option<String>,
+    labels: Option<FilterLabels>,
 ) -> Option<String> {
+    let labels = labels.unwrap_or_default();
     let mut dialog = app.dialog().file().set_file_name(suggested_name.as_str());
 
     if let Some(folder) = start_in.as_deref().map(Path::new) {
@@ -76,11 +107,11 @@ pub(crate) async fn pick_save_path(
     // filter's extension to a name that has none — and appending `.txt` to
     // `build.gradle` is exactly the surprise a save dialog must not spring.
     if let Some(extension) = extension_of(&suggested_name) {
-        dialog = dialog.add_filter(format!("{extension}-Datei"), &[extension.as_str()]);
+        dialog = dialog.add_filter(labels.extension_file(&extension), &[extension.as_str()]);
     }
     dialog = dialog
-        .add_filter(TEXT_FILES, TEXT_EXTENSIONS)
-        .add_filter(ALL_FILES, &["*"]);
+        .add_filter(labels.text_files(), TEXT_EXTENSIONS)
+        .add_filter(labels.all_files(), &["*"]);
 
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file()).await;
     picked

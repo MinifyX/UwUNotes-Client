@@ -16,7 +16,8 @@ use std::hash::{BuildHasher as _, Hasher as _};
 use std::path::{Path, PathBuf};
 
 use uwunotes_fs::{
-    read_file, replace_in_files, write_file, Eol, FsError, ReplaceRequest, SearchRequest,
+    read_file, rename_path, replace_in_files, write_file, Eol, FsError, ReplaceRequest,
+    SearchRequest,
 };
 
 /// A directory of its own, removed when the test drops it.
@@ -371,4 +372,34 @@ fn search_count(root: &Path, query: &str) -> usize {
     )
     .expect("a compilable pattern")
     .matches
+}
+
+#[test]
+fn a_rename_that_only_changes_case_is_allowed() {
+    let scratch = Scratch::new();
+    let from = scratch.join("notes.txt");
+    let to = scratch.join("Notes.txt");
+    fs::write(&from, "text").unwrap();
+
+    // On a case-insensitive file system `to` already "exists" — as `from`.
+    rename_path(&from, &to).expect("a case-only rename");
+
+    let names: Vec<String> = fs::read_dir(&scratch.0)
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, ["Notes.txt"]);
+}
+
+#[test]
+fn a_rename_onto_another_file_is_still_refused() {
+    let scratch = Scratch::new();
+    let from = scratch.join("a.txt");
+    let to = scratch.join("b.txt");
+    fs::write(&from, "a").unwrap();
+    fs::write(&to, "b").unwrap();
+
+    assert!(rename_path(&from, &to).is_err());
+    assert_eq!(fs::read_to_string(&to).unwrap(), "b");
 }

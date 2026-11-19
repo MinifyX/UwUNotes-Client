@@ -54,8 +54,9 @@ import {
   type GitFileStatus,
 } from '../lib/api';
 import { allDocs, patchMeta, samePath } from '../lib/documents';
-import { describeApiError, openPaths } from '../lib/files';
+import { describeApiError, isPlainFileName, openPaths } from '../lib/files';
 import { useGitStatus } from '../lib/git';
+import { moveHistoryForRename } from '../lib/history';
 import { locale, t } from '../lib/i18n';
 import { ask } from '../lib/prompt';
 import { getSettings, updateSettings } from '../lib/settings';
@@ -370,6 +371,10 @@ export const FileTree = forwardRef<FileTreeHandle, { root: string }>(function Fi
       setDraft(null);
       const clean = name.trim();
       if (!pending || !clean) return;
+      if (!isPlainFileName(clean)) {
+        toast('error', t('„{name}“ ist kein gültiger Dateiname.', { name: clean }));
+        return;
+      }
       try {
         const path = await joinPath(pending.parent, clean);
         if (pending.kind === 'dir') await createDir(path);
@@ -390,6 +395,12 @@ export const FileTree = forwardRef<FileTreeHandle, { root: string }>(function Fi
       setRenaming(null);
       const clean = name.trim();
       if (!clean || clean === row.entry.name) return;
+      // The same check the tab's rename makes: a "name" like `..\x` is a
+      // path, and a rename must never turn into a move somewhere else.
+      if (!isPlainFileName(clean)) {
+        toast('error', t('„{name}“ ist kein gültiger Dateiname.', { name: clean }));
+        return;
+      }
       const from = row.entry.path;
       try {
         const to = await joinPath(row.parent, clean);
@@ -403,9 +414,15 @@ export const FileTree = forwardRef<FileTreeHandle, { root: string }>(function Fi
             patchMeta(doc.meta.id, { path: to, name: clean });
             void applyDocLanguage(doc.meta.id);
           } else if (isInside(from, path)) {
-            patchMeta(doc.meta.id, { path: `${to}${path.slice(from.length)}` });
+            const moved = `${to}${path.slice(from.length)}`;
+            patchMeta(doc.meta.id, { path: moved });
+            void moveHistoryForRename(path, moved);
           }
         }
+        // Its Zeitreise versions follow it, as they do for a tab's rename.
+        // Inside a renamed folder only the open files are known by path; the
+        // loop above moved theirs.
+        if (row.entry.kind !== 'dir') void moveHistoryForRename(from, to);
         forget(from);
         await load(row.parent, true);
         setSelected(pathKey(to));

@@ -19,7 +19,7 @@ describe('encodeText', () => {
     const bytes = await encodeText(doc);
     const expected = new TextEncoder().encode(lines.join('\n'));
     expect(bytes.byteLength).toBe(expected.byteLength);
-    expect(Buffer.compare(bytes, expected)).toBe(0);
+    expect(bytes.every((byte, index) => byte === expected[index])).toBe(true);
   });
 
   it('grows past a wrong size guess for wide text', async () => {

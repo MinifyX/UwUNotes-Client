@@ -200,6 +200,27 @@ let runs = 0;
 /** The search Rust is working on right now, so the next one can call it off. */
 let runningId: string | null = null;
 
+/**
+ * The query and flags the results on screen were found with.
+ *
+ * Replacing across files has to use these and not the form: the form can be
+ * edited after the search, and the replacement would then rewrite the listed
+ * files with a pattern nobody has seen the matches of.
+ */
+let searchedWith: SearchOptions | null = null;
+
+/** Whether the form still says what the results were searched for. */
+export function resultsMatchForm(): boolean {
+  const now = options();
+  return (
+    searchedWith !== null &&
+    searchedWith.query === now.query &&
+    searchedWith.regex === now.regex &&
+    searchedWith.caseSensitive === now.caseSensitive &&
+    searchedWith.wholeWord === now.wholeWord
+  );
+}
+
 export function stopProjectSearch(): void {
   if (runningId) {
     // Best effort: a search that has already finished has nothing to cancel,
@@ -217,6 +238,7 @@ export function runProjectSearch(): void {
 
   const { query, error } = compileSearch(options());
   const folder = getWorkspace().folder;
+  searchedWith = query ? options() : null;
   if (!query) {
     commit({
       ...current,
@@ -432,7 +454,12 @@ export async function replaceAllInFiles(): Promise<void> {
   const paths = current.results
     .map((result) => result.path)
     .filter((path): path is string => path !== null);
-  if (paths.length === 0 || !current.query) return;
+  const searched = searchedWith;
+  if (paths.length === 0 || !searched) return;
+  if (!resultsMatchForm()) {
+    toast('info', t('Die Suche wurde geändert. Erst neu suchen, dann ersetzen.'));
+    return;
+  }
 
   const answer = await ask(
     t('In {files} Dateien ersetzen?', { files: paths.length }),
@@ -453,7 +480,7 @@ export async function replaceAllInFiles(): Promise<void> {
 
   try {
     const summary = await replaceInFiles({
-      ...options(),
+      ...searched,
       replacement: current.replacement,
       files: paths,
     });

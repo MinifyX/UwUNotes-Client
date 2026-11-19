@@ -290,6 +290,8 @@ async function restoreDocument(
         eol: entry.eol,
         languageOverride: entry.language,
         stamp: entry.stamp,
+        binary: entry.binary,
+        lossy: entry.lossy,
         dirty: true,
       });
     }
@@ -539,6 +541,8 @@ async function persistOnce(): Promise<boolean> {
       bookmarks: bookmarksForSession(meta.id),
       preview: previewForSession(meta.id),
       untitled: meta.untitled,
+      binary: meta.binary || undefined,
+      lossy: meta.lossy || undefined,
     });
     const onDisk = draftsOnDisk.get(meta.id);
     try {
@@ -706,6 +710,8 @@ function sanitizeDocument(raw: unknown): SessionDocument | null {
     bookmarks: sanitizeBookmarkLines(entry.bookmarks),
     preview: entry.preview === true ? true : undefined,
     untitled: entry.path == null ? untitledNumber(entry) : null,
+    binary: entry.binary === true || undefined,
+    lossy: entry.lossy === true || undefined,
   };
 }
 

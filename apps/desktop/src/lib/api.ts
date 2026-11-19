@@ -183,10 +183,25 @@ export const hashFile = (path: string, algorithm: HashAlgorithm) =>
 
 /* ── Dialogs ───────────────────────────────────────────── */
 
-export const pickFiles = () => invoke<string[]>('pick_files');
+/**
+ * The names of the pickers' file type filters, in the user's language. The
+ * operating system shows them, so Rust only passes them on; `extensionFile`
+ * has `{extension}` where the extension goes. Left out, Rust uses German.
+ */
+export type DialogFilterLabels = {
+  allFiles: string;
+  textFiles: string;
+  extensionFile: string;
+};
 
-export const pickSavePath = (suggestedName: string, startIn: string | null) =>
-  invoke<string | null>('pick_save_path', { suggestedName, startIn });
+export const pickFiles = (labels?: DialogFilterLabels) =>
+  invoke<string[]>('pick_files', { labels: labels ?? null });
+
+export const pickSavePath = (
+  suggestedName: string,
+  startIn: string | null,
+  labels?: DialogFilterLabels,
+) => invoke<string | null>('pick_save_path', { suggestedName, startIn, labels: labels ?? null });
 
 export const pickFolder = () => invoke<string | null>('pick_folder');
 
@@ -307,6 +322,13 @@ export type SessionDocument = {
    * back from `name`. Optional: Rust carries it without knowing it.
    */
   untitled?: number | null;
+  /**
+   * The file was binary or did not decode cleanly when it was read. A draft
+   * holds the decoded text, so these have to come back with it, or the next
+   * save would write it without the warning. Left out when off.
+   */
+  binary?: boolean;
+  lossy?: boolean;
 };
 
 export type SessionPane = { tabs: string[]; active: string | null };

@@ -153,7 +153,9 @@ impl SessionStore {
 
         // After the write, never before: the sweep must count the new entry so
         // it can keep it, and a sweep that fails costs disk space, not text.
-        if let Err(error) = self.purge_trash_at(now) {
+        // Exempt by id as well as by being newest: after the clock went back,
+        // older entries carry later times and the new one sorts below them.
+        if let Err(error) = self.purge_trash_except(now, MAX_TOTAL_BYTES, Some(&entry.id)) {
             tracing::warn!(%error, "trash could not be swept");
         }
         Ok(entry.summary())
@@ -223,12 +225,18 @@ impl SessionStore {
     /// entries while the whole is over the size cap — always keeping the
     /// newest entry, and never taking a small one for its size.
     pub fn purge_trash_at(&self, now: u64) -> FsResult<()> {
-        self.purge_trash_with(now, MAX_TOTAL_BYTES)
+        self.purge_trash_except(now, MAX_TOTAL_BYTES, None)
     }
 
     /// [`Self::purge_trash_at`] with the size cap passed in, so a test can
     /// exercise it without writing 64 MB.
+    #[cfg(test)]
     fn purge_trash_with(&self, now: u64, max_total: u64) -> FsResult<()> {
+        self.purge_trash_except(now, max_total, None)
+    }
+
+    /// The sweep, never removing the entry `keep` names.
+    fn purge_trash_except(&self, now: u64, max_total: u64, keep: Option<&str>) -> FsResult<()> {
         let entries = self.read_all()?;
         let doomed = sweep_plan(
             entries
@@ -241,6 +249,9 @@ impl SessionStore {
             let Some((entry, _)) = entries.get(index) else {
                 continue;
             };
+            if keep == Some(entry.id.as_str()) {
+                continue;
+            }
             if let Err(error) = self.delete_trash(&entry.id) {
                 tracing::warn!(id = %entry.id, %error, "old trash entry could not be removed");
             }
@@ -468,6 +479,20 @@ mod tests {
         assert_eq!(names, ["neu", "mitte", "alt"]);
         assert_eq!(listed[0].excerpt.chars().count(), EXCERPT_CHARS);
         assert_eq!(listed[0].bytes, (EXCERPT_CHARS + 50) as u64);
+    }
+
+    #[test]
+    fn the_entry_just_written_survives_a_clock_that_went_back() {
+        let scratch = Scratch::new("clock-back");
+        let store = scratch.store();
+        for _ in 0..MAX_ENTRIES {
+            store.trash_note_at(note("vorher", "v"), NOW).unwrap();
+        }
+        // The clock is a day behind now, so the new entry sorts last — exactly
+        // where the count limit cuts.
+        let summary = store.trash_note_at(note("gerade", "g"), NOW - DAY).unwrap();
+
+        assert!(store.read_trash(&summary.id).unwrap().is_some());
     }
 
     #[test]
