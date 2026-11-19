@@ -10,11 +10,13 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+use tauri::ipc::{Request, Response};
 use tauri::State;
 use uwunotes_fs::FsError;
 use uwunotes_session::{StoredSession, TrashEntry, TrashNote, TrashSummary};
 
-use crate::{AppState, CommandResult};
+use crate::{raw_ipc, AppState, CommandResult};
 
 /// The stored session, or `null` when there is nothing usable to restore. A
 /// session file that cannot be read or parsed is treated as nothing: the user
@@ -76,27 +78,46 @@ pub(crate) async fn save_session(
 
 /// Parks one document's unsaved text next to the session file, so closing the
 /// window never costs anything.
-#[tauri::command]
-pub(crate) async fn write_draft(
-    state: State<'_, AppState>,
-    doc_id: String,
-    text: String,
-) -> CommandResult<()> {
-    let store = Arc::clone(&state.session);
-    tauri::async_runtime::spawn_blocking(move || store.write_draft(&doc_id, &text))
-        .await
-        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+///
+/// The text is the raw request body and the document id rides in a header:
+/// this runs every few seconds while someone types, and a large file sent as a
+/// JSON string was what froze the window. See [`raw_ipc`].
+///
+/// [`raw_ipc`]: crate::raw_ipc
+#[tauri::command(async)]
+pub(crate) fn write_draft(state: State<'_, AppState>, request: Request<'_>) -> CommandResult<()> {
+    let meta: DraftMeta = raw_ipc::meta(&request)?;
+    let text = raw_ipc::body_text(&request)?;
+    state.session.write_draft(&meta.doc_id, text)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DraftMeta {
+    doc_id: String,
+}
+
+#[derive(Serialize)]
+struct DraftHeader {
+    found: bool,
+}
+
+/// A draft's text as a framed body; the header says whether there was one.
 #[tauri::command]
 pub(crate) async fn read_draft(
     state: State<'_, AppState>,
     doc_id: String,
-) -> CommandResult<Option<String>> {
+) -> CommandResult<Response> {
     let store = Arc::clone(&state.session);
-    tauri::async_runtime::spawn_blocking(move || store.read_draft(&doc_id))
+    let text = tauri::async_runtime::spawn_blocking(move || store.read_draft(&doc_id))
         .await
-        .unwrap_or_else(|error| Err(thread_stopped(&error)))
+        .unwrap_or_else(|error| Err(thread_stopped(&error)))?;
+    raw_ipc::framed(
+        &DraftHeader {
+            found: text.is_some(),
+        },
+        text.as_deref().unwrap_or(""),
+    )
 }
 
 /// Drops a draft, because the document was saved or its tab was closed on

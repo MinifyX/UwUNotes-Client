@@ -15,6 +15,46 @@
 
 import { Channel, invoke } from '@tauri-apps/api/core';
 
+/* ── Text as bytes ─────────────────────────────────────── */
+
+/*
+ * A document's text crosses the IPC as raw UTF-8, never inside JSON. Escaping
+ * a two-million-line log into one JSON string, copying it through the webview
+ * and parsing it on the other side took seconds on Linux — and the draft
+ * autosave did it every second while someone typed. `src-tauri/src/raw_ipc.rs`
+ * is the other half; its comment has the framing.
+ */
+
+/** What a raw Tauri response arrives as. A plain array is the postMessage fallback. */
+type RawBody = ArrayBuffer | Uint8Array | number[];
+
+// `ignoreBOM`: a U+FEFF the user typed at the start is text, not a marker to drop.
+const utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true });
+const utf8Encoder = new TextEncoder();
+
+/** `u32` header length (LE), the header as JSON, then the text. */
+export function unframe<H>(raw: RawBody): { header: H; text: string } {
+  const bytes =
+    raw instanceof Uint8Array
+      ? raw
+      : raw instanceof ArrayBuffer
+        ? new Uint8Array(raw)
+        : Uint8Array.from(raw);
+  if (bytes.byteLength < 4) throw new Error('Truncated reply from the file service');
+  const length = new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true);
+  if (4 + length > bytes.byteLength) throw new Error('Truncated reply from the file service');
+  const header = JSON.parse(utf8Decoder.decode(bytes.subarray(4, 4 + length))) as H;
+  return { header, text: utf8Decoder.decode(bytes.subarray(4 + length)) };
+}
+
+/** The text as the body, everything else in a header Rust decodes back. */
+function sendText<T>(command: string, meta: object, text: string | Uint8Array): Promise<T> {
+  const body = typeof text === 'string' ? utf8Encoder.encode(text) : text;
+  return invoke<T>(command, body, {
+    headers: { 'x-uwu-meta': encodeURIComponent(JSON.stringify(meta)) },
+  });
+}
+
 /* ── Files ─────────────────────────────────────────────── */
 
 /** How a file's lines end on disk. In the editor everything is `\n`. */
@@ -69,8 +109,11 @@ export type DirEntry = {
 };
 
 /** Reads a file and decodes it. `encoding` forces one instead of detecting it. */
-export const readTextFile = (path: string, encoding?: EncodingLabel) =>
-  invoke<LoadedFile>('read_text_file', { path, encoding: encoding ?? null });
+export const readTextFile = async (path: string, encoding?: EncodingLabel): Promise<LoadedFile> => {
+  const body = await invoke<RawBody>('read_text_file', { path, encoding: encoding ?? null });
+  const { header, text } = unframe<Omit<LoadedFile, 'text'>>(body);
+  return { ...header, text };
+};
 
 /**
  * Writes the file, encoding the text back and re-applying `eol`.
@@ -92,7 +135,10 @@ export const writeTextFile = (args: {
    * rather than putting `&#8594;` where the user typed `→`.
    */
   allowUnmappable: boolean;
-}) => invoke<SavedFile>('write_text_file', args);
+}) => {
+  const { text, ...meta } = args;
+  return sendText<SavedFile>('write_text_file', meta, text);
+};
 
 /** The file's current stamp, or `null` when it is gone. */
 export const fileStatus = (path: string) => invoke<FileStamp | null>('file_status', { path });
@@ -298,10 +344,15 @@ export const saveSession = (session: StoredSession, prune: boolean) =>
  * costs anything. One file per document id; dropped as soon as the document
  * is saved or its tab is closed on purpose.
  */
-export const writeDraft = (docId: string, text: string) =>
-  invoke<void>('write_draft', { docId, text });
+export const writeDraft = (docId: string, text: string | Uint8Array) =>
+  sendText<void>('write_draft', { docId }, text);
 
-export const readDraft = (docId: string) => invoke<string | null>('read_draft', { docId });
+export const readDraft = async (docId: string): Promise<string | null> => {
+  const { header, text } = unframe<{ found: boolean }>(
+    await invoke<RawBody>('read_draft', { docId }),
+  );
+  return header.found ? text : null;
+};
 
 export const dropDraft = (docId: string) => invoke<void>('drop_draft', { docId });
 

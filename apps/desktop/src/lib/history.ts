@@ -152,6 +152,10 @@ export async function snapshotDoc(
   // it walks anything. A forced version always asks Rust, which knows whether
   // the newest version on disk really is this text.
   if (!force && previous && (previous === text || previous.eq(text))) return 'unchanged';
+  // Checked on the `Text` before anything is built: turning a 60 MB document
+  // into one string only to have `send` throw it away was most of the cost of
+  // every save of a large file.
+  if (text.length > MAX_SNAPSHOT_UNITS) return 'skipped';
   lastSent.set(name, text);
   const result = await send(key, text.toString(), reason, force);
   if (!result && lastSent.get(name) === text) lastSent.delete(name);
@@ -477,7 +481,10 @@ export async function snapshotNow(id: DocId): Promise<void> {
   if (!doc) return;
   const key = historyKeyOf(doc.meta);
   const text = doc.state.doc;
-  const result = await send(key, text.toString(), 'auto');
+  const result =
+    text.length > MAX_SNAPSHOT_UNITS
+      ? { status: 'skipped' as const }
+      : await send(key, text.toString(), 'auto');
   if (!result) {
     toast('error', t('Die Version ließ sich nicht sichern.'));
     return;

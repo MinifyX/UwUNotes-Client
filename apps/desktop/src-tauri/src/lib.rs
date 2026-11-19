@@ -34,6 +34,7 @@ mod history;
 mod menu;
 mod opened;
 mod quit;
+mod raw_ipc;
 mod sandbox_access;
 mod search;
 mod session;

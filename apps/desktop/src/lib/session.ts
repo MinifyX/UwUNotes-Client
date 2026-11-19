@@ -33,6 +33,7 @@ import {
   type SessionDocument,
   type StoredSession,
 } from './api';
+import { encodeText } from './text-bytes';
 import {
   allDocs,
   clearDocuments,
@@ -546,7 +547,9 @@ async function persistOnce(): Promise<boolean> {
           // The version is read before the await: typing during the write
           // bumps it, and the next run must see that as a change.
           const version = doc.textVersion;
-          await writeDraft(meta.id, doc.state.doc.toString());
+          // Encoded in slices: for a large file one blocking encode was the
+          // window freezing every few seconds while someone typed.
+          await writeDraft(meta.id, await encodeText(doc.state.doc));
           draftsOnDisk.set(meta.id, version);
         }
       } else if (onDisk !== NO_DRAFT) {
@@ -615,6 +618,23 @@ const DEBOUNCE_MS = 1_500;
  */
 const DRAFT_FLUSH_MS = 1_000;
 
+/**
+ * How long a draft may wait, by the size of the text that changed.
+ *
+ * A draft write copies the whole document, so for a log with millions of
+ * lines a flush every second is a copy of tens of megabytes every second —
+ * enough, on a slow machine, to keep the window from ever catching up. Small
+ * files keep the one-second flush; past a million characters the wait grows
+ * with the size, to at most ten seconds. Closing the window still writes
+ * everything at once, so the only thing a longer wait risks is a crash.
+ */
+export function draftFlushDelay(length: number): number {
+  if (length <= LARGE_DRAFT_CHARS) return DRAFT_FLUSH_MS;
+  return Math.min(MAX_DRAFT_FLUSH_MS, DRAFT_FLUSH_MS + (length / LARGE_DRAFT_CHARS) * 200);
+}
+const LARGE_DRAFT_CHARS = 1_000_000;
+const MAX_DRAFT_FLUSH_MS = 10_000;
+
 /** Persists after changes and on the way out. Returns the teardown. */
 export function startSessionAutosave(): () => void {
   let debounce = 0;
@@ -633,12 +653,15 @@ export function startSessionAutosave(): () => void {
   // The first change starts it, later ones ride along, and the flush writes
   // only the drafts whose text actually changed.
   let flush = 0;
-  const stopText = subscribeText(() => {
+  const stopText = subscribeText((id) => {
     if (flush) return;
-    flush = window.setTimeout(() => {
-      flush = 0;
-      void persistSession();
-    }, DRAFT_FLUSH_MS);
+    flush = window.setTimeout(
+      () => {
+        flush = 0;
+        void persistSession();
+      },
+      draftFlushDelay(getDoc(id)?.state.doc.length ?? 0),
+    );
   });
 
   const onUnload = () => {

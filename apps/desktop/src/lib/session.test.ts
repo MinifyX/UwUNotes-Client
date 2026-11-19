@@ -14,7 +14,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StoredSession } from './api';
 
-const writeDraft = vi.fn<(docId: string, text: string) => Promise<void>>(async () => undefined);
+const writeDraft = vi.fn<(docId: string, text: string | Uint8Array) => Promise<void>>(
+  async () => undefined,
+);
+/** The last draft written, as text: drafts travel to Rust as UTF-8 bytes. */
+const lastDraft = () => {
+  const [docId, text] = writeDraft.mock.lastCall ?? [];
+  return [docId, typeof text === 'string' ? text : new TextDecoder().decode(text)];
+};
 const dropDraft = vi.fn<(docId: string) => Promise<void>>(async () => undefined);
 const saveSession = vi.fn<(session: StoredSession, prune: boolean) => Promise<void>>(
   async () => undefined,
@@ -79,7 +86,7 @@ describe('the draft flush', () => {
 
     expect(await session.persistSession()).toBe(true);
     expect(writeDraft).toHaveBeenCalledTimes(1);
-    expect(writeDraft).toHaveBeenLastCalledWith(note, 'Milch');
+    expect(lastDraft()).toEqual([note, 'Milch']);
     expect(dropDraft).toHaveBeenCalledTimes(1);
 
     // Nothing changed: no draft is touched again, only the session file.
@@ -91,7 +98,7 @@ describe('the draft flush', () => {
     type(documents, note, ' und Brot');
     await session.persistSession();
     expect(writeDraft).toHaveBeenCalledTimes(2);
-    expect(writeDraft).toHaveBeenLastCalledWith(note, 'Milch und Brot');
+    expect(lastDraft()).toEqual([note, 'Milch und Brot']);
   });
 
   it('runs one flush at a time and folds the waiting calls into one', async () => {
@@ -121,7 +128,7 @@ describe('the draft flush', () => {
     release();
     await Promise.all([first, second, third]);
     expect(writeDraft).toHaveBeenCalledTimes(2);
-    expect(writeDraft).toHaveBeenLastCalledWith(note, 'ab');
+    expect(lastDraft()).toEqual([note, 'ab']);
   });
 
   it('reports a draft that did not reach the disk', async () => {

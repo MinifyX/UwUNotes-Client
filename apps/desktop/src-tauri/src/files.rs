@@ -18,10 +18,11 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
-use uwunotes_fs::{DirEntry, Eol, FileStamp, FsError, LoadedFile, PathInfo};
+use serde::{Deserialize, Serialize};
+use tauri::ipc::{Request, Response};
+use uwunotes_fs::{DirEntry, Eol, FileStamp, FsError, PathInfo};
 
-use crate::{sandbox_access, CommandResult};
+use crate::{raw_ipc, sandbox_access, CommandResult};
 
 /// What a save gives back. A struct rather than a bare stamp because the page's
 /// `SavedFile` will grow a field one day and a bare value has nowhere to put it.
@@ -33,14 +34,36 @@ pub(crate) struct SavedFile {
 
 /// Reads and decodes a file. `encoding` forces one instead of detecting it —
 /// that is the status bar's encoding menu, which re-opens the same file.
+///
+/// The answer is a framed body rather than JSON: everything but the text in a
+/// small header, the text as raw UTF-8 behind it. See [`raw_ipc`].
+///
+/// [`raw_ipc`]: crate::raw_ipc
 #[tauri::command(async)]
-pub(crate) fn read_text_file(path: String, encoding: Option<String>) -> CommandResult<LoadedFile> {
-    let loaded = uwunotes_fs::read_file(Path::new(&path), encoding.as_deref())?;
+pub(crate) fn read_text_file(path: String, encoding: Option<String>) -> CommandResult<Response> {
+    let mut loaded = uwunotes_fs::read_file(Path::new(&path), encoding.as_deref())?;
     sandbox_access::remember(Path::new(&path));
-    Ok(loaded)
+    let text = std::mem::take(&mut loaded.text);
+    raw_ipc::framed(&loaded, &text)
+}
+
+/// The fields of a save, sent next to the text rather than around it.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WriteMeta {
+    path: String,
+    encoding: String,
+    bom: bool,
+    eol: Eol,
+    expected_stamp: Option<FileStamp>,
+    allow_unmappable: bool,
 }
 
 /// Encodes the text back and writes it atomically.
+///
+/// The text is the raw request body and the rest is a [`WriteMeta`] in a
+/// header, so a large file is not escaped into JSON and parsed back on every
+/// save.
 ///
 /// `expected_stamp` is what the editor believes is on disk; a mismatch comes
 /// back as [`FsError::Changed`] and the page turns that into a question instead
@@ -50,27 +73,21 @@ pub(crate) fn read_text_file(path: String, encoding: Option<String>) -> CommandR
 /// text holds characters the chosen encoding cannot write, the user has been
 /// shown that and has said to write it anyway.
 #[tauri::command(async)]
-pub(crate) fn write_text_file(
-    path: String,
-    text: String,
-    encoding: String,
-    bom: bool,
-    eol: Eol,
-    expected_stamp: Option<FileStamp>,
-    allow_unmappable: bool,
-) -> CommandResult<SavedFile> {
+pub(crate) fn write_text_file(request: Request<'_>) -> CommandResult<SavedFile> {
+    let meta: WriteMeta = raw_ipc::meta(&request)?;
+    let text = raw_ipc::body_text(&request)?;
     let stamp = uwunotes_fs::write_file(
-        Path::new(&path),
-        &text,
-        &encoding,
-        bom,
-        eol,
-        expected_stamp,
-        allow_unmappable,
+        Path::new(&meta.path),
+        text,
+        &meta.encoding,
+        meta.bom,
+        meta.eol,
+        meta.expected_stamp,
+        meta.allow_unmappable,
     )?;
     // A file saved under a new name exists only now, so only now can it be
     // bookmarked.
-    sandbox_access::remember(Path::new(&path));
+    sandbox_access::remember(Path::new(&meta.path));
     Ok(SavedFile { stamp })
 }
 
