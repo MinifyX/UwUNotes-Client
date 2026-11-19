@@ -23,7 +23,7 @@ import {
   useUpdatesAvailableInApp,
   useUpdateState,
 } from '../../lib/updates';
-import { Icon, Button, ICONS } from '@uwusuite/design';
+import { Button, Icon, ICONS, ProgressBar } from '@uwusuite/design';
 
 /** `children` is the auto-check switch, drawn by the settings page like its neighbours. */
 export function UpdatesSection({ children }: { children: ReactNode }) {
@@ -117,20 +117,14 @@ export function UpdatesSection({ children }: { children: ReactNode }) {
             {line}
           </p>
         ) : null}
-        {state.phase === 'downloading' ? (
-          <span
-            className="settings-update-bar"
-            role="progressbar"
-            aria-label={line}
-            aria-valuenow={percent ?? undefined}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          >
-            <span
-              className="settings-update-bar-fill"
-              data-indeterminate={percent === null ? true : undefined}
-              style={percent === null ? undefined : { width: `${percent}%` }}
-            />
+        {state.phase === 'downloading' && percent !== null ? (
+          // The suite's bar once the size is known; it fills from where it was.
+          <ProgressBar share={percent / 100} label={line} className="settings-update-progress" />
+        ) : state.phase === 'downloading' ? (
+          // No size yet: the package's bar has no "busy" mode, so this one
+          // slides until the first byte count arrives.
+          <span className="settings-update-bar" role="progressbar" aria-label={line}>
+            <span className="settings-update-bar-fill" data-indeterminate />
           </span>
         ) : null}
       </div>

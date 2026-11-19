@@ -23,22 +23,12 @@
  * `lib/commands.ts`) or open the file itself (that is `lib/files.ts`).
  */
 
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { CommandPalette as SuitePalette, type CommandItem } from '@uwusuite/design';
+import { useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { listDir } from '../lib/api';
 import { closeDialog, matchCommands, runCommand, useUiState } from '../lib/commands';
 import { openPaths } from '../lib/files';
 import { t, useLanguage } from '../lib/i18n';
-import { focusActiveView } from '../lib/views';
 import { useWorkspace } from '../lib/workspace';
 
 /** Entries visited by one walk, files and folders together. */
@@ -222,28 +212,6 @@ function Palette() {
   const walk = useFolderFiles(workspace.folder);
   const language = useLanguage();
   const [query, setQuery] = useState('>');
-  const [index, setIndex] = useState(0);
-  const list = useRef<HTMLUListElement | null>(null);
-  const backdrop = useRef<HTMLDivElement | null>(null);
-  const listId = useId();
-
-  // Not the package's Dialog: the palette keeps its own keys and its place at
-  // the top. Like the package's mobile overlays it makes the rest of the
-  // window inert while it is open; whatever was not inert already is set and
-  // later freed, so stacked overlays nest.
-  useLayoutEffect(() => {
-    const node = backdrop.current;
-    const siblings = [...(node?.parentElement?.children ?? [])].filter(
-      (el) => el !== node && !el.hasAttribute('inert'),
-    );
-    for (const el of siblings) el.setAttribute('inert', '');
-    return () => {
-      for (const el of siblings) el.removeAttribute('inert');
-      // A command that wanted the text could not focus it while it was inert.
-      const here = document.activeElement;
-      if (!here || here === document.body || node?.contains(here)) focusActiveView();
-    };
-  }, []);
 
   const commandMode = query.startsWith('>');
 
@@ -302,16 +270,8 @@ function Palette() {
   }, [commandMode, language, query, walk.files, workspace.folder, workspace.recentFiles]);
 
   const shown = matches.slice(0, VISIBLE_LIMIT);
-  const active = Math.min(index, Math.max(0, shown.length - 1));
-  const activeRow = shown[active];
 
-  useEffect(() => {
-    const element = list.current?.children.item(active);
-    if (element instanceof HTMLElement) element.scrollIntoView({ block: 'nearest' });
-  }, [active, shown.length]);
-
-  const run = (result: Result | undefined) => {
-    if (!result) return;
+  const run = (result: Result) => {
     // Closing first, because a command may open a dialog of its own and
     // closing afterwards would shut the thing it just opened.
     closeDialog();
@@ -319,150 +279,79 @@ function Palette() {
     else void openPaths([result.path]);
   };
 
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    switch (event.key) {
-      case 'ArrowDown':
-        event.preventDefault();
-        setIndex(shown.length === 0 ? 0 : (active + 1) % shown.length);
-        return;
-      case 'ArrowUp':
-        event.preventDefault();
-        setIndex(shown.length === 0 ? 0 : (active - 1 + shown.length) % shown.length);
-        return;
-      case 'PageDown':
-        event.preventDefault();
-        setIndex(Math.min(shown.length - 1, active + 10));
-        return;
-      case 'PageUp':
-        event.preventDefault();
-        setIndex(Math.max(0, active - 10));
-        return;
-      case 'Home':
-        event.preventDefault();
-        setIndex(0);
-        return;
-      case 'End':
-        event.preventDefault();
-        setIndex(Math.max(0, shown.length - 1));
-        return;
-      case 'Enter':
-        event.preventDefault();
-        run(activeRow);
-        return;
-      case 'Escape':
-        event.preventDefault();
-        closeDialog();
-        return;
-      case 'Tab':
-        // One focusable element, so Tab has nowhere to go that is not out.
-        event.preventDefault();
-        return;
-      default:
-        return;
-    }
-  };
+  // One group, already ranked: the scorers above put the best match first
+  // across every command group, and splitting by group would undo that. The
+  // group a command belongs to is its detail instead.
+  const items: CommandItem[] = shown.map((result) =>
+    result.kind === 'command'
+      ? {
+          id: result.key,
+          text: result.title,
+          label: <Highlighted text={result.title} positions={result.positions} />,
+          detail: result.group,
+          trailing: result.shortcut ? (
+            <kbd className="palette-shortcut">{result.shortcut}</kbd>
+          ) : undefined,
+          onSelect: () => run(result),
+        }
+      : {
+          id: result.key,
+          text: result.rel,
+          label: (
+            <Highlighted
+              text={result.rel.slice(result.nameAt)}
+              positions={result.positions.map((at) => at - result.nameAt)}
+            />
+          ),
+          detail:
+            result.nameAt > 0 ? (
+              <Highlighted text={result.rel.slice(0, result.nameAt)} positions={result.positions} />
+            ) : undefined,
+          onSelect: () => run(result),
+        },
+  );
+
+  const count =
+    !commandMode && walk.scanning
+      ? t('{count} Dateien gefunden, es wird noch gesucht …', { count: walk.files.length })
+      : matches.length > shown.length
+        ? t('{shown} von {total} Treffern', { shown: shown.length, total: matches.length })
+        : t('{count} Treffer', { count: matches.length });
 
   return (
-    <div
-      ref={backdrop}
-      className="palette-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) closeDialog();
-      }}
-    >
-      <div className="palette" role="dialog" aria-modal="true" aria-label={t('Befehlspalette')}>
-        <input
-          className="palette-input"
-          value={query}
-          autoFocus
-          spellCheck={false}
-          role="combobox"
-          aria-expanded
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={activeRow ? `${listId}-${active}` : undefined}
-          aria-label={t('Befehl oder Datei suchen')}
-          placeholder={t('> für Befehle, sonst Dateien')}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setIndex(0);
-          }}
-          onKeyDown={onKeyDown}
-        />
-
-        <ul
-          className={`palette-list palette-list-${commandMode ? 'commands' : 'files'}`}
-          id={listId}
-          role="listbox"
-          ref={list}
-        >
-          {shown.map((result, position) => (
-            <li
-              key={result.key}
-              id={`${listId}-${position}`}
-              role="option"
-              aria-selected={position === active}
-              className={`palette-row${position === active ? ' palette-row-active' : ''}`}
-              onMouseDown={(event) => {
-                // Down rather than click: the input must not lose focus first.
-                event.preventDefault();
-                run(result);
-              }}
-              onMouseMove={() => setIndex(position)}
-            >
-              {result.kind === 'command' ? (
-                <>
-                  <span className="palette-row-name">
-                    <Highlighted text={result.title} positions={result.positions} />
-                  </span>
-                  <span className="palette-row-group">{result.group}</span>
-                  {result.shortcut && <kbd className="palette-row-shortcut">{result.shortcut}</kbd>}
-                </>
-              ) : (
-                <>
-                  <span className="palette-row-name">
-                    <Highlighted
-                      text={result.rel.slice(result.nameAt)}
-                      positions={result.positions.map((at) => at - result.nameAt)}
-                    />
-                  </span>
-                  {result.nameAt > 0 && (
-                    <span className="palette-row-path">
-                      <Highlighted
-                        text={result.rel.slice(0, result.nameAt)}
-                        positions={result.positions}
-                      />
-                    </span>
-                  )}
-                </>
-              )}
-            </li>
-          ))}
-
-          {shown.length === 0 && (
-            <li className="palette-nothing" role="presentation">
-              {commandMode ? t('Kein Befehl passt dazu.') : t('Keine Datei passt dazu.')}
-            </li>
-          )}
-        </ul>
-
-        <footer className="palette-footer">
-          <span className="palette-hint">
+    // The suite's palette (`@uwusuite/design`): the modal, the combobox, the
+    // arrows and the look. Matching stays here, so `filter` is off — the
+    // `>` switch and the fuzzy underlines are this app's own.
+    <SuitePalette
+      open
+      onClose={closeDialog}
+      query={query}
+      onQueryChange={setQuery}
+      filter={false}
+      label={t('Befehlspalette')}
+      placeholder={t('> für Befehle, sonst Dateien')}
+      groups={[
+        {
+          id: commandMode ? 'commands' : 'files',
+          title: commandMode ? t('Befehle') : t('Dateien'),
+          items,
+        },
+      ]}
+      emptyText={commandMode ? t('Kein Befehl passt dazu.') : t('Keine Datei passt dazu.')}
+      footer={
+        <span className="palette-footer">
+          <span>
             {commandMode
               ? t('Das > löschen, um nach Dateien zu suchen.')
               : t('Ein > voranstellen, um nach Befehlen zu suchen.')}
           </span>
-          <span className="palette-count">
-            {!commandMode && walk.scanning
-              ? t('{count} Dateien gefunden, es wird noch gesucht …', { count: walk.files.length })
-              : matches.length > shown.length
-                ? t('{shown} von {total} Treffern', { shown: shown.length, total: matches.length })
-                : t('{count} Treffer', { count: matches.length })}
+          <span>
+            {count}
             {!commandMode && walk.truncated && ` · ${t('Ordner ist zu groß, nur ein Teil davon')}`}
           </span>
-        </footer>
-      </div>
-    </div>
+        </span>
+      }
+    />
   );
 }
 

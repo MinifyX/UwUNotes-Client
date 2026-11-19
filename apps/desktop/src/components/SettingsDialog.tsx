@@ -23,8 +23,17 @@
  * place that does own them.
  */
 
-import { Button, Segmented, Switch } from '@uwusuite/design';
-import { useId, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  Button,
+  motionAllowed,
+  NavIndicator,
+  Segmented,
+  Select,
+  SettingRow,
+  Switch,
+  TextInput,
+} from '@uwusuite/design';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { closeDialog, openDialog, useUiState } from '../lib/commands';
 import {
   ENCODINGS,
@@ -35,7 +44,7 @@ import {
   type EncodingEntry,
   type EncodingGroup,
 } from '../lib/encodings';
-import { t } from '../lib/i18n';
+import { N_, t } from '../lib/i18n';
 import { macroLabel, useMacros } from '../lib/macros';
 import { ask } from '../lib/prompt';
 import {
@@ -112,6 +121,56 @@ function SettingsBody() {
     setEditingTheme({ id });
   };
 
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>('appearance');
+
+  // Which section the page is scrolled to: the last one whose title has
+  // passed the top third. Followed on scroll rather than with an observer,
+  // because the answer depends on all of them at once, not on one crossing.
+  useEffect(() => {
+    const page = pageRef.current;
+    const scroller = page ? scrollerOf(page) : null;
+    if (!page || !scroller) return;
+    const follow = () => {
+      const view = scroller.getBoundingClientRect();
+      const line = view.top + view.height / 3;
+      let current: SectionId = 'appearance';
+      for (const section of page.querySelectorAll<HTMLElement>('[data-section]')) {
+        if (section.getBoundingClientRect().top <= line)
+          current = section.dataset.section as SectionId;
+      }
+      // At the very bottom the last section is the one being read, however short.
+      // Not before anything was scrolled: a page that is still being laid out
+      // can report itself as scrolled to the end.
+      if (
+        scroller.scrollTop > 0 &&
+        scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+      ) {
+        current = 'plugins';
+      }
+      setActiveSection(current);
+    };
+    follow();
+    scroller.addEventListener('scroll', follow, { passive: true });
+    return () => scroller.removeEventListener('scroll', follow);
+  }, []);
+
+  const jump = (id: SectionId) => {
+    const page = pageRef.current;
+    const scroller = page ? scrollerOf(page) : null;
+    const target = page?.querySelector<HTMLElement>(`#${sectionAnchor(id)}`);
+    if (!scroller || !target) return;
+    scroller.scrollTo({
+      top:
+        scroller.scrollTop +
+        target.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top -
+        JUMP_MARGIN,
+      behavior: motionAllowed() ? 'smooth' : 'auto',
+    });
+    setActiveSection(id);
+  };
+
   const resetEverything = async () => {
     const answer = await ask(
       t('Einstellungen zurücksetzen?'),
@@ -132,530 +191,535 @@ function SettingsBody() {
   return (
     <>
       <Modal title={t('Einstellungen')} onClose={closeDialog} wide>
-        <div className="settings">
-          <Section title={t('Erscheinungsbild')}>
-            <ChoiceField
-              label={t('Farbschema')}
-              value={settings.theme}
-              options={[
-                { value: 'system', label: t('System') },
-                { value: 'light', label: t('Hell') },
-                { value: 'dark', label: t('Dunkel') },
-              ]}
-              onChange={(theme) => write({ theme })}
-            />
-            <ChoiceField
-              label={t('Kontrast')}
-              hint={t('„Hoch“ setzt Text und Linien schwarz auf weiß oder weiß auf schwarz.')}
-              value={settings.contrast}
-              options={[
-                { value: 'system', label: t('System') },
-                { value: 'normal', label: t('Normal') },
-                { value: 'high', label: t('Hoch') },
-              ]}
-              onChange={(contrast) => write({ contrast })}
-            />
-            <ThemeField
-              value={currentTheme.id}
-              themes={themes}
-              onChange={(editorTheme) => writeEditor({ editorTheme })}
-              onEdit={() => setEditingTheme({ id: currentTheme.id })}
-              onDuplicate={duplicateCurrent}
-              onImport={() => setEditingTheme({ id: null })}
-            />
-            <ChoiceField
-              label={t('Sprache')}
-              value={settings.language}
-              options={[
-                { value: 'system', label: t('System') },
-                { value: 'de', label: 'Deutsch' },
-                { value: 'en', label: 'English' },
-              ]}
-              onChange={(language) => write({ language })}
-            />
-            <ChoiceField
-              label={t('Animationen')}
-              hint={t('„System“ folgt der Einstellung für reduzierte Bewegung.')}
-              value={settings.motion}
-              options={[
-                { value: 'system', label: t('System') },
-                { value: 'on', label: t('An') },
-                { value: 'off', label: t('Aus') },
-              ]}
-              onChange={(motion) => write({ motion })}
-            />
-            <ChoiceField
-              label={t('Tonfall')}
-              hint={t('„Sachlich“ behält Nyu und lässt ihre Sprüche weg.')}
-              value={settings.tone}
-              options={[
-                { value: 'playful', label: t('Verspielt') },
-                { value: 'neutral', label: t('Sachlich') },
-              ]}
-              onChange={(tone) => write({ tone })}
-            />
-            <UiFontPicker value={settings.uiFont} onChange={(uiFont) => write({ uiFont })} />
-          </Section>
+        <div className="settings-layout">
+          <SectionNav active={activeSection} onJump={jump} />
+          <div className="settings" ref={pageRef}>
+            <Section id="appearance" title={t('Erscheinungsbild')}>
+              <ChoiceField
+                label={t('Farbschema')}
+                value={settings.theme}
+                options={[
+                  { value: 'system', label: t('System') },
+                  { value: 'light', label: t('Hell') },
+                  { value: 'dark', label: t('Dunkel') },
+                ]}
+                onChange={(theme) => write({ theme })}
+              />
+              <ChoiceField
+                label={t('Kontrast')}
+                hint={t('„Hoch“ setzt Text und Linien schwarz auf weiß oder weiß auf schwarz.')}
+                value={settings.contrast}
+                options={[
+                  { value: 'system', label: t('System') },
+                  { value: 'normal', label: t('Normal') },
+                  { value: 'high', label: t('Hoch') },
+                ]}
+                onChange={(contrast) => write({ contrast })}
+              />
+              <ThemeField
+                value={currentTheme.id}
+                themes={themes}
+                onChange={(editorTheme) => writeEditor({ editorTheme })}
+                onEdit={() => setEditingTheme({ id: currentTheme.id })}
+                onDuplicate={duplicateCurrent}
+                onImport={() => setEditingTheme({ id: null })}
+              />
+              <ChoiceField
+                label={t('Sprache')}
+                value={settings.language}
+                options={[
+                  { value: 'system', label: t('System') },
+                  { value: 'de', label: 'Deutsch' },
+                  { value: 'en', label: 'English' },
+                ]}
+                onChange={(language) => write({ language })}
+              />
+              <ChoiceField
+                label={t('Animationen')}
+                hint={t('„System“ folgt der Einstellung für reduzierte Bewegung.')}
+                value={settings.motion}
+                options={[
+                  { value: 'system', label: t('System') },
+                  { value: 'on', label: t('An') },
+                  { value: 'off', label: t('Aus') },
+                ]}
+                onChange={(motion) => write({ motion })}
+              />
+              <ChoiceField
+                label={t('Tonfall')}
+                hint={t('„Sachlich“ behält Nyu und lässt ihre Sprüche weg.')}
+                value={settings.tone}
+                options={[
+                  { value: 'playful', label: t('Verspielt') },
+                  { value: 'neutral', label: t('Sachlich') },
+                ]}
+                onChange={(tone) => write({ tone })}
+              />
+              <UiFontPicker value={settings.uiFont} onChange={(uiFont) => write({ uiFont })} />
+            </Section>
 
-          <Section title={t('Editorschrift')}>
-            <EditorFontPicker
-              value={settings.fontFamily}
-              onChange={(fontFamily) => writeEditor({ fontFamily })}
-            />
-            <NumberField
-              label={t('Schriftgröße')}
-              value={settings.fontSize}
-              min={FONT_SIZE_MIN}
-              max={FONT_SIZE_MAX}
-              step={1}
-              unit="px"
-              onChange={(fontSize) => writeEditor({ fontSize })}
-            />
-            <RangeField
-              label={t('Zeilenhöhe')}
-              value={settings.lineHeight}
-              min={1}
-              max={3}
-              step={0.05}
-              format={(value) => value.toFixed(2)}
-              onChange={(lineHeight) => writeEditor({ lineHeight })}
-            />
-            <SwitchField
-              label={t('Ligaturen')}
-              hint={t('Aus Zeichenpaaren wie != wird ein einzelnes Zeichen.')}
-              checked={settings.ligatures}
-              onChange={(ligatures) => writeEditor({ ligatures })}
-            />
-          </Section>
+            <Section id="font" title={t('Editorschrift')}>
+              <EditorFontPicker
+                value={settings.fontFamily}
+                onChange={(fontFamily) => writeEditor({ fontFamily })}
+              />
+              <NumberField
+                label={t('Schriftgröße')}
+                value={settings.fontSize}
+                min={FONT_SIZE_MIN}
+                max={FONT_SIZE_MAX}
+                step={1}
+                unit="px"
+                onChange={(fontSize) => writeEditor({ fontSize })}
+              />
+              <RangeField
+                label={t('Zeilenhöhe')}
+                value={settings.lineHeight}
+                min={1}
+                max={3}
+                step={0.05}
+                format={(value) => value.toFixed(2)}
+                onChange={(lineHeight) => writeEditor({ lineHeight })}
+              />
+              <SwitchField
+                label={t('Ligaturen')}
+                hint={t('Aus Zeichenpaaren wie != wird ein einzelnes Zeichen.')}
+                checked={settings.ligatures}
+                onChange={(ligatures) => writeEditor({ ligatures })}
+              />
+            </Section>
 
-          <Section title={t('Editor')}>
-            <SelectField
-              label={t('Tabbreite')}
-              value={settings.tabSize}
-              options={TAB_SIZES.map((size) => ({ value: size, label: String(size) }))}
-              onChange={(tabSize) => writeEditor({ tabSize })}
-            />
-            <SwitchField
-              label={t('Mit Leerzeichen einrücken')}
-              hint={t('Aus schreibt echte Tabulatoren — was ein Makefile braucht.')}
-              checked={settings.insertSpaces}
-              onChange={(insertSpaces) => writeEditor({ insertSpaces })}
-            />
-            <ChoiceField
-              label={t('Zeilenumbruch')}
-              value={settings.wrap}
-              options={[
-                { value: 'off', label: t('Aus') },
-                { value: 'window', label: t('Am Fensterrand') },
-              ]}
-              onChange={(wrap) => writeEditor({ wrap })}
-            />
-            <ChoiceField
-              label={t('Cursorform')}
-              value={settings.caretStyle}
-              options={[
-                { value: 'line', label: t('Strich') },
-                { value: 'block', label: t('Block') },
-                { value: 'underline', label: t('Unterstrich') },
-              ]}
-              onChange={(caretStyle) => writeEditor({ caretStyle })}
-            />
-            <SwitchField
-              label={t('Cursor blinkt')}
-              hint={t('Ein blinkender Cursor kann Migräne und Anfälle auslösen.')}
-              checked={settings.caretBlink}
-              onChange={(caretBlink) => writeEditor({ caretBlink })}
-            />
-            <SwitchField
-              label={t('Zeilennummern')}
-              checked={settings.lineNumbers}
-              onChange={(lineNumbers) => writeEditor({ lineNumbers })}
-            />
-            <SwitchField
-              label={t('Minimap')}
-              checked={settings.minimap}
-              onChange={(minimap) => writeEditor({ minimap })}
-            />
-            <SwitchField
-              label={t('Einrückungslinien')}
-              checked={settings.indentGuides}
-              onChange={(indentGuides) => writeEditor({ indentGuides })}
-            />
-            <SwitchField
-              label={t('Aktive Zeile hervorheben')}
-              checked={settings.highlightActiveLine}
-              onChange={(highlightActiveLine) => writeEditor({ highlightActiveLine })}
-            />
-            <SwitchField
-              label={t('Leerzeichen anzeigen')}
-              hint={t('Punkte für Leerzeichen, Pfeile für Tabulatoren.')}
-              checked={settings.showWhitespace}
-              onChange={(showWhitespace) => writeEditor({ showWhitespace })}
-            />
-            <SwitchField
-              label={t('Randlinie')}
-              checked={settings.printMargin}
-              onChange={(printMargin) => writeEditor({ printMargin })}
-            />
-            <NumberField
-              label={t('Randlinie bei Spalte')}
-              value={settings.printMarginColumn}
-              min={20}
-              max={400}
-              step={1}
-              disabled={!settings.printMargin}
-              onChange={(printMarginColumn) => writeEditor({ printMarginColumn })}
-            />
-            <SwitchField
-              label={t('Klammerpaare hervorheben')}
-              checked={settings.bracketMatching}
-              onChange={(bracketMatching) => writeEditor({ bracketMatching })}
-            />
-            <SwitchField
-              label={t('Klammern automatisch schließen')}
-              checked={settings.closeBrackets}
-              onChange={(closeBrackets) => writeEditor({ closeBrackets })}
-            />
-            <SwitchField
-              label={t('Autovervollständigung')}
-              checked={settings.autocomplete}
-              onChange={(autocomplete) => writeEditor({ autocomplete })}
-            />
-            <SwitchField
-              label={t('Gleiche Wörter markieren')}
-              hint={t('Jedes weitere Vorkommen des Worts unter dem Cursor bekommt einen Kasten.')}
-              checked={settings.highlightSelectionMatches}
-              onChange={(highlightSelectionMatches) => writeEditor({ highlightSelectionMatches })}
-            />
-          </Section>
+            <Section id="editor" title={t('Editor')}>
+              <SelectField
+                label={t('Tabbreite')}
+                value={settings.tabSize}
+                options={TAB_SIZES.map((size) => ({ value: size, label: String(size) }))}
+                onChange={(tabSize) => writeEditor({ tabSize })}
+              />
+              <SwitchField
+                label={t('Mit Leerzeichen einrücken')}
+                hint={t('Aus schreibt echte Tabulatoren — was ein Makefile braucht.')}
+                checked={settings.insertSpaces}
+                onChange={(insertSpaces) => writeEditor({ insertSpaces })}
+              />
+              <ChoiceField
+                label={t('Zeilenumbruch')}
+                value={settings.wrap}
+                options={[
+                  { value: 'off', label: t('Aus') },
+                  { value: 'window', label: t('Am Fensterrand') },
+                ]}
+                onChange={(wrap) => writeEditor({ wrap })}
+              />
+              <ChoiceField
+                label={t('Cursorform')}
+                value={settings.caretStyle}
+                options={[
+                  { value: 'line', label: t('Strich') },
+                  { value: 'block', label: t('Block') },
+                  { value: 'underline', label: t('Unterstrich') },
+                ]}
+                onChange={(caretStyle) => writeEditor({ caretStyle })}
+              />
+              <SwitchField
+                label={t('Cursor blinkt')}
+                hint={t('Ein blinkender Cursor kann Migräne und Anfälle auslösen.')}
+                checked={settings.caretBlink}
+                onChange={(caretBlink) => writeEditor({ caretBlink })}
+              />
+              <SwitchField
+                label={t('Zeilennummern')}
+                checked={settings.lineNumbers}
+                onChange={(lineNumbers) => writeEditor({ lineNumbers })}
+              />
+              <SwitchField
+                label={t('Minimap')}
+                checked={settings.minimap}
+                onChange={(minimap) => writeEditor({ minimap })}
+              />
+              <SwitchField
+                label={t('Einrückungslinien')}
+                checked={settings.indentGuides}
+                onChange={(indentGuides) => writeEditor({ indentGuides })}
+              />
+              <SwitchField
+                label={t('Aktive Zeile hervorheben')}
+                checked={settings.highlightActiveLine}
+                onChange={(highlightActiveLine) => writeEditor({ highlightActiveLine })}
+              />
+              <SwitchField
+                label={t('Leerzeichen anzeigen')}
+                hint={t('Punkte für Leerzeichen, Pfeile für Tabulatoren.')}
+                checked={settings.showWhitespace}
+                onChange={(showWhitespace) => writeEditor({ showWhitespace })}
+              />
+              <SwitchField
+                label={t('Randlinie')}
+                checked={settings.printMargin}
+                onChange={(printMargin) => writeEditor({ printMargin })}
+              />
+              <NumberField
+                label={t('Randlinie bei Spalte')}
+                value={settings.printMarginColumn}
+                min={20}
+                max={400}
+                step={1}
+                disabled={!settings.printMargin}
+                onChange={(printMarginColumn) => writeEditor({ printMarginColumn })}
+              />
+              <SwitchField
+                label={t('Klammerpaare hervorheben')}
+                checked={settings.bracketMatching}
+                onChange={(bracketMatching) => writeEditor({ bracketMatching })}
+              />
+              <SwitchField
+                label={t('Klammern automatisch schließen')}
+                checked={settings.closeBrackets}
+                onChange={(closeBrackets) => writeEditor({ closeBrackets })}
+              />
+              <SwitchField
+                label={t('Autovervollständigung')}
+                checked={settings.autocomplete}
+                onChange={(autocomplete) => writeEditor({ autocomplete })}
+              />
+              <SwitchField
+                label={t('Gleiche Wörter markieren')}
+                hint={t('Jedes weitere Vorkommen des Worts unter dem Cursor bekommt einen Kasten.')}
+                checked={settings.highlightSelectionMatches}
+                onChange={(highlightSelectionMatches) => writeEditor({ highlightSelectionMatches })}
+              />
+            </Section>
 
-          <Section title={t('Speichern')}>
-            <SwitchField
-              label={t('Leerzeichen am Zeilenende entfernen')}
-              hint={t('Beim Speichern, im Text und im Editor gleichzeitig.')}
-              checked={settings.trimTrailingWhitespaceOnSave}
-              onChange={(trimTrailingWhitespaceOnSave) => write({ trimTrailingWhitespaceOnSave })}
-            />
-            <SwitchField
-              label={t('Datei mit einem Zeilenumbruch beenden')}
-              checked={settings.ensureFinalNewlineOnSave}
-              onChange={(ensureFinalNewlineOnSave) => write({ ensureFinalNewlineOnSave })}
-            />
-            <SelectField
-              label={t('Automatisch speichern')}
-              hint={t('Nur Dateien, die schon einen Pfad haben und nichts zu fragen aufwerfen.')}
-              value={settings.autosaveSeconds}
-              options={AUTOSAVE_CHOICES.map((seconds) => ({
-                value: seconds,
-                label: autosaveLabel(seconds),
-              }))}
-              onChange={(autosaveSeconds) => write({ autosaveSeconds })}
-            />
-            <EncodingField
-              label={t('Kodierung für neue Dateien')}
-              value={settings.defaultEncoding}
-              onChange={(defaultEncoding) => write({ defaultEncoding })}
-            />
-            <ChoiceField
-              label={t('Zeilenenden für neue Dateien')}
-              value={settings.defaultEol}
-              options={NEW_FILE_EOLS.map((eol) => ({ value: eol, label: eolName(eol) }))}
-              onChange={(defaultEol) => write({ defaultEol })}
-            />
-          </Section>
+            <Section id="saving" title={t('Speichern')}>
+              <SwitchField
+                label={t('Leerzeichen am Zeilenende entfernen')}
+                hint={t('Beim Speichern, im Text und im Editor gleichzeitig.')}
+                checked={settings.trimTrailingWhitespaceOnSave}
+                onChange={(trimTrailingWhitespaceOnSave) => write({ trimTrailingWhitespaceOnSave })}
+              />
+              <SwitchField
+                label={t('Datei mit einem Zeilenumbruch beenden')}
+                checked={settings.ensureFinalNewlineOnSave}
+                onChange={(ensureFinalNewlineOnSave) => write({ ensureFinalNewlineOnSave })}
+              />
+              <SelectField
+                label={t('Automatisch speichern')}
+                hint={t('Nur Dateien, die schon einen Pfad haben und nichts zu fragen aufwerfen.')}
+                value={settings.autosaveSeconds}
+                options={AUTOSAVE_CHOICES.map((seconds) => ({
+                  value: seconds,
+                  label: autosaveLabel(seconds),
+                }))}
+                onChange={(autosaveSeconds) => write({ autosaveSeconds })}
+              />
+              <EncodingField
+                label={t('Kodierung für neue Dateien')}
+                value={settings.defaultEncoding}
+                onChange={(defaultEncoding) => write({ defaultEncoding })}
+              />
+              <ChoiceField
+                label={t('Zeilenenden für neue Dateien')}
+                value={settings.defaultEol}
+                options={NEW_FILE_EOLS.map((eol) => ({ value: eol, label: eolName(eol) }))}
+                onChange={(defaultEol) => write({ defaultEol })}
+              />
+            </Section>
 
-          <Section title={t('Zeitreise')}>
-            <SwitchField
-              label={t('Zeitreise')}
-              hint={t(
-                'Hebt automatisch Versionen jeder Datei und jeder ungespeicherten Notiz auf: beim Speichern, vor dem Neuladen und Ersetzen und alle paar Minuten beim Tippen.',
-              )}
-              checked={settings.history}
-              onChange={(history) => write({ history })}
-            />
-            <SelectField
-              label={t('Tägliche Versionen aufheben')}
-              hint={t(
-                'Die letzte Stunde bleibt ganz, der letzte Tag stündlich, danach eine pro Tag.',
-              )}
-              value={settings.historyRetentionDays}
-              options={HISTORY_RETENTION_CHOICES.map((days) => ({
-                value: days,
-                label: t('{count} Tage', { count: days }),
-              }))}
-              onChange={(historyRetentionDays) => write({ historyRetentionDays })}
-            />
-          </Section>
+            <Section id="history" title={t('Zeitreise')}>
+              <SwitchField
+                label={t('Zeitreise')}
+                hint={t(
+                  'Hebt automatisch Versionen jeder Datei und jeder ungespeicherten Notiz auf: beim Speichern, vor dem Neuladen und Ersetzen und alle paar Minuten beim Tippen.',
+                )}
+                checked={settings.history}
+                onChange={(history) => write({ history })}
+              />
+              <SelectField
+                label={t('Tägliche Versionen aufheben')}
+                hint={t(
+                  'Die letzte Stunde bleibt ganz, der letzte Tag stündlich, danach eine pro Tag.',
+                )}
+                value={settings.historyRetentionDays}
+                options={HISTORY_RETENTION_CHOICES.map((days) => ({
+                  value: days,
+                  label: t('{count} Tage', { count: days }),
+                }))}
+                onChange={(historyRetentionDays) => write({ historyRetentionDays })}
+              />
+            </Section>
 
-          <Section title={t('Verhalten')}>
-            <SwitchField
-              label={t('Sitzung wiederherstellen')}
-              hint={t(
-                'Tabs, Splitlayout, Ordner und Cursorpositionen. Ungespeicherte Notizen kommen immer zurück, auch wenn das hier aus ist.',
-              )}
-              checked={settings.restoreSession}
-              onChange={(restoreSession) => write({ restoreSession })}
-            />
-            <SwitchField
-              label={t('Git-Marker')}
-              hint={t('Färbt geänderte Dateien im Dateibaum und auf dem Tab.')}
-              checked={settings.gitIndicators}
-              onChange={(gitIndicators) => write({ gitIndicators })}
-            />
-            <SwitchField
-              label={t('Git-Marker am Zeilenrand')}
-              hint={t(
-                'Zeigt neben jeder Zeile, was sich seit dem letzten Commit geändert hat. Kostet einen Git-Aufruf pro Datei.',
-              )}
-              checked={settings.gitGutter}
-              onChange={(gitGutter) => write({ gitGutter })}
-            />
-            <SwitchField
-              label={t('Töne')}
-              hint={t('Ein kurzer Ton beim Speichern und beim Fehler.')}
-              checked={settings.sounds}
-              onChange={(sounds) => write({ sounds })}
-            />
-            <RangeField
-              label={t('Lautstärke')}
-              value={settings.soundVolume}
-              min={0}
-              max={1}
-              step={0.05}
-              disabled={!settings.sounds}
-              format={(value) => `${Math.round(value * 100)} %`}
-              onChange={(soundVolume) => write({ soundVolume })}
-            />
-            <SwitchField
-              label={t('Wortzahl in der Statusleiste')}
-              hint={t('Ein Klick darauf zeigt Zeichen, Absätze und die Lesezeit.')}
-              checked={settings.statusWordCount}
-              onChange={(statusWordCount) => write({ statusWordCount })}
-            />
-          </Section>
+            <Section id="behavior" title={t('Verhalten')}>
+              <SwitchField
+                label={t('Sitzung wiederherstellen')}
+                hint={t(
+                  'Tabs, Splitlayout, Ordner und Cursorpositionen. Ungespeicherte Notizen kommen immer zurück, auch wenn das hier aus ist.',
+                )}
+                checked={settings.restoreSession}
+                onChange={(restoreSession) => write({ restoreSession })}
+              />
+              <SwitchField
+                label={t('Git-Marker')}
+                hint={t('Färbt geänderte Dateien im Dateibaum und auf dem Tab.')}
+                checked={settings.gitIndicators}
+                onChange={(gitIndicators) => write({ gitIndicators })}
+              />
+              <SwitchField
+                label={t('Git-Marker am Zeilenrand')}
+                hint={t(
+                  'Zeigt neben jeder Zeile, was sich seit dem letzten Commit geändert hat. Kostet einen Git-Aufruf pro Datei.',
+                )}
+                checked={settings.gitGutter}
+                onChange={(gitGutter) => write({ gitGutter })}
+              />
+              <SwitchField
+                label={t('Töne')}
+                hint={t('Ein kurzer Ton beim Speichern und beim Fehler.')}
+                checked={settings.sounds}
+                onChange={(sounds) => write({ sounds })}
+              />
+              <RangeField
+                label={t('Lautstärke')}
+                value={settings.soundVolume}
+                min={0}
+                max={1}
+                step={0.05}
+                disabled={!settings.sounds}
+                format={(value) => `${Math.round(value * 100)} %`}
+                onChange={(soundVolume) => write({ soundVolume })}
+              />
+              <SwitchField
+                label={t('Wortzahl in der Statusleiste')}
+                hint={t('Ein Klick darauf zeigt Zeichen, Absätze und die Lesezeit.')}
+                checked={settings.statusWordCount}
+                onChange={(statusWordCount) => write({ statusWordCount })}
+              />
+            </Section>
 
-          <Section title={t('Zen-Modus')}>
-            <NumberField
-              label={t('Spaltenbreite')}
-              hint={t(
-                'In Zeichen der Editorschrift. Zen-Modus mit F11 oder über das Menü Ansicht.',
-              )}
-              value={settings.zenWidth}
-              min={ZEN_WIDTH_MIN}
-              max={ZEN_WIDTH_MAX}
-              step={4}
-              unit={t('Zeichen')}
-              onChange={(zenWidth) => write({ zenWidth })}
-            />
-            <SwitchField
-              label={t('Schreibmaschinen-Scrollen im Zen-Modus')}
-              hint={t('Die Zeile mit dem Cursor bleibt in der Mitte des Bildschirms.')}
-              checked={settings.zenTypewriter}
-              onChange={(zenTypewriter) => writeEditor({ zenTypewriter })}
-            />
-            <SwitchField
-              label={t('Fokus-Abdunklung')}
-              hint={t(
-                'Alles außer dem Absatz mit dem Cursor tritt zurück. Bei Code: der Block bis zur nächsten Leerzeile.',
-              )}
-              checked={settings.zenFocusDim}
-              onChange={(zenFocusDim) => writeEditor({ zenFocusDim })}
-            />
-            <SwitchField
-              label={t('Schreibmaschinen-Scrollen überall')}
-              hint={t('Auch außerhalb des Zen-Modus.')}
-              checked={settings.typewriterScrolling}
-              onChange={(typewriterScrolling) => writeEditor({ typewriterScrolling })}
-            />
-          </Section>
+            <Section id="zen" title={t('Zen-Modus')}>
+              <NumberField
+                label={t('Spaltenbreite')}
+                hint={t(
+                  'In Zeichen der Editorschrift. Zen-Modus mit F11 oder über das Menü Ansicht.',
+                )}
+                value={settings.zenWidth}
+                min={ZEN_WIDTH_MIN}
+                max={ZEN_WIDTH_MAX}
+                step={4}
+                unit={t('Zeichen')}
+                onChange={(zenWidth) => write({ zenWidth })}
+              />
+              <SwitchField
+                label={t('Schreibmaschinen-Scrollen im Zen-Modus')}
+                hint={t('Die Zeile mit dem Cursor bleibt in der Mitte des Bildschirms.')}
+                checked={settings.zenTypewriter}
+                onChange={(zenTypewriter) => writeEditor({ zenTypewriter })}
+              />
+              <SwitchField
+                label={t('Fokus-Abdunklung')}
+                hint={t(
+                  'Alles außer dem Absatz mit dem Cursor tritt zurück. Bei Code: der Block bis zur nächsten Leerzeile.',
+                )}
+                checked={settings.zenFocusDim}
+                onChange={(zenFocusDim) => writeEditor({ zenFocusDim })}
+              />
+              <SwitchField
+                label={t('Schreibmaschinen-Scrollen überall')}
+                hint={t('Auch außerhalb des Zen-Modus.')}
+                checked={settings.typewriterScrolling}
+                onChange={(typewriterScrolling) => writeEditor({ typewriterScrolling })}
+              />
+            </Section>
 
-          {/* Everything Nyu does beyond the greetings, in one place, each part
+            {/* Everything Nyu does beyond the greetings, in one place, each part
             switchable on its own: someone who likes the Pomodoro may not want a
             cat peeking in from the window edge. */}
-          <Section title={t('Nyu')}>
-            <SwitchField
-              label={t('Nyu in der Statusleiste')}
-              hint={t(
-                'Sie tippt mit, schläft ein, wenn du Pause machst, und freut sich übers Speichern.',
-              )}
-              checked={settings.nyuCompanion}
-              onChange={(nyuCompanion) => write({ nyuCompanion })}
-            />
-            <SwitchField
-              label={t('Spielereien')}
-              hint={t('Geheimwörter, Streicheln und ab und zu ein Gastauftritt am Fensterrand.')}
-              checked={settings.nyuGimmicks}
-              onChange={(nyuGimmicks) => write({ nyuGimmicks })}
-            />
-            <SwitchField
-              label={t('Anlässe')}
-              hint={t(
-                'Hüte und kleine Szenen zu Halloween, Weihnachten, Ostern und anderen Tagen.',
-              )}
-              checked={settings.nyuOccasions}
-              onChange={(nyuOccasions) => write({ nyuOccasions })}
-            />
-            <SwitchField
-              label={t('Level und Erfolge')}
-              hint={t('Nyu sammelt beim Schreiben Erfahrung. Alles bleibt auf diesem Rechner.')}
-              checked={settings.nyuLevels}
-              onChange={(nyuLevels) => write({ nyuLevels })}
-            />
-            <SwitchField
-              label={t('Tipps')}
-              hint={t(
-                'Ab und zu ein Tastenkürzel in einer Sprechblase. Nur im verspielten Tonfall.',
-              )}
-              checked={settings.nyuTips}
-              disabled={!settings.nyuCompanion}
-              onChange={(nyuTips) => write({ nyuTips })}
-            />
-            <SwitchField
-              label={t('Pomodoro-Knopf in der Statusleiste')}
-              hint={t('Starten geht auch über die Befehlspalette.')}
-              checked={settings.pomodoroButton}
-              onChange={(pomodoroButton) => write({ pomodoroButton })}
-            />
-            <NumberField
-              label={t('Pomodoro: Fokus')}
-              value={settings.pomodoroFocusMinutes}
-              min={POMODORO_LIMITS.focus[0]}
-              max={POMODORO_LIMITS.focus[1]}
-              step={1}
-              unit="min"
-              onChange={(pomodoroFocusMinutes) => write({ pomodoroFocusMinutes })}
-            />
-            <NumberField
-              label={t('Pomodoro: kurze Pause')}
-              value={settings.pomodoroBreakMinutes}
-              min={POMODORO_LIMITS.break[0]}
-              max={POMODORO_LIMITS.break[1]}
-              step={1}
-              unit="min"
-              onChange={(pomodoroBreakMinutes) => write({ pomodoroBreakMinutes })}
-            />
-            <NumberField
-              label={t('Pomodoro: lange Pause')}
-              value={settings.pomodoroLongBreakMinutes}
-              min={POMODORO_LIMITS.longBreak[0]}
-              max={POMODORO_LIMITS.longBreak[1]}
-              step={1}
-              unit="min"
-              onChange={(pomodoroLongBreakMinutes) => write({ pomodoroLongBreakMinutes })}
-            />
-            <NumberField
-              label={t('Lange Pause nach')}
-              hint={t('So viele Fokusrunden bis zur langen Pause.')}
-              value={settings.pomodoroLongEvery}
-              min={POMODORO_LIMITS.longEvery[0]}
-              max={POMODORO_LIMITS.longEvery[1]}
-              step={1}
-              unit={t('Runden')}
-              onChange={(pomodoroLongEvery) => write({ pomodoroLongEvery })}
-            />
-            <button
-              type="button"
-              className="settings-macro-manage"
-              onClick={() => openDialog('nyu')}
-            >
-              {t('Nyus Erfolge und Hüte…')}
-            </button>
-          </Section>
-
-          <Section title={t('Updates')}>
-            <UpdatesSection>
+            <Section id="nyu" title={t('Nyu')}>
               <SwitchField
-                label={t(AUTO_CHECK_LABEL)}
-                hint={t(AUTO_CHECK_HINT)}
-                checked={settings.autoCheckUpdates}
-                onChange={(autoCheckUpdates) => write({ autoCheckUpdates })}
+                label={t('Nyu in der Statusleiste')}
+                hint={t(
+                  'Sie tippt mit, schläft ein, wenn du Pause machst, und freut sich übers Speichern.',
+                )}
+                checked={settings.nyuCompanion}
+                onChange={(nyuCompanion) => write({ nyuCompanion })}
               />
-            </UpdatesSection>
-          </Section>
+              <SwitchField
+                label={t('Spielereien')}
+                hint={t('Geheimwörter, Streicheln und ab und zu ein Gastauftritt am Fensterrand.')}
+                checked={settings.nyuGimmicks}
+                onChange={(nyuGimmicks) => write({ nyuGimmicks })}
+              />
+              <SwitchField
+                label={t('Anlässe')}
+                hint={t(
+                  'Hüte und kleine Szenen zu Halloween, Weihnachten, Ostern und anderen Tagen.',
+                )}
+                checked={settings.nyuOccasions}
+                onChange={(nyuOccasions) => write({ nyuOccasions })}
+              />
+              <SwitchField
+                label={t('Level und Erfolge')}
+                hint={t('Nyu sammelt beim Schreiben Erfahrung. Alles bleibt auf diesem Rechner.')}
+                checked={settings.nyuLevels}
+                onChange={(nyuLevels) => write({ nyuLevels })}
+              />
+              <SwitchField
+                label={t('Tipps')}
+                hint={t(
+                  'Ab und zu ein Tastenkürzel in einer Sprechblase. Nur im verspielten Tonfall.',
+                )}
+                checked={settings.nyuTips}
+                disabled={!settings.nyuCompanion}
+                onChange={(nyuTips) => write({ nyuTips })}
+              />
+              <SwitchField
+                label={t('Pomodoro-Knopf in der Statusleiste')}
+                hint={t('Starten geht auch über die Befehlspalette.')}
+                checked={settings.pomodoroButton}
+                onChange={(pomodoroButton) => write({ pomodoroButton })}
+              />
+              <NumberField
+                label={t('Pomodoro: Fokus')}
+                value={settings.pomodoroFocusMinutes}
+                min={POMODORO_LIMITS.focus[0]}
+                max={POMODORO_LIMITS.focus[1]}
+                step={1}
+                unit="min"
+                onChange={(pomodoroFocusMinutes) => write({ pomodoroFocusMinutes })}
+              />
+              <NumberField
+                label={t('Pomodoro: kurze Pause')}
+                value={settings.pomodoroBreakMinutes}
+                min={POMODORO_LIMITS.break[0]}
+                max={POMODORO_LIMITS.break[1]}
+                step={1}
+                unit="min"
+                onChange={(pomodoroBreakMinutes) => write({ pomodoroBreakMinutes })}
+              />
+              <NumberField
+                label={t('Pomodoro: lange Pause')}
+                value={settings.pomodoroLongBreakMinutes}
+                min={POMODORO_LIMITS.longBreak[0]}
+                max={POMODORO_LIMITS.longBreak[1]}
+                step={1}
+                unit="min"
+                onChange={(pomodoroLongBreakMinutes) => write({ pomodoroLongBreakMinutes })}
+              />
+              <NumberField
+                label={t('Lange Pause nach')}
+                hint={t('So viele Fokusrunden bis zur langen Pause.')}
+                value={settings.pomodoroLongEvery}
+                min={POMODORO_LIMITS.longEvery[0]}
+                max={POMODORO_LIMITS.longEvery[1]}
+                step={1}
+                unit={t('Runden')}
+                onChange={(pomodoroLongEvery) => write({ pomodoroLongEvery })}
+              />
+              <button
+                type="button"
+                className="settings-macro-manage"
+                onClick={() => openDialog('nyu')}
+              >
+                {t('Nyus Erfolge und Hüte…')}
+              </button>
+            </Section>
 
-          <Section title={t('Makros')}>
-            {macros.length === 0 ? (
-              <p className="settings-empty">{t('Noch keine Makros gespeichert.')}</p>
-            ) : (
-              <ul className="settings-macro-list">
-                {macros.map((macro) => (
-                  <li key={macro.id} className="settings-macro">
-                    <span className="settings-macro-name">{macroLabel(macro)}</span>
-                    <span className="settings-macro-steps">
-                      {t('{count} Schritte', { count: macro.steps.length })}
-                    </span>
-                    {macro.shortcut ? (
-                      <kbd className="settings-macro-keys">{macroShortcutText(macro.shortcut)}</kbd>
-                    ) : null}
-                  </li>
-                ))}
+            <Section id="updates" title={t('Updates')}>
+              <UpdatesSection>
+                <SwitchField
+                  label={t(AUTO_CHECK_LABEL)}
+                  hint={t(AUTO_CHECK_HINT)}
+                  checked={settings.autoCheckUpdates}
+                  onChange={(autoCheckUpdates) => write({ autoCheckUpdates })}
+                />
+              </UpdatesSection>
+            </Section>
+
+            <Section id="macros" title={t('Makros')}>
+              {macros.length === 0 ? (
+                <p className="settings-empty">{t('Noch keine Makros gespeichert.')}</p>
+              ) : (
+                <ul className="settings-macro-list">
+                  {macros.map((macro) => (
+                    <li key={macro.id} className="settings-macro">
+                      <span className="settings-macro-name">{macroLabel(macro)}</span>
+                      <span className="settings-macro-steps">
+                        {t('{count} Schritte', { count: macro.steps.length })}
+                      </span>
+                      {macro.shortcut ? (
+                        <kbd className="settings-macro-keys">
+                          {macroShortcutText(macro.shortcut)}
+                        </kbd>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <ul className="settings-command-list">
+                <CommandRow
+                  label={t('Makro aufzeichnen')}
+                  keys={shortcutLabel('macro.toggleRecording')}
+                />
+                <CommandRow
+                  label={t('Letztes Makro abspielen')}
+                  keys={shortcutLabel('macro.playLast')}
+                />
               </ul>
-            )}
-            <ul className="settings-command-list">
-              <CommandRow
-                label={t('Makro aufzeichnen')}
-                keys={shortcutLabel('macro.toggleRecording')}
-              />
-              <CommandRow
-                label={t('Letztes Makro abspielen')}
-                keys={shortcutLabel('macro.playLast')}
-              />
-            </ul>
-            {/* There is one dialog slot, so this closes the settings page rather
+              {/* There is one dialog slot, so this closes the settings page rather
               than covering it. That is the right way round: managing macros is
               somewhere you go, not something you glance at. */}
-            <button
-              type="button"
-              className="settings-macro-manage"
-              onClick={() => openDialog('macros')}
-            >
-              {t('Makros verwalten…')}
-            </button>
-          </Section>
+              <button
+                type="button"
+                className="settings-macro-manage"
+                onClick={() => openDialog('macros')}
+              >
+                {t('Makros verwalten…')}
+              </button>
+            </Section>
 
-          <Section title={t('Erweiterungen')}>
-            {plugins.length === 0 ? (
-              <p className="settings-empty">{t('Keine Erweiterungen installiert.')}</p>
-            ) : (
-              plugins.map((plugin) => (
-                <div key={plugin.id} className="settings-plugin">
-                  <SwitchField
-                    // Name and description are `N_()` constants in the plugin's own
-                    // module; the registry's contract is that the UI translates them.
-                    label={t(plugin.name)}
-                    hint={t(plugin.description)}
-                    checked={pluginEnabled(plugin.id)}
-                    onChange={(on) => setPluginEnabled(plugin.id, on)}
-                  />
-                  {/* `plugin.commands`, not `pluginCommands()`: that one filters by
+            <Section id="plugins" title={t('Erweiterungen')}>
+              {plugins.length === 0 ? (
+                <p className="settings-empty">{t('Keine Erweiterungen installiert.')}</p>
+              ) : (
+                plugins.map((plugin) => (
+                  <div key={plugin.id} className="settings-plugin">
+                    <SwitchField
+                      // Name and description are `N_()` constants in the plugin's own
+                      // module; the registry's contract is that the UI translates them.
+                      label={t(plugin.name)}
+                      hint={t(plugin.description)}
+                      checked={pluginEnabled(plugin.id)}
+                      onChange={(on) => setPluginEnabled(plugin.id, on)}
+                    />
+                    {/* `plugin.commands`, not `pluginCommands()`: that one filters by
                     what is enabled, and the question this list answers is what
                     turning the switch on would give you. */}
-                  {plugin.commands && plugin.commands.length > 0 ? (
-                    <ul className="settings-command-list">
-                      {plugin.commands.map((command) => (
-                        <CommandRow key={command.id} label={command.title()} keys={undefined} />
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </Section>
+                    {plugin.commands && plugin.commands.length > 0 ? (
+                      <ul className="settings-command-list">
+                        {plugin.commands.map((command) => (
+                          <CommandRow key={command.id} label={command.title()} keys={undefined} />
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </Section>
 
-          <footer className="settings-footer">
-            <p className="settings-footer-note">
-              {t('Änderungen gelten sofort. Es gibt nichts zu bestätigen.')}
-            </p>
-            <Button
-              variant="danger"
-              size="sm"
-              type="button"
-              className="settings-reset"
-              onClick={() => void resetEverything()}
-            >
-              {t('Alles zurücksetzen')}
-            </Button>
-          </footer>
+            <footer className="settings-footer">
+              <p className="settings-footer-note">
+                {t('Änderungen gelten sofort. Es gibt nichts zu bestätigen.')}
+              </p>
+              <Button
+                variant="danger"
+                size="sm"
+                type="button"
+                className="settings-reset"
+                onClick={() => void resetEverything()}
+              >
+                {t('Alles zurücksetzen')}
+              </Button>
+            </footer>
+          </div>
         </div>
       </Modal>
       {/* A sibling rather than a child, so the focus trap stacks it on top of
@@ -665,6 +729,61 @@ function SettingsBody() {
         <ThemeEditor themeId={editingTheme.id} onClose={() => setEditingTheme(null)} />
       ) : null}
     </>
+  );
+}
+
+/* ── The section list beside the page ──────────────────── */
+
+type SectionId =
+  | 'appearance'
+  | 'font'
+  | 'editor'
+  | 'saving'
+  | 'history'
+  | 'behavior'
+  | 'zen'
+  | 'nyu'
+  | 'updates'
+  | 'macros'
+  | 'plugins';
+
+/** In page order. Titles are translated where they are drawn. */
+const SECTIONS: readonly { id: SectionId; title: string }[] = [
+  { id: 'appearance', title: N_('Erscheinungsbild') },
+  { id: 'font', title: N_('Editorschrift') },
+  { id: 'editor', title: N_('Editor') },
+  { id: 'saving', title: N_('Speichern') },
+  { id: 'history', title: N_('Zeitreise') },
+  { id: 'behavior', title: N_('Verhalten') },
+  { id: 'zen', title: N_('Zen-Modus') },
+  { id: 'nyu', title: N_('Nyu') },
+  { id: 'updates', title: N_('Updates') },
+  { id: 'macros', title: N_('Makros') },
+  { id: 'plugins', title: N_('Erweiterungen') },
+];
+
+/**
+ * The settings page's navigation, as `docs/components.md` in the design
+ * package lays settings out: a narrow list on the left, the page on the right.
+ * Eleven sections in one scroll are too many to find by scrolling, and the
+ * package's `NavIndicator` slides the pill to the section in view.
+ */
+function SectionNav({ active, onJump }: { active: SectionId; onJump: (id: SectionId) => void }) {
+  return (
+    <nav className="settings-nav" aria-label={t('Bereiche')}>
+      {SECTIONS.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          className="settings-nav-item"
+          aria-current={section.id === active ? 'true' : undefined}
+          onClick={() => onJump(section.id)}
+        >
+          {t(section.title)}
+        </button>
+      ))}
+      <NavIndicator />
+    </nav>
   );
 }
 
@@ -713,22 +832,38 @@ function usePlugins(): UwuPlugin[] {
 
 /* ── The controls ──────────────────────────────────────── */
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * One block of the page, with the id the navigation scrolls to. The rows
+ * inside are the package's `SettingRow`s.
+ */
+function Section({ id, title, children }: { id: SectionId; title: string; children: ReactNode }) {
   return (
-    <section className="settings-section">
-      <h3 className="settings-section-title">{title}</h3>
+    <section
+      className="settings-section"
+      id={sectionAnchor(id)}
+      data-section={id}
+      aria-labelledby={`${sectionAnchor(id)}-title`}
+    >
+      <h3 className="settings-section-title" id={`${sectionAnchor(id)}-title`}>
+        {title}
+      </h3>
       <div className="settings-section-body">{children}</div>
     </section>
   );
 }
 
-function Hint({ id, text }: { id: string; text: string | undefined }) {
-  if (!text) return null;
-  return (
-    <p className="settings-hint" id={id}>
-      {text}
-    </p>
-  );
+const sectionAnchor = (id: SectionId) => `settings-${id}`;
+
+/** Room above a section title the navigation jumps to. */
+const JUMP_MARGIN = 12;
+
+/** The package's Dialog scrolls its own body; that is the page's scroller. */
+function scrollerOf(element: HTMLElement): HTMLElement | null {
+  for (let at = element.parentElement; at; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (overflowY === 'auto' || overflowY === 'scroll') return at;
+  }
+  return null;
 }
 
 /** A command the user might not know about, and the keys it sits on. */
@@ -762,69 +897,52 @@ type ThemeFieldProps = {
  * one button rather than a greyed-out one and a sentence explaining itself.
  */
 function ThemeField({ value, themes, onChange, onEdit, onDuplicate, onImport }: ThemeFieldProps) {
-  const id = useId();
   const custom = themes.filter((theme) => !THEMES.some((shipped) => shipped.id === theme.id));
 
   return (
-    <div className="settings-field settings-field-theme">
-      <label className="settings-label" htmlFor={id}>
-        {t('Editor-Theme')}
-      </label>
-      <select
-        id={id}
-        className="settings-select"
-        value={value}
-        aria-describedby={`${id}-hint`}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <optgroup label={t('Mitgeliefert')}>
-          {THEMES.map((theme) => (
-            <option key={theme.id} value={theme.id}>
-              {theme.name}
-            </option>
-          ))}
-        </optgroup>
-        {custom.length > 0 ? (
-          <optgroup label={t('Eigene')}>
-            {custom.map((theme) => (
-              <option key={theme.id} value={theme.id}>
-                {theme.name || t('Theme ohne Namen')}
-              </option>
-            ))}
-          </optgroup>
-        ) : null}
-      </select>
-      <div className="settings-theme-actions">
-        <Button
-          variant="secondary"
-          size="sm"
-          type="button"
-          className="settings-theme-edit"
-          onClick={onEdit}
-        >
-          {t('Bearbeiten…')}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          type="button"
-          className="settings-theme-duplicate"
-          onClick={onDuplicate}
-        >
-          {t('Duplizieren')}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          type="button"
-          className="settings-theme-import"
-          onClick={onImport}
-        >
-          {t('Importieren…')}
-        </Button>
-      </div>
-      <Hint id={`${id}-hint`} text={t('Färbt nur den Text, nicht die Oberfläche.')} />
-    </div>
+    <SettingRow
+      label={t('Editor-Theme')}
+      description={t('Färbt nur den Text, nicht die Oberfläche.')}
+    >
+      {({ id, describedBy }) => (
+        <div className="settings-control settings-theme">
+          <Select
+            id={id}
+            aria-describedby={describedBy}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          >
+            <optgroup label={t('Mitgeliefert')}>
+              {THEMES.map((theme) => (
+                <option key={theme.id} value={theme.id}>
+                  {theme.name}
+                </option>
+              ))}
+            </optgroup>
+            {custom.length > 0 ? (
+              <optgroup label={t('Eigene')}>
+                {custom.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.name || t('Theme ohne Namen')}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+          </Select>
+          <div className="settings-theme-actions">
+            <Button variant="secondary" size="sm" type="button" onClick={onEdit}>
+              {t('Bearbeiten…')}
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={onDuplicate}>
+              {t('Duplizieren')}
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={onImport}>
+              {t('Importieren…')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </SettingRow>
   );
 }
 
@@ -845,32 +963,29 @@ function SelectField<T extends string | number>({
   options,
   onChange,
 }: SelectFieldProps<T>) {
-  const id = useId();
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={id}>
-        {label}
-      </label>
-      <select
-        id={id}
-        className="settings-select"
-        value={String(value)}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        onChange={(event) => {
-          // Back through the option list, because a `<select>` only ever hands
-          // out strings and half of these preferences are numbers.
-          const picked = options.find((option) => String(option.value) === event.target.value);
-          if (picked) onChange(picked.value);
-        }}
-      >
-        {options.map((option) => (
-          <option key={String(option.value)} value={String(option.value)}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <Hint id={`${id}-hint`} text={hint} />
-    </div>
+    <SettingRow label={label} description={hint}>
+      {({ id, describedBy }) => (
+        <Select
+          id={id}
+          aria-describedby={describedBy}
+          className="settings-control"
+          value={String(value)}
+          onChange={(event) => {
+            // Back through the option list, because a `<select>` only ever hands
+            // out strings and half of these preferences are numbers.
+            const picked = options.find((option) => String(option.value) === event.target.value);
+            if (picked) onChange(picked.value);
+          }}
+        >
+          {options.map((option) => (
+            <option key={String(option.value)} value={String(option.value)}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      )}
+    </SettingRow>
   );
 }
 
@@ -882,10 +997,7 @@ type ChoiceFieldProps<T extends string> = {
   onChange: (value: T) => void;
 };
 
-/**
- * Two to four options, side by side: the suite's `Segmented`, whose arrow keys
- * move the choice. The fieldset names the group and carries the hint.
- */
+/** Two to four options, side by side: the suite's `Segmented`, whose arrow keys move the choice. */
 function ChoiceField<T extends string>({
   label,
   hint,
@@ -893,21 +1005,18 @@ function ChoiceField<T extends string>({
   options,
   onChange,
 }: ChoiceFieldProps<T>) {
-  const id = useId();
   return (
-    <fieldset
-      className="settings-field settings-field-choice"
-      aria-describedby={hint ? `${id}-hint` : undefined}
-    >
-      <legend className="settings-label">{label}</legend>
-      <Segmented
-        label={label}
-        value={value}
-        options={options.map((option) => ({ value: option.value, label: option.label }))}
-        onChange={onChange}
-      />
-      <Hint id={`${id}-hint`} text={hint} />
-    </fieldset>
+    <SettingRow label={label} description={hint}>
+      {({ describedBy }) => (
+        <Segmented
+          label={label}
+          describedBy={describedBy}
+          value={value}
+          options={options.map((option) => ({ value: option.value, label: option.label }))}
+          onChange={onChange}
+        />
+      )}
+    </SettingRow>
   );
 }
 
@@ -919,19 +1028,20 @@ type SwitchFieldProps = {
   onChange: (checked: boolean) => void;
 };
 
-/** A setting that is simply on or off: the suite's `Switch`, named by its label. */
+/** A setting that is simply on or off: the suite's `Switch`, beside its label even when narrow. */
 function SwitchField({ label, hint, checked, disabled, onChange }: SwitchFieldProps) {
-  const id = useId();
   return (
-    <div className="settings-field settings-field-switch">
-      <span className="settings-label" id={`${id}-label`}>
-        {label}
-      </span>
-      <span className="settings-switch">
-        <Switch checked={checked} disabled={disabled} label={label} onChange={onChange} />
-      </span>
-      <Hint id={`${id}-hint`} text={hint} />
-    </div>
+    <SettingRow label={label} description={hint} disabled={disabled} wrap={false}>
+      {({ id, describedBy }) => (
+        <Switch
+          id={id}
+          describedBy={describedBy}
+          checked={checked}
+          disabled={disabled}
+          onChange={onChange}
+        />
+      )}
+    </SettingRow>
   );
 }
 
@@ -958,34 +1068,31 @@ function NumberField({
   disabled,
   onChange,
 }: NumberFieldProps) {
-  const id = useId();
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={id}>
-        {label}
-      </label>
-      <span className="settings-number">
-        <input
-          id={id}
-          type="number"
-          className="settings-number-input"
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          aria-describedby={hint ? `${id}-hint` : undefined}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            // An empty field parses as 0 and would clamp to the minimum on
-            // every keystroke; `sanitize()` catches the rest.
-            if (event.target.value !== '' && Number.isFinite(next)) onChange(next);
-          }}
-        />
-        {unit && <span className="settings-number-unit">{unit}</span>}
-      </span>
-      <Hint id={`${id}-hint`} text={hint} />
-    </div>
+    <SettingRow label={label} description={hint} disabled={disabled}>
+      {({ id, describedBy }) => (
+        <span className="settings-number">
+          <TextInput
+            id={id}
+            type="number"
+            className="settings-number-input"
+            value={value}
+            min={min}
+            max={max}
+            step={step}
+            disabled={disabled}
+            aria-describedby={describedBy}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              // An empty field parses as 0 and would clamp to the minimum on
+              // every keystroke; `sanitize()` catches the rest.
+              if (event.target.value !== '' && Number.isFinite(next)) onChange(next);
+            }}
+          />
+          {unit && <span className="settings-number-unit">{unit}</span>}
+        </span>
+      )}
+    </SettingRow>
   );
 }
 
@@ -1012,32 +1119,29 @@ function RangeField({
   format,
   onChange,
 }: RangeFieldProps) {
-  const id = useId();
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={id}>
-        {label}
-      </label>
-      <span className="settings-range">
-        <input
-          id={id}
-          type="range"
-          className="settings-range-input"
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          disabled={disabled}
-          aria-describedby={hint ? `${id}-hint` : undefined}
-          aria-valuetext={format(value)}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
-        <output className="settings-range-value" htmlFor={id}>
-          {format(value)}
-        </output>
-      </span>
-      <Hint id={`${id}-hint`} text={hint} />
-    </div>
+    <SettingRow label={label} description={hint} disabled={disabled}>
+      {({ id, describedBy }) => (
+        <span className="settings-range settings-control">
+          <input
+            id={id}
+            type="range"
+            className="settings-range-input"
+            value={value}
+            min={min}
+            max={max}
+            step={step}
+            disabled={disabled}
+            aria-describedby={describedBy}
+            aria-valuetext={format(value)}
+            onChange={(event) => onChange(Number(event.target.value))}
+          />
+          <output className="settings-range-value" htmlFor={id}>
+            {format(value)}
+          </output>
+        </span>
+      )}
+    </SettingRow>
   );
 }
 
@@ -1050,7 +1154,6 @@ function EncodingField({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const id = useId();
   const groups = useMemo(() => groupEncodings(), []);
   // A label that arrived from a BOM or from detection is not in the menu list;
   // showing it anyway beats silently selecting something else on the user's
@@ -1058,28 +1161,27 @@ function EncodingField({
   const exotic = !ENCODINGS.some((entry) => entry.label === value);
 
   return (
-    <div className="settings-field">
-      <label className="settings-label" htmlFor={id}>
-        {label}
-      </label>
-      <select
-        id={id}
-        className="settings-select"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {exotic && <option value={value}>{encodingName(value)}</option>}
-        {groups.map(([group, entries]) => (
-          <optgroup key={group} label={encodingGroupName(group)}>
-            {entries.map((entry) => (
-              <option key={entry.label} value={entry.label}>
-                {entry.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    </div>
+    <SettingRow label={label}>
+      {({ id }) => (
+        <Select
+          id={id}
+          className="settings-control"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {exotic && <option value={value}>{encodingName(value)}</option>}
+          {groups.map(([group, entries]) => (
+            <optgroup key={group} label={encodingGroupName(group)}>
+              {entries.map((entry) => (
+                <option key={entry.label} value={entry.label}>
+                  {entry.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </Select>
+      )}
+    </SettingRow>
   );
 }
 

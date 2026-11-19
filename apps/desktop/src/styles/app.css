@@ -71,12 +71,13 @@ mark {
  * again; that is fine, and cheaper than a window with one unstyled button in
  * it after a refactor.
  *
- * `:where(:not(.rounded-full))` leaves the package's components alone (every
- * one of their buttons is `rounded-full`) without changing this rule's weight:
+ * `:where(:not(…))` leaves the package's components alone (their buttons are
+ * `rounded-full`, their menu and palette rows `menuitem`/`option`) without
+ * changing this rule's weight:
  * `:where()` counts for nothing, so the app's classes still win over it as
  * they did before.
  */
-button:where(:not(.rounded-full)) {
+button:where(:not(.rounded-full, [role='menuitem'], [role='option'])) {
   font-size: var(--uwu-text-meta);
   font-weight: 600;
   padding: 6px 14px;
@@ -91,7 +92,7 @@ button:where(:not(.rounded-full)) {
     border-color var(--uwu-duration-fast) var(--uwu-ease-out);
 }
 
-button:where(:not(.rounded-full)):hover:not(:disabled) {
+button:where(:not(.rounded-full, [role='menuitem'], [role='option'])):hover:not(:disabled) {
   background: var(--uwu-elevated);
 }
 
@@ -949,24 +950,18 @@ input[type='radio'] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
   width: 100%;
   min-height: 0;
-  padding: 40px 24px;
   overflow-y: auto;
   color: var(--uwu-muted);
 }
 
-.emptypane-scene {
-  width: 148px;
-  height: auto;
-}
-
-.emptypane-greeting {
-  max-width: 34ch;
-  text-align: center;
-  font-size: 13px;
-  line-height: 1.55;
+.emptypane-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--uwu-space-4);
+  width: 100%;
 }
 
 .emptypane-actions {
@@ -1004,7 +999,7 @@ input[type='radio'] {
 /* The key hints are the same table the palette reads from, so they should
    look the same in both places. */
 .emptypane-keys,
-.palette-row-shortcut {
+.palette-shortcut {
   flex: none;
   padding: 2px 6px;
   border: 1px solid var(--uwu-border);
@@ -1773,176 +1768,35 @@ input[type='radio'] {
  * downwards, and a box that is centred at rest walks up the screen as it
  * fills — which makes the row under the pointer a moving target.
  */
-.palette-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  /* One track of exactly the backdrop's height, not an implicit `auto` one
-     that grows to the content: so `max-height: 100%` on the palette means
-     the window and not the list. */
-  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  justify-items: center;
-  align-items: start;
-  padding: 72px 24px 24px;
-  background: var(--app-scrim);
-}
+/* The palette is the package's CommandPalette; these are the app's own
+   pieces inside it. */
 
-.palette {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(640px, 100%);
-  max-height: 100%;
-  overflow: hidden;
-  border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-card);
-  background: var(--uwu-surface);
-  box-shadow: var(--uwu-shadow-float);
-}
-
-.palette-input {
-  padding: 13px 16px;
+/* The app's own field style (border, ground, focus outline) is unlayered and
+   would otherwise win over the package's borderless search field; the ring
+   belongs to the palette box, which draws it itself. */
+.uwu-command-palette input,
+.uwu-command-palette input:focus-visible {
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--uwu-hairline);
-  border-radius: 0;
   background: transparent;
-  font-size: 15px;
-}
-
-.palette-input:focus-visible {
   outline: none;
-}
-
-.palette-list {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 5px;
-}
-
-/* File rows are paths and want the mono face; command rows are sentences and
-   do not. The list says which kind it is holding. */
-.palette-list-files .palette-row-name,
-.palette-list-files .palette-row-path {
-  font-family: var(--uwu-mono);
-  font-size: 12px;
-}
-
-.palette-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 11px;
-  border-radius: var(--uwu-radius-control);
-  cursor: pointer;
-}
-
-.palette-row-active {
-  background: var(--uwu-pink-tint);
-  color: var(--uwu-pink-ink);
-}
-
-.palette-row-name {
-  flex: none;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-/*
- * How much of the row the name may take, which is not the same question in
- * the two modes. A command is a whole sentence and its group is one word, so
- * the name gets most of the row; a file name is short and the path beside it
- * is the thing that tells two `index.ts` apart, so it gets less.
- */
-.palette-list-commands .palette-row-name {
-  max-width: 62%;
-}
-
-.palette-list-files .palette-row-name {
-  max-width: 45%;
-}
-
-.palette-row-group {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11.5px;
-  color: var(--uwu-muted);
-}
-
-/*
- * The one path in the window that does *not* get the right-to-left ellipsis
- * the others do.
- *
- * `CommandPalette.tsx` slices this one as `rel.slice(0, nameAt)`, where
- * `nameAt` is one past the last separator — so the string ends in a `/`. A
- * slash is bidi-neutral, and in a right-to-left run a trailing neutral is
- * reordered to the other end: `apps/desktop/src/` would be drawn as
- * `/apps/desktop/src`. Losing the front of a long path is the smaller price.
- */
-.palette-row-path {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--uwu-muted);
-}
-
-.palette-row-active .palette-row-group,
-.palette-row-active .palette-row-path {
-  color: inherit;
-}
-
-.palette-row-shortcut {
-  margin-left: auto;
+  box-shadow: none;
 }
 
 /* The matched characters. Pink and bold rather than a highlighter block: the
    run is often two characters wide and a block that narrow is a smudge. */
 .palette-hit {
+  background: none;
   color: var(--uwu-pink);
   font-weight: 700;
 }
 
-.palette-row-active .palette-hit {
-  color: var(--uwu-pink-ink);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.palette-nothing {
-  padding: 14px 12px;
-  text-align: center;
-  font-style: italic;
-  color: var(--uwu-muted);
-}
-
 .palette-footer {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 14px;
-  border-top: 1px solid var(--uwu-hairline);
-  background: var(--uwu-elevated);
-  font-size: 11.5px;
-  color: var(--uwu-muted);
-}
-
-.palette-hint {
   flex: 1;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.palette-count {
-  flex: none;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1962,23 +1816,78 @@ dialog.modal-wide {
   height: min(680px, calc(100svh - 48px));
 }
 
-/* Settings is the wide modal, and it is a single scrolling column of
-   sections. No section list beside it: there are six sections, and a
-   navigation rail for six things is furniture. */
+/*
+ * Settings, laid out the way the design package's components.md lays out
+ * every settings dialog: the wide Dialog, a 170 px section list on the left
+ * with the NavIndicator pill, the page on the right scrolling on its own. The
+ * rows are the package's SettingRow; the two font pickers and the update
+ * block are wider than a row and draw their own, in the same rhythm.
+ */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: var(--uwu-space-6);
+}
+
+/* The dialog body scrolls; the list stays put beside the page. */
+.settings-nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: start;
+}
+
+.settings-nav-item {
+  justify-content: flex-start;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: var(--uwu-radius-control);
+  background: transparent;
+  color: var(--uwu-muted);
+  text-align: left;
+  font-weight: 500;
+}
+
+.settings-nav-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--uwu-pink-tint) 45%, transparent);
+  color: var(--uwu-ink);
+}
+
+.settings-nav-item[aria-current='true'] {
+  background: var(--uwu-pink-tint);
+  color: var(--uwu-pink-ink);
+  font-weight: 600;
+}
+
 .settings {
   display: grid;
-  gap: 26px;
+  align-content: start;
+  gap: var(--uwu-space-8);
+  min-width: 0;
+}
+
+/* Narrow windows: the list goes, the page stays. */
+@media (max-width: 720px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-nav {
+    display: none;
+  }
 }
 
 .settings-section {
   display: grid;
-  gap: 10px;
+  scroll-margin-top: var(--uwu-space-2);
 }
 
 .settings-section-title {
-  padding-bottom: 6px;
+  padding-bottom: var(--uwu-space-2);
   border-bottom: 1px solid var(--uwu-hairline);
-  font-size: 11px;
+  font-size: var(--uwu-text-badge);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -1987,47 +1896,72 @@ dialog.modal-wide {
 
 .settings-section-body {
   display: grid;
-  gap: 14px;
 }
 
+/* Lists and notes inside a section that are not rows sit on the same grid. */
+.settings-section-body > :not(div, fieldset) {
+  margin-top: var(--uwu-space-3);
+}
+
+/* A select or slider on the right of a row: the width every row agrees on. */
+.settings-control {
+  width: 240px;
+  max-width: 100%;
+}
+
+.settings-theme {
+  display: grid;
+  gap: var(--uwu-space-2);
+}
+
+.settings-theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* The wide pickers, drawn in a SettingRow's rhythm. */
 .settings-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-  align-items: center;
-  gap: 4px 16px;
+  gap: 2px;
   margin: 0;
-  padding: 0;
+  padding: 14px 0;
   border: 0;
+  border-bottom: 1px solid var(--uwu-hairline);
   min-width: 0;
+}
+
+.settings-field:last-child {
+  border-bottom: 0;
+}
+
+/* A <legend> is lifted onto the fieldset's top edge by the browser; floated
+   full width it becomes an ordinary first line inside the padding. */
+.settings-field > legend {
+  float: left;
+  width: 100%;
+}
+
+.settings-field > legend + * {
+  clear: both;
 }
 
 .settings-label {
   min-width: 0;
   padding: 0;
-  font-weight: 500;
+  font-size: var(--uwu-text-body);
+  font-weight: 600;
 }
 
-/* The hint belongs under the label, not under the control, and it must not
-   push the control out of the row it is explaining. */
 .settings-hint {
-  grid-column: 1;
-  font-size: 11.5px;
+  font-size: calc(var(--uwu-text-caption) + 0.5px);
   line-height: 1.45;
   color: var(--uwu-muted);
 }
 
-.settings-select,
-.settings-text-input {
-  grid-column: 2;
-  grid-row: 1;
-  width: 100%;
-  min-width: 0;
-}
-
 .settings-number,
 .settings-range {
-  grid-column: 2;
-  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2035,11 +1969,11 @@ dialog.modal-wide {
 }
 
 .settings-number-input {
-  width: 74px;
+  width: 84px;
 }
 
 .settings-number-unit {
-  font-size: 11.5px;
+  font-size: var(--uwu-text-caption);
   color: var(--uwu-muted);
 }
 
@@ -2057,32 +1991,14 @@ dialog.modal-wide {
   flex: none;
   min-width: 5ch;
   text-align: right;
-  font-size: 11.5px;
+  font-size: var(--uwu-text-caption);
   color: var(--uwu-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/*
- * A short list of exclusive options: the suite's `Segmented`.
- *
- * These two live in <fieldset>s, and a <legend> is never an ordinary child:
- * the browser lifts it out of the box and draws it over the top border edge
- * whatever the box's `display` says, so it can neither be the first cell of a
- * grid row nor sit above a border without cutting a notch in it. Both
- * fieldsets therefore wear their label as a line of its own.
- */
-.settings-field-choice {
-  display: block;
-}
-
-.settings-field-choice > .settings-label,
 .encmenu-section-eol > .encmenu-title {
   display: block;
   margin-bottom: 7px;
-}
-
-.settings-field-choice > .settings-hint {
-  margin-top: 6px;
 }
 
 .encmenu-section-eol {
@@ -2090,47 +2006,9 @@ dialog.modal-wide {
   padding-top: 4px;
 }
 
-/* A switch (the suite's `Switch`), for the settings that are simply on or off. */
-.settings-field-switch {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.settings-field-switch .settings-switch {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-}
-
 .settings-empty {
   font-style: italic;
   color: var(--uwu-muted);
-}
-
-/*
- * The theme picker's three buttons go on the row under the select, ranged to
- * the same right edge: they act on whatever the select is showing, and a
- * button standing above the thing it acts on has to say so in its own label.
- * They take the whole width rather than the control column, because three
- * verbs in a language with long ones do not fit in 220 pixels. The row gap is
- * this field's alone — every other field's second row is a sentence, and this
- * one has controls in it.
- */
-.settings-field-theme {
-  row-gap: 8px;
-}
-
-.settings-theme-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.settings-theme-actions button {
-  padding: 4px 9px;
-  font-size: 12px;
-  font-weight: 500;
 }
 
 /*
@@ -2408,6 +2286,10 @@ dialog.modal-wide {
   color: var(--uwu-warning-ink);
 }
 
+.settings-update-progress {
+  width: min(100%, 320px);
+}
+
 .settings-update-bar {
   overflow: hidden;
   width: min(100%, 320px);
@@ -2420,10 +2302,6 @@ dialog.modal-wide {
   display: block;
   height: 100%;
   background: var(--uwu-pink-solid);
-  transition: width var(--uwu-duration-fast) var(--uwu-ease-out);
-}
-
-.settings-update-bar-fill[data-indeterminate] {
   width: 30%;
   animation: settings-update-slide 1.2s ease-in-out infinite alternate;
 }
@@ -2838,71 +2716,22 @@ and it exists for bug reports: quiet {
  * the window — so `left` and `top` arrive inline and the size is decided
  * here.
  */
-.contextmenu {
+.contextmenu-anchor {
+  /* The suite menu hangs off this point; the zero-size button inside is only
+     the trigger it insists on, never seen and never tabbed to. */
   position: fixed;
-  z-index: 40;
-  display: grid;
-  min-width: 212px;
-  max-width: 340px;
-  padding: 5px;
-  border: 1px solid var(--uwu-border);
-  border-radius: var(--uwu-radius-card);
-  background: var(--uwu-surface);
-  box-shadow: var(--uwu-shadow-float);
-  animation: uwu-pop var(--uwu-duration-base) var(--uwu-ease-pop) both;
+  z-index: 60;
+  width: 0;
+  height: 0;
 }
 
-/* The menu itself holds focus and moves a highlight with the arrow keys, so
-   an outline around the whole box would be a ring around nothing. */
-.contextmenu:focus-visible {
-  outline: none;
-}
-
-.contextmenu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--uwu-radius-small);
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.contextmenu-item[data-active='true'] {
-  background: var(--uwu-pink-tint);
-  color: var(--uwu-pink-ink);
-}
-
-.contextmenu-item[data-danger] {
-  color: var(--uwu-warning-ink);
-}
-
-.contextmenu-item[data-danger][data-active='true'] {
-  background: color-mix(in srgb, var(--uwu-warning-ink) 20%, transparent);
-  color: var(--uwu-warning-ink);
-}
-
-.contextmenu-item[aria-disabled='true'] {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* The gutter stays, ticked or not, so a menu that shows a current choice does
-   not shuffle its labels sideways when the choice moves. */
-.contextmenu-tick {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 14px;
-  height: 14px;
-}
-
-.contextmenu-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.contextmenu-trigger {
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ── Toasts ────────────────────────────────────────────── */

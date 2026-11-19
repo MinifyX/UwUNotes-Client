@@ -21,7 +21,7 @@ import { useWorkspace } from '../lib/workspace';
 import { pickGreeting } from './nyu/greetings';
 import { useNyuHat } from '../lib/nyu-progress';
 import { NyuScene } from './nyu/scenes';
-import { Icon, ICONS } from '@uwusuite/design';
+import { EmptyState, Icon, ICONS } from '@uwusuite/design';
 
 /** The handful worth listing here, in the order a first-time window needs them. */
 const SUGGESTED = ['file.new', 'file.open', 'file.openFolder', 'find.inFiles', 'app.palette'];
@@ -50,52 +50,62 @@ export function EmptyPane({ pane }: { pane: PaneId }) {
   }, [language]);
 
   return (
+    // The suite's EmptyState: Nyu, one line, what to do. The "what to do" is
+    // longer here than anywhere else in the suite, because an empty editor
+    // pane is where a new user starts — so it carries the actions and the
+    // recent files rather than a single button.
     <div className="emptypane uwu-page">
-      <NyuScene name="empty" className="emptypane-scene" hat={hat} />
-      {greeting ? <p className="emptypane-greeting">{greeting}</p> : null}
+      <EmptyState
+        compact
+        art={<NyuScene name="empty" hat={hat} />}
+        title={greeting || t('Keine Datei offen')}
+        action={
+          <div className="emptypane-body">
+            <ul className="emptypane-actions uwu-stagger">
+              {suggestions.map((suggestion) => (
+                <li key={suggestion.id}>
+                  <button
+                    type="button"
+                    className="emptypane-action"
+                    onClick={() => runCommand(suggestion.id)}
+                  >
+                    <span className="emptypane-action-label">{suggestion.title}</span>
+                    {suggestion.shortcut ? (
+                      <kbd className="emptypane-keys">{suggestion.shortcut}</kbd>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
 
-      <ul className="emptypane-actions uwu-stagger">
-        {suggestions.map((suggestion) => (
-          <li key={suggestion.id}>
-            <button
-              type="button"
-              className="emptypane-action"
-              onClick={() => runCommand(suggestion.id)}
-            >
-              <span className="emptypane-action-label">{suggestion.title}</span>
-              {suggestion.shortcut ? (
-                <kbd className="emptypane-keys">{suggestion.shortcut}</kbd>
-              ) : null}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {recentFiles.length > 0 ? (
-        <section className="emptypane-recent" aria-labelledby={`recent-${pane}`}>
-          <h2 id={`recent-${pane}`} className="emptypane-recent-title">
-            {t('Zuletzt geöffnet')}
-          </h2>
-          <ul className="emptypane-recent-list uwu-stagger">
-            {recentFiles.slice(0, 6).map((path) => (
-              <li key={path}>
-                <button
-                  type="button"
-                  className="emptypane-recent-item"
-                  // Into *this* pane rather than the active one: the user is
-                  // looking at this empty half and clicked inside it.
-                  onClick={() => void openPaths([path], pane)}
-                  title={path}
-                >
-                  <Icon icon={ICONS.file} size="xs" />
-                  <span className="emptypane-recent-name">{fileNameOf(path)}</span>
-                  <span className="emptypane-recent-path">{path}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+            {recentFiles.length > 0 ? (
+              <section className="emptypane-recent" aria-labelledby={`recent-${pane}`}>
+                <h2 id={`recent-${pane}`} className="emptypane-recent-title">
+                  {t('Zuletzt geöffnet')}
+                </h2>
+                <ul className="emptypane-recent-list uwu-stagger">
+                  {recentFiles.slice(0, 6).map((path) => (
+                    <li key={path}>
+                      <button
+                        type="button"
+                        className="emptypane-recent-item"
+                        // Into *this* pane rather than the active one: the user is
+                        // looking at this empty half and clicked inside it.
+                        onClick={() => void openPaths([path], pane)}
+                        title={path}
+                      >
+                        <Icon icon={ICONS.file} size="xs" />
+                        <span className="emptypane-recent-name">{fileNameOf(path)}</span>
+                        <span className="emptypane-recent-path">{path}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        }
+      />
     </div>
   );
 }
